@@ -8,6 +8,8 @@ Ease is a game engine: a set of libraries, an editor built on them, and games th
 - `overview/principles.md`: the rules the whole design follows.
 - `overview/dependency-rules.md`: module dependency direction and its build check.
 - `overview/open-questions.md`: unresolved design questions.
+- `overview/targets.md`: the floor machine and the frame, memory and load budgets.
+- `overview/versioning.md`: releases, version pins, format versions and migrations.
 - `overview/decisions.md`: decisions and the reasons for them.
 
 ## engine/
@@ -68,6 +70,7 @@ Ease is a game engine: a set of libraries, an editor built on them, and games th
 - `code-quality/code-shape.md`: line, file and class shape, registration, dependency injection.
 - `code-quality/testing.md`: public-behavior tests, no waits, no goldens, tiers.
 - `code-quality/performance.md`: allocation budgets, benchmarks, profiling.
+- `code-quality/dependencies.md`: the permissive-license rule, its check and the shipped dependencies.
 - `code-quality/ci.md`: pipelines on free GitHub runners.
 - `code-quality/comments-and-docs.md`: comments, Markdown rules, remove-never-deprecate.
 - `code-quality/carried-from-squash.md`: Squash rules that apply unchanged.

@@ -5,6 +5,7 @@ import dev.chieppa.ease.build.catalogVersion
 import dev.chieppa.ease.build.sources.CheckSources
 
 plugins {
+  id("ease.licenses")
   base
   id("com.diffplug.spotless")
 }

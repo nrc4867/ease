@@ -1,0 +1,7 @@
+# Licenses set by hand for shipped modules whose POM, and every parent POM, names no license or
+# names one checkLicenses does not recognize. One per line:
+#
+#   group:name | license | reason
+#
+# The license is an SPDX identifier, or identifiers joined by OR and AND. An override for a module
+# that does not ship fails checkLicenses.
