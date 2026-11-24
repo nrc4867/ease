@@ -6,11 +6,11 @@ A game engine and its editor: Kotlin by default, Java for the hot core (`ease-ma
 
 | What | Where |
 | --- | --- |
-| The design, one small file per topic | `docs/hld/` (index in `docs/hld/README.md`) |
-| The code rules and how each is enforced | `docs/hld/code-quality/` |
-| The plan: phases and their gates | [Engine Architecture, Plan tab](https://claude.ai/artifact/SYVVq4ZBz5Khy5XfYTwNpk) |
+| The design and the plan (source of truth) | Ease: Engine Architecture: https://claude.ai/artifact/SYVVq4ZBz5Khy5XfYTwNpk (read the step's row, then every tab on its phase's Design line) |
+| An offline mirror of the design, regenerated from the doc; may lag, never edit by hand | `docs/hld/` |
+| The code rules and how each is enforced | Code quality tab (mirrored in `docs/hld/code-quality/`) |
 
-Before starting engine work, name the plan phase and the game need it serves.
+Before starting engine work, name the plan phase and the game need it serves. When the doc and `docs/hld/` differ, the doc wins. If building shows the design is wrong or missing something, change the doc's tab first (or comment on it when the change needs a decision), then the code. After a step, record what was decided in the phase's Decisions or Result notes and set the step's Status.
 
 ## Build and test
 

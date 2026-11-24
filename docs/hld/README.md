@@ -2,6 +2,8 @@
 
 Ease is a game engine: a set of libraries, an editor built on them, and games that are separate projects. Each file below covers one topic.
 
+These files are an offline mirror of the design doc, [Ease: Engine Architecture](https://claude.ai/artifact/SYVVq4ZBz5Khy5XfYTwNpk), which is the source of truth for the design and the plan. The mirror is regenerated from the doc, may lag behind it, and is never edited by hand; when the two differ, the doc wins. Before a step, read its row in the Plan tab, then every tab on its phase's Design line.
+
 ## overview/
 - `overview/intro.md`: what Ease is, the engine and game repos, how priorities flow.
 - `overview/squash-consumer.md`: Squash as a third consumer of the engine.
