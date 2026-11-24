@@ -56,6 +56,8 @@ include(":ease-runtime")
 
 include(":ease-player")
 
+include(":ease-agent")
+
 include(":sample")
 
 include(":viewport-spike")

@@ -11,7 +11,11 @@ plugins {
 dependencies {
   implementation(project(":ease-runtime"))
   runtimeOnly(project(":ease-player"))
+  runtimeOnly(project(":ease-agent"))
   testImplementation(project(":ease-testing"))
+  testImplementation(project(":ease-agent"))
+  testImplementation(testFixtures(project(":ease-agent")))
+  testImplementation(libs.kotlinx.coroutines.core)
 }
 
 val main by sourceSets.getting
@@ -31,4 +35,13 @@ tasks.register<JavaExec>("sampleSmoke") {
   mainClass = "dev.chieppa.ease.player.PlayerKt"
   args("--frames", "120")
   desktopApp(this)
+}
+
+tasks.register<JavaExec>("runAgentHost") {
+  group = "application"
+  description =
+    "Serves the sample world to agents over MCP on 127.0.0.1 until stopped; --args='--port <n>'."
+  classpath = main.runtimeClasspath
+  mainClass = "dev.chieppa.ease.agent.AgentMainKt"
+  jvmArgs("--enable-native-access=ALL-UNNAMED")
 }

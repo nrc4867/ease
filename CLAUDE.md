@@ -31,7 +31,7 @@ While working, run only the tests for what changed (`./gradlew :<module>:test --
 
 Native libraries (wgpu-native from webgpu-native-ffm, SDL3 from LWJGL) resolve only this machine's natives jar. `-Pnatives=<platform>` (`windows-x64`, `linux-x64`, `linux-arm64`, `macos-x64`, `macos-arm64`) picks another, for packaging. A library module takes the bindings with `implementation` and the natives only for its tests or smoke apps; hosts such as `ease-player` take the natives with `runtimeOnly` (see `NativePlatform`, `WebgpuNatives` and `LwjglNatives` in `build-logic`).
 
-Programs that open real windows are smoke apps, never tests: `./gradlew :ease-platform:windowSmoke` opens, resizes and closes a window; `:sample:sampleSmoke` runs the sample game in the player for 120 frames and resizes halfway. `:sample:runSample` runs it until its window is closed. CI runs the smoke apps; run one locally only when changing what it covers. The player runs whichever one `GameModule` is on its classpath, so a game, not the player, owns the run tasks: it takes `ease-player` with `runtimeOnly`.
+Programs that open real windows are smoke apps, never tests: `./gradlew :ease-platform:windowSmoke` opens, resizes and closes a window; `:sample:sampleSmoke` runs the sample game in the player for 120 frames and resizes halfway. `:sample:runSample` runs it until its window is closed. `:sample:runAgentHost` serves the sample world to agents over MCP until stopped and prints the `claude mcp add` line (see `docs/hld/editor/agent-access.md`); it is not part of `check`. CI runs the smoke apps; run one locally only when changing what it covers. The player runs whichever one `GameModule` is on its classpath, so a game, not the player, owns the run tasks: it takes `ease-player` with `runtimeOnly`.
 
 ## Modules
 
@@ -41,6 +41,7 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | --- | --- | --- |
 | Game | `sample` | The sample game that keeps the engine free of any one game |
 | Host | `ease-player` | The generic launcher every game runs in; finds the game's `GameModule` on the classpath |
+| Host | `ease-agent` | The headless agent host: a game's world served to agents over MCP on 127.0.0.1 (`describe`, `query`, `capture`, `logs`, `test`) |
 | Host | `viewport-spike` | The Phase 1 editor viewport check (engine on Stretch's device); never ships |
 | Runtime | `ease-runtime` | Hosted worlds, ticking, game modules |
 | Render | `ease-render` | The extract snapshot, 2D cameras and the quad renderer |

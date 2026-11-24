@@ -3,6 +3,7 @@ package dev.chieppa.ease.commands
 import com.github.quillraven.fleks.Component
 import kotlin.reflect.KClass
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.modules.PolymorphicModuleBuilder
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
@@ -23,6 +24,14 @@ public class CommandRegistry internal constructor() {
   /** Registers a component type with its generated serializer. */
   public fun <T : Component<*>> component(type: KClass<T>, serializer: KSerializer<T>) {
     components += Registration(type, serializer)
+  }
+
+  internal fun commandDescriptors(): List<SerialDescriptor> = commands.map {
+    it.serializer.descriptor
+  }
+
+  internal fun componentDescriptors(): List<SerialDescriptor> = components.map {
+    it.serializer.descriptor
   }
 
   internal fun module(): SerializersModule = SerializersModule {
