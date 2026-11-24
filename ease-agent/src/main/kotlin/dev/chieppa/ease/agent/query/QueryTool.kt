@@ -7,6 +7,7 @@ import dev.chieppa.ease.agent.tools.ToolArgs
 import dev.chieppa.ease.agent.tools.ToolInput
 import dev.chieppa.ease.agent.tools.ToolNames
 import dev.chieppa.ease.commands.EntityFilter
+import dev.chieppa.ease.ecs.replication.NetworkId
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -16,18 +17,19 @@ import kotlinx.serialization.json.put
 public class QueryTool(private val world: AgentWorld) : AgentTool {
   override val name: String = ToolNames.QUERY
   override val description: String =
-    "Reads the live world: its current tick, and its entities in id order, each with every " +
-      "component it carries as JSON (component types under the \"type\" key, as describe " +
-      "names them). Narrow it with entity ids, or with a component type an entity must carry."
+    "Reads the live world: its current tick, and its entities in network id order, each under " +
+      "its network id (the id commands name it by) with every component it carries as JSON " +
+      "(component types under the \"type\" key, as describe names them). Narrow it with " +
+      "network ids, or with a component type an entity must carry."
   override val input: ToolInput = ToolInput.of {
-    integers(ENTITIES, "Only these entity ids; every entity when absent.")
+    integers(ENTITIES, "Only these network ids; every entity when absent.")
     string(COMPONENT, "Only entities carrying this component type, such as ease.Quad.")
   }
   override val readOnly: Boolean = true
 
   override suspend fun call(args: JsonObject): ToolAnswer {
-    val filter =
-      EntityFilter(ToolArgs.ints(args, ENTITIES)?.toSet(), ToolArgs.string(args, COMPONENT))
+    val ids = ToolArgs.ints(args, ENTITIES)?.map { NetworkId(it.toLong()) }?.toSet()
+    val filter = EntityFilter(ids, ToolArgs.string(args, COMPONENT))
     val answer = world.access { hosted ->
       buildJsonObject {
         put(TICK, hosted.tick)

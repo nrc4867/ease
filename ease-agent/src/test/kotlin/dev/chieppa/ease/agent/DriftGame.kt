@@ -9,6 +9,7 @@ import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.PhasedSystems
+import dev.chieppa.ease.ecs.replication.replication
 import dev.chieppa.ease.render.Camera2D
 import dev.chieppa.ease.render.Quad
 import dev.chieppa.ease.runtime.GameModule
@@ -41,8 +42,10 @@ internal class DriftGame : GameModule {
     )
 
   private class DriftSystem : IteratingSystem(family { all(LocalTransform, Glow) }) {
+    private val replication = world.replication
+
     override fun onTickEntity(entity: Entity) {
-      entity[LocalTransform].x += STEP
+      replication.write(entity, LocalTransform) { x += STEP }
     }
   }
 

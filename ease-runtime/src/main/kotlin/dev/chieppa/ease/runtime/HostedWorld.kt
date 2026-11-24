@@ -9,8 +9,10 @@ import dev.chieppa.ease.commands.worldCodec
 import dev.chieppa.ease.ecs.DEFAULT_ENTITY_CAPACITY
 import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.phasedWorld
+import dev.chieppa.ease.ecs.replication.ReplicationSettings
 import dev.chieppa.ease.render.ExtractSystem
 import dev.chieppa.ease.render.Quad
+import dev.chieppa.ease.render.QuadReplicated
 import dev.chieppa.ease.render.RenderSnapshot
 import dev.chieppa.ease.runtime.loop.FixedStep
 
@@ -34,12 +36,16 @@ public class HostedWorld(
   /** Reads and writes this world's commands and state, the module's types included. */
   public val codec: WorldCodec = worldCodec {
     component(Quad::class, Quad.serializer())
+    replicated(QuadReplicated)
     module.registerTypes(this)
   }
 
-  /** The entities, components and systems. Change it from outside only through [execute]. */
+  /**
+   * The entities, components and systems, the codec's replicated types replicating. Change it from
+   * outside only through [execute].
+   */
   public val world: World =
-    phasedWorld(entityCapacity) {
+    phasedWorld(entityCapacity, ReplicationSettings(serializers = codec.replicated)) {
       module.systems(this)
       add(Phase.EXTRACT, ExtractSystem(snapshot))
     }

@@ -10,6 +10,7 @@ dependencies {
   api(libs.fleks)
   api(libs.kotlinx.serialization.core)
   testImplementation(project(":ease-testing"))
+  ksp(project(":ease-codegen"))
   kspTest(project(":ease-codegen"))
 }
 

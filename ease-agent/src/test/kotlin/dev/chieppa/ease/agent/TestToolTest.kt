@@ -4,6 +4,7 @@ import dev.chieppa.ease.agent.tools.ToolNames
 import dev.chieppa.ease.commands.CommandOrigin
 import dev.chieppa.ease.commands.builtin.SetTransform
 import dev.chieppa.ease.ecs.LocalTransform
+import dev.chieppa.ease.ecs.replication.networkIdOf
 import dev.chieppa.ease.math.Quat
 import dev.chieppa.ease.math.Transform
 import dev.chieppa.ease.math.Vec3
@@ -27,7 +28,7 @@ class TestToolTest {
     bench.world.access { hosted ->
       val still = with(hosted.world) { asEntityBag().first { !it.has(Glow) } }
       val moved = Transform(Vec3(0f, 1f, 0f), Quat.IDENTITY, Vec3(1f, 1f, 1f))
-      hosted.execute(SetTransform(still, moved), CommandOrigin.AGENT)
+      hosted.execute(SetTransform(hosted.world.networkIdOf(still), moved), CommandOrigin.AGENT)
     }
     bench.stepLive(TICKS_AFTER)
   }

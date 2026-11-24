@@ -9,7 +9,6 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
@@ -55,8 +54,9 @@ class ReadToolsTest {
     val entities = queried.getValue("entities").jsonArray
     assertEquals(2, entities.size)
     val types = entities.map { componentTypes(it) }
-    assertEquals(setOf("ease.LocalTransform", "ease.Quad", "test.Glow"), types[0])
-    assertEquals(setOf("ease.LocalTransform", "ease.Quad"), types[1])
+    val drawn = setOf("ease.LocalTransform", "ease.Quad", "ease.Authority")
+    assertEquals(drawn + "test.Glow", types[0])
+    assertEquals(drawn, types[1])
   }
 
   @Test
@@ -65,7 +65,8 @@ class ReadToolsTest {
 
     val glowing = bench.call(ToolNames.QUERY, buildJsonObject { put("component", "test.Glow") })
     val first = bench.json(bench.call(ToolNames.QUERY)).list("entities")[0]
-    val firstId = buildJsonObject { putJsonArray("entities") { add(JsonPrimitive(0)) } }
+    val firstNetworkId = first.field("entity")
+    val firstId = buildJsonObject { putJsonArray("entities") { add(firstNetworkId) } }
     val byId = bench.call(ToolNames.QUERY, firstId)
 
     assertEquals(1, entitiesOf(bench, glowing).size)

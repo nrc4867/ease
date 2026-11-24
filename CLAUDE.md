@@ -48,9 +48,10 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | GPU | `ease-gpu` | wgpu device, surfaces, pipelines |
 | Platform | `ease-platform` | Windows, input, audio output, files, clocks |
 | World | `ease-commands` | Commands, undo and redo, the command log, their JSON and binary formats |
-| Core | `ease-ecs` | Entities, components, systems, phases |
+| Core | `ease-ecs` | Entities, components, systems, phases; network ids, authority, `@Replicated`, the bit codec, replicated serializers and state packets |
 | Foundation | `ease-math` | Vectors, quaternions, matrices, bounds, transforms (Java) |
 | Test support | `ease-testing` | The allocation harness (`AllocationBudget`); test configurations only (Java) |
+| Build tool | `ease-codegen` | The KSP processor that writes `@Replicated` components' serializers; `ksp` configurations only, never shipped |
 
 `build-logic` holds the convention plugins (`ease.kotlin-module`, `ease.java-module`, `ease.root`, `ease.licenses`), `checkSources` and its rules, and the license check, each with a test.
 
