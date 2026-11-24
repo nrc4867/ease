@@ -1,0 +1,46 @@
+name: Bench
+
+# JMH benchmarks, recorded as artifacts. Shared runners are too noisy to gate anything on time, so
+# no other check depends on this one. Stretch is checked out beside Ease, where the composite build
+# finds it.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * *"
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  STRETCH_REF: main
+  ORG_GRADLE_PROJECT_GitHubPackagesUsername: ${{ github.actor }}
+  ORG_GRADLE_PROJECT_GitHubPackagesPassword: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  jmh:
+    name: JMH
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: ease
+      - uses: actions/checkout@v7
+        with:
+          repository: nrc4867/stretch
+          ref: ${{ env.STRETCH_REF }}
+          path: stretch
+      - uses: actions/setup-java@v6
+        with:
+          distribution: corretto
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v5
+      - run: ./gradlew :ease-ecs:jmh
+        working-directory: ease
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: jmh-results
+          path: ease/**/build/results/jmh/*.json

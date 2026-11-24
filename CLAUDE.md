@@ -21,6 +21,7 @@ Gradle needs JDK 25 as `JAVA_HOME`. Stretch is found as `../stretch` or through 
 ./gradlew spotlessApply          # format Kotlin (ktfmt, Google style) and Java (google-java-format)
 ./gradlew checkSources           # the rules no linter covers
 ./gradlew :ease-ecs:test         # one module's tests
+./gradlew :ease-ecs:jmh          # JMH benchmarks (JSON under build/results/jmh); never part of check
 ./gradlew gpuTest                # the *GpuTest tests; need a WebGPU adapter
 ./gradlew generateNotice         # rewrite NOTICE after a dependency change; check fails while it is stale
 ./gradlew installGitHook         # the pre-commit hook; any compile installs it too
