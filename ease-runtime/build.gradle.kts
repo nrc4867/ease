@@ -1,3 +1,6 @@
 plugins { id("ease.kotlin-module") }
 
-dependencies { api(project(":ease-render")) }
+dependencies {
+  api(project(":ease-render"))
+  testImplementation(project(":ease-testing"))
+}
