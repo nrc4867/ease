@@ -17,8 +17,10 @@ internal class Crate(
   val weights: Map<String, Int>,
   val mood: Mood,
   val weather: Weather,
-  @SerialName("lid") val hasLid: Boolean = true,
-  @Doc("How tall it is.") @Range(0.0, 9.5) val height: Double? = null,
 ) {
+  @SerialName("lid") var hasLid: Boolean = true
+
+  @Doc("How tall it is.") @Range(0.0, 9.5) var height: Double? = null
+
   @Transient val scratch: Int = 0
 }

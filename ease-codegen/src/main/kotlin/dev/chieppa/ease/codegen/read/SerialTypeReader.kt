@@ -87,7 +87,8 @@ internal class SerialTypeReader {
     )
 
   private fun fieldsOf(declaration: KSClassDeclaration): List<SerialField> {
-    val parameters = declaration.primaryConstructor?.parameters.orEmpty().associateBy { it.name }
+    val constructorParameters = declaration.primaryConstructor?.parameters.orEmpty()
+    val parameters = constructorParameters.associateBy { it.name }
     return declaration
       .getDeclaredProperties()
       .filter { isSerialized(it) }

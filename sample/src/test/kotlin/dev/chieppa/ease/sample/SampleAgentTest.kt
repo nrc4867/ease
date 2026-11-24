@@ -20,8 +20,8 @@ class SampleAgentTest {
   }
 
   private fun fieldNames(types: JsonElement, name: String): Set<String> {
-    val type = types.jsonArray.single { it.text("title") == name }
-    return type.jsonObject.getValue("properties").jsonObject.keys - "type"
+    val type = types.jsonArray.single { it.text("title") == name }.jsonObject
+    return type.getValue("properties").jsonObject.keys - "type"
   }
 
   @Test

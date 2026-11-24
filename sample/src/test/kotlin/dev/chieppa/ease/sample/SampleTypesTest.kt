@@ -7,6 +7,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 
 /**
@@ -35,6 +36,11 @@ class SampleTypesTest {
       .list(group)
       .single { it.text("title") == serialName }
       .jsonObject
+
+  private fun property(schema: JsonObject, name: String): JsonObject {
+    val properties = schema.getValue("properties").jsonObject
+    return properties.getValue(name).jsonObject
+  }
 
   @Test
   fun `a doc and a range of a sample component reach ease dot d dot ts`() {
@@ -66,7 +72,7 @@ class SampleTypesTest {
   fun `a doc and a range of a sample component reach its JSON Schema`() {
     val velocity = schema("components", "sample.Velocity")
 
-    val x = velocity.getValue("properties").jsonObject.getValue("x").jsonObject
+    val x = property(velocity, "x")
     assertEquals(
       "How fast an entity moves, in world units a second along x and y.",
       velocity.text("description"),
@@ -80,7 +86,7 @@ class SampleTypesTest {
   fun `a doc and a range of a sample command reach its JSON Schema`() {
     val steer = schema("commands", "sample.Steer")
 
-    val y = steer.getValue("properties").jsonObject.getValue("y").jsonObject
+    val y = property(steer, "y")
     assertEquals("Speed along y, in world units a second.", y.text("description"))
     assertEquals(-maxSpeed, y.text("minimum").toInt())
     assertEquals(maxSpeed, y.text("maximum").toInt())

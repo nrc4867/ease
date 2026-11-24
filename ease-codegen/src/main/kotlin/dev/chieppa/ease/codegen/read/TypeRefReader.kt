@@ -44,8 +44,10 @@ internal class TypeRefReader(private val discovered: MutableMap<String, KSClassD
     }
   }
 
-  private fun argument(type: KSType, index: Int): TypeRef =
-    type.arguments.getOrNull(index)?.type?.resolve()?.let { read(it) } ?: TypeRef.Unknown
+  private fun argument(type: KSType, index: Int): TypeRef {
+    val argument = type.arguments.getOrNull(index)?.type ?: return TypeRef.Unknown
+    return read(argument.resolve())
+  }
 
   private fun named(declaration: KSClassDeclaration): TypeRef {
     val serialName = declaration.serialName()
