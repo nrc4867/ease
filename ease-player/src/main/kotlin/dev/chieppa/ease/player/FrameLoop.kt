@@ -2,27 +2,29 @@ package dev.chieppa.ease.player
 
 import dev.chieppa.ease.gpu.CommandEncoder
 import dev.chieppa.ease.gpu.GpuContext
-import dev.chieppa.ease.gpu.TrianglePass
 import dev.chieppa.ease.platform.Window
 import dev.chieppa.ease.platform.WindowEvent
 import dev.chieppa.ease.platform.Windowing
-
-/** How far the triangle turns each frame, in radians. */
-private const val TURN_PER_FRAME = 0.02f
+import dev.chieppa.ease.render.Camera2D
+import dev.chieppa.ease.render.WorldRenderer
+import dev.chieppa.ease.runtime.WorldRunner
 
 /** The window size a counted run asks for halfway, in screen units. */
 private const val RESIZED_WIDTH = 1440
 private const val RESIZED_HEIGHT = 810
 
 /**
- * Draws [window]'s frames with [gpu]: the triangle, turning a step each frame. Presenting waits for
- * the display, and while the window is minimized it waits for window events, so it never spins.
+ * Runs [runner]'s world and draws [window]'s frames with [gpu]: each frame runs the ticks due, then
+ * draws the world's snapshot through [camera], blended between the last two ticks. Presenting waits
+ * for the display, and while the window is minimized it waits for window events, so it never spins.
  */
 internal class FrameLoop(
   private val windowing: Windowing,
   private val window: Window,
   private val gpu: GpuContext,
-  private val triangle: TrianglePass,
+  private val runner: WorldRunner,
+  private val renderer: WorldRenderer,
+  private val camera: Camera2D,
 ) {
   private val surface = checkNotNull(gpu.surface) { "The GPU context has no window surface" }
 
@@ -36,7 +38,8 @@ internal class FrameLoop(
     while (frames == null || frame < frames) {
       if (!handleEvents()) break
       if (frames != null && frame == frames / 2) window.requestSize(RESIZED_WIDTH, RESIZED_HEIGHT)
-      if (draw(frame)) frame++
+      runner.frame()
+      if (draw()) frame++
     }
     return frame
   }
@@ -52,8 +55,8 @@ internal class FrameLoop(
     return true
   }
 
-  /** Draws and presents frame [frame]; false when there was no frame to draw into. */
-  private fun draw(frame: Int): Boolean {
+  /** Draws and presents one frame; false when there was no frame to draw into. */
+  private fun draw(): Boolean {
     val target = surface.acquire()
     if (target == null) {
       // Minimized, or out of date: wait for the window to change, or match its size.
@@ -61,7 +64,7 @@ internal class FrameLoop(
       return false
     }
     val encoder = CommandEncoder.on(gpu)
-    triangle.record(encoder, target, frame * TURN_PER_FRAME)
+    renderer.render(runner.world.snapshot, runner.alpha, camera, target, encoder)
     encoder.submit()
     surface.present()
     gpu.checkErrors()

@@ -1,7 +1,8 @@
 import dev.chieppa.ease.build.LwjglNatives
 import dev.chieppa.ease.build.WebgpuNatives
-import dev.chieppa.ease.build.desktopApp
 
+// The player runs whichever game is on its classpath, so it has no run task of its own: a game
+// takes it with runtimeOnly and runs dev.chieppa.ease.player.PlayerKt (see :sample:runSample).
 plugins { id("ease.kotlin-module") }
 
 dependencies {
@@ -17,23 +18,4 @@ dependencies {
       project.dependencies.variantOf(library) { classifier(LwjglNatives.classifier(providers)) }
     )
   }
-}
-
-val main by sourceSets.getting
-
-tasks.register<JavaExec>("runPlayer") {
-  group = "application"
-  description = "Runs the player until its window is closed."
-  classpath = main.runtimeClasspath
-  mainClass = "dev.chieppa.ease.player.PlayerKt"
-  desktopApp(this)
-}
-
-tasks.register<JavaExec>("playerSmoke") {
-  group = "verification"
-  description = "Draws 120 frames in the player's window, resizing it halfway, and exits."
-  classpath = main.runtimeClasspath
-  mainClass = "dev.chieppa.ease.player.PlayerKt"
-  args("--frames", "120")
-  desktopApp(this)
 }

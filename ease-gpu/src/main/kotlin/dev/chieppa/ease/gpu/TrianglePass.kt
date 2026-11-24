@@ -1,12 +1,12 @@
 package dev.chieppa.ease.gpu
 
+import dev.chieppa.ease.gpu.ffi.BufferBinding
 import dev.chieppa.ease.gpu.ffi.Flags
 import dev.chieppa.ease.gpu.ffi.beginColorPass
+import dev.chieppa.ease.gpu.ffi.createBuffer
+import dev.chieppa.ease.gpu.ffi.createBufferBindGroup
 import dev.chieppa.ease.gpu.ffi.createColorPipeline
 import dev.chieppa.ease.gpu.ffi.createShaderModule
-import dev.chieppa.webgpu.ffi.WGPUBindGroupDescriptor
-import dev.chieppa.webgpu.ffi.WGPUBindGroupEntry
-import dev.chieppa.webgpu.ffi.WGPUBufferDescriptor
 import dev.chieppa.webgpu.ffi.wgpu_h
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
@@ -29,15 +29,7 @@ public class TrianglePass(private val context: GpuContext, public val clear: Col
   private val shader =
     createShaderModule(context.device, loadShader(), "triangle").also { context.checkErrors() }
   private val params =
-    Arena.ofConfined().use { arena ->
-      val descriptor = arena.allocate(WGPUBufferDescriptor.layout())
-      WGPUBufferDescriptor.size(descriptor, PARAMS_BYTES)
-      WGPUBufferDescriptor.usage(
-        descriptor,
-        Flags.BUFFER_UNIFORM or Flags.BUFFER_COPY_DST,
-      )
-      wgpu_h.wgpuDeviceCreateBuffer(context.device, descriptor)
-    }
+    createBuffer(context.device, PARAMS_BYTES, Flags.BUFFER_UNIFORM or Flags.BUFFER_COPY_DST)
   private val pipelines = mutableMapOf<TextureFormat, Pair<MemorySegment, MemorySegment>>()
   private val staging = Arena.ofConfined().let { it to it.allocate(PARAMS_BYTES) }
 
@@ -75,20 +67,8 @@ public class TrianglePass(private val context: GpuContext, public val clear: Col
 
   private fun pipelineFor(format: TextureFormat): Pair<MemorySegment, MemorySegment> {
     val pipeline = createColorPipeline(context.device, shader, format.native, "triangle")
-    val layout = wgpu_h.wgpuRenderPipelineGetBindGroupLayout(pipeline, 0)
     val bindGroup =
-      Arena.ofConfined().use { arena ->
-        val entry = arena.allocate(WGPUBindGroupEntry.layout())
-        WGPUBindGroupEntry.binding(entry, 0)
-        WGPUBindGroupEntry.buffer(entry, params)
-        WGPUBindGroupEntry.size(entry, PARAMS_BYTES)
-        val descriptor = arena.allocate(WGPUBindGroupDescriptor.layout())
-        WGPUBindGroupDescriptor.layout(descriptor, layout)
-        WGPUBindGroupDescriptor.entryCount(descriptor, 1)
-        WGPUBindGroupDescriptor.entries(descriptor, entry)
-        wgpu_h.wgpuDeviceCreateBindGroup(context.device, descriptor)
-      }
-    wgpu_h.wgpuBindGroupLayoutRelease(layout)
+      createBufferBindGroup(context.device, pipeline, listOf(BufferBinding(params, PARAMS_BYTES)))
     context.checkErrors()
     return pipeline to bindGroup
   }

@@ -12,17 +12,14 @@ import java.lang.foreign.MemorySegment
 private const val DEPTH_SLICE_UNDEFINED = -1
 
 /**
- * Begins a render pass on [encoder] that clears [view] to opaque [clear] and stores what it draws.
+ * The descriptor of a render pass that clears one color view to opaque [clear] and stores what it
+ * draws, held in [arena] so a pass recorded every frame reuses it instead of allocating.
  */
-internal fun beginColorPass(
-  encoder: MemorySegment,
-  view: MemorySegment,
-  clear: Color,
-  label: String,
-): MemorySegment =
-  Arena.ofConfined().use { arena ->
-    val attachment = arena.struct(WGPURenderPassColorAttachment.layout())
-    WGPURenderPassColorAttachment.view(attachment, view)
+internal class ColorPassDescriptor(arena: Arena, clear: Color, label: String) {
+  private val attachment = arena.struct(WGPURenderPassColorAttachment.layout())
+  private val descriptor = arena.struct(WGPURenderPassDescriptor.layout())
+
+  init {
     WGPURenderPassColorAttachment.depthSlice(attachment, DEPTH_SLICE_UNDEFINED)
     WGPURenderPassColorAttachment.loadOp(attachment, wgpu_h.WGPULoadOp_Clear())
     WGPURenderPassColorAttachment.storeOp(attachment, wgpu_h.WGPUStoreOp_Store())
@@ -31,9 +28,25 @@ internal fun beginColorPass(
     WGPUColor.g(color, clear.green.toDouble())
     WGPUColor.b(color, clear.blue.toDouble())
     WGPUColor.a(color, 1.0)
-    val pass = arena.struct(WGPURenderPassDescriptor.layout())
-    arena.setString(WGPURenderPassDescriptor.label(pass), label)
-    WGPURenderPassDescriptor.colorAttachmentCount(pass, 1)
-    WGPURenderPassDescriptor.colorAttachments(pass, attachment)
-    wgpu_h.wgpuCommandEncoderBeginRenderPass(encoder, pass)
+    arena.setString(WGPURenderPassDescriptor.label(descriptor), label)
+    WGPURenderPassDescriptor.colorAttachmentCount(descriptor, 1)
+    WGPURenderPassDescriptor.colorAttachments(descriptor, attachment)
   }
+
+  /** Begins the pass on [encoder], drawing into [view]. */
+  fun begin(encoder: MemorySegment, view: MemorySegment): MemorySegment {
+    WGPURenderPassColorAttachment.view(attachment, view)
+    return wgpu_h.wgpuCommandEncoderBeginRenderPass(encoder, descriptor)
+  }
+}
+
+/**
+ * Begins a render pass on [encoder] that clears [view] to opaque [clear] and stores what it draws.
+ */
+internal fun beginColorPass(
+  encoder: MemorySegment,
+  view: MemorySegment,
+  clear: Color,
+  label: String,
+): MemorySegment =
+  Arena.ofConfined().use { arena -> ColorPassDescriptor(arena, clear, label).begin(encoder, view) }
