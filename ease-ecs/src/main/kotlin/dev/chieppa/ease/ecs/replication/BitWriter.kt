@@ -50,6 +50,12 @@ public class BitWriter(capacityBytes: Int) {
     bitPosition = end
   }
 
+  /** Moves back to [position], already written, so the bits after it are written again. */
+  public fun rewind(position: Int) {
+    require(position in 0..bitPosition) { "Bit $position has not been written yet" }
+    bitPosition = position
+  }
+
   /** Writes [value] as one bit. */
   public fun writeBoolean(value: Boolean) {
     writeBits(if (value) 1 else 0, 1)

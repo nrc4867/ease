@@ -4,19 +4,23 @@ import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.Snapshot
 import com.github.quillraven.fleks.World
 import dev.chieppa.ease.commands.builtin.registerBuiltins
+import dev.chieppa.ease.commands.wire.WireDecoder
+import dev.chieppa.ease.commands.wire.WireEncoder
+import dev.chieppa.ease.commands.wire.WireTable
+import dev.chieppa.ease.ecs.replication.BitWriter
 import dev.chieppa.ease.ecs.replication.ReplicatedSerializer
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.PolymorphicSerializer
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.cbor.Cbor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.json.Json
 
 /**
  * Reads and writes commands and world state: JSON for agents, scripts and plugins, a compact binary
  * form for the command log and the network. Both come from the same `@Serializable` declarations.
+ * The binary form names no fields and numbers each registered command and component type by its
+ * serial name's place in sorted order, so peers that register the same types read each other.
  */
-@OptIn(ExperimentalSerializationApi::class)
 public class WorldCodec internal constructor(registry: CommandRegistry) {
   private val module = registry.module()
   private val json = Json {
@@ -25,7 +29,9 @@ public class WorldCodec internal constructor(registry: CommandRegistry) {
     // Every field is written, defaults included, so a reader never has to know a type's defaults.
     encodeDefaults = true
   }
-  private val binary = Cbor { serializersModule = module }
+  private val commandTable = WireTable(Command::class.java, registry.commandTypes())
+  private val tables =
+    listOf(commandTable, WireTable(Component::class.java, registry.componentTypes()))
   private val commandSerializer = PolymorphicSerializer(Command::class)
   private val worldSerializer = ListSerializer(EntityState.serializer())
 
@@ -48,31 +54,53 @@ public class WorldCodec internal constructor(registry: CommandRegistry) {
   /** The command [text] holds. */
   public fun commandFromJson(text: String): Command = json.decodeFromString(commandSerializer, text)
 
-  /** [command] in the binary form. */
-  public fun commandToBinary(command: Command): ByteArray =
-    binary.encodeToByteArray(commandSerializer, command)
+  /** How many command types are registered; [commandTypeId] runs from 0 to this, exclusive. */
+  public val commandTypeCount: Int
+    get() = commandTable.size
 
-  /** The command [bytes] hold. */
-  public fun commandFromBinary(bytes: ByteArray): Command =
-    binary.decodeFromByteArray(commandSerializer, bytes)
+  /** A writer of commands in the binary form into reused buffers, for one sender. */
+  public fun commandWriter(): CommandWriter = CommandWriter(WireEncoder(module, tables))
+
+  /** A reader of commands in the binary form received from peers, for one receiver. */
+  public fun commandReader(): CommandReader = CommandReader(WireDecoder(module, tables))
+
+  /** [command]'s type as the binary form numbers it, or -1 when it is not registered. */
+  public fun commandTypeId(command: Command): Int = commandTable.idOf(command)
+
+  /** The command type with serial name [serialName] as the binary form numbers it, or -1. */
+  public fun commandTypeId(serialName: String): Int =
+    (0 until commandTable.size).firstOrNull { commandTable.nameAt(it) == serialName } ?: -1
+
+  /** [command] in the binary form. */
+  public fun commandToBinary(command: Command): ByteArray {
+    val encoder = WireEncoder(module, tables)
+    var capacity = FIRST_BINARY_BYTES
+    while (true) {
+      val writer = BitWriter(capacity)
+      // A command larger than the network allows may still be logged: grow until it fits.
+      val written = runCatching { encoder.write(commandSerializer, command, writer) }
+      val full = written.exceptionOrNull()
+      if (full == null) return writer.buffer.copyOf(writer.byteLength)
+      if (full !is IllegalStateException || capacity >= MAX_LOGGED_BYTES) throw full
+      capacity *= 2
+    }
+  }
+
+  /** The command [bytes] hold, which this codec wrote; throws when they hold none. */
+  public fun commandFromBinary(bytes: ByteArray): Command {
+    val reader = commandReader()
+    return reader.read(bytes, 0, bytes.size) ?: throw SerializationException(reader.detail)
+  }
 
   /**
-   * The command [bytes] hold, read as hostile input from a peer: bytes past [MAX_COMMAND_BYTES] are
-   * refused unread, and only a registered command type can be named, so the bytes never choose what
-   * gets built. Malformed bytes give a [ReceivedCommand.Refused], never an exception.
+   * The command [bytes] hold, read as hostile input from a peer, as a [CommandReader] reads it.
+   * Malformed bytes give a [ReceivedCommand.Refused], never an exception.
    */
   public fun receiveCommand(bytes: ByteArray): ReceivedCommand {
-    if (bytes.size > MAX_COMMAND_BYTES) {
-      return ReceivedCommand.Refused(CommandRefusal.TOO_LONG, "${bytes.size} bytes")
-    }
-    // The CBOR decoder throws more than SerializationException on malformed input (index errors
-    // among them, which the fuzz test finds), and no exception may pass the connection boundary.
-    @Suppress("TooGenericExceptionCaught")
-    return try {
-      ReceivedCommand.Accepted(binary.decodeFromByteArray(commandSerializer, bytes))
-    } catch (malformed: RuntimeException) {
-      ReceivedCommand.Refused(CommandRefusal.MALFORMED, malformed.toString())
-    }
+    val reader = commandReader()
+    val command = reader.read(bytes, 0, bytes.size)
+    return if (command != null) ReceivedCommand.Accepted(command)
+    else ReceivedCommand.Refused(checkNotNull(reader.refusal), reader.detail)
   }
 
   /**
@@ -99,6 +127,14 @@ public class WorldCodec internal constructor(registry: CommandRegistry) {
   public companion object {
     /** The longest command a peer may send, in the binary form. */
     public const val MAX_COMMAND_BYTES: Int = 16 * 1024
+
+    /**
+     * The buffer a command is first written into for the log; it doubles until the command fits.
+     */
+    private const val FIRST_BINARY_BYTES = 256
+
+    /** The largest command the log holds, in the binary form. */
+    private const val MAX_LOGGED_BYTES = 64 * 1024 * 1024
 
     private const val TYPE_KEY = "type"
   }

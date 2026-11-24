@@ -6,7 +6,6 @@ import com.github.quillraven.fleks.Snapshot
 import com.github.quillraven.fleks.World
 import dev.chieppa.ease.annotations.Doc
 import dev.chieppa.ease.commands.Command
-import dev.chieppa.ease.commands.CommandRejected
 import dev.chieppa.ease.ecs.replication.NetworkId
 import dev.chieppa.ease.ecs.replication.NetworkIdentity
 import dev.chieppa.ease.ecs.replication.entityOf
@@ -24,8 +23,17 @@ public class Restore(
   @Doc("The network id the entity is created under.") public val entity: NetworkId,
   @Doc("The components and tags the entity carries.") public val snapshot: Snapshot,
 ) : Command {
+  override fun targets(): List<NetworkId> = listOf(entity)
+
+  override fun validate(world: World): String? =
+    when {
+      !entity.isValid -> "Network ids run from 1 to below ${NetworkId.LIMIT}, not ${entity.value}"
+      world.entityOf(entity) != Entity.NONE -> "Entity $entity already exists"
+      else -> snapshotRefusal(world, snapshot)
+    }
+
   override fun apply(world: World): Command {
-    refusal(world)?.let { throw CommandRejected(it) }
+    rejectIf(validate(world))
     @Suppress("UNCHECKED_CAST") // Fleks keeps every tag as a UniqueId of Any.
     val tags = snapshot.tags as List<EntityTags>
     world.spawnEntity {
@@ -35,12 +43,4 @@ public class Restore(
     }
     return Destroy(entity)
   }
-
-  /** Why this cannot apply to [world], or null when it can. */
-  private fun refusal(world: World): String? =
-    when {
-      !entity.isValid -> "Network ids run from 1 to below ${NetworkId.LIMIT}, not ${entity.value}"
-      world.entityOf(entity) != Entity.NONE -> "Entity $entity already exists"
-      else -> snapshotRefusal(world, snapshot)
-    }
 }

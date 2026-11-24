@@ -7,6 +7,6 @@ plugins {
 dependencies {
   api(project(":ease-ecs"))
   api(libs.kotlinx.serialization.json)
-  implementation(libs.kotlinx.serialization.cbor)
+  testImplementation(project(":ease-testing"))
   ksp(project(":ease-codegen"))
 }

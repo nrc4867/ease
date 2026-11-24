@@ -10,20 +10,22 @@ import dev.chieppa.ease.ecs.replication.NetworkIdentity
 import dev.chieppa.ease.ecs.replication.entityOf
 import dev.chieppa.ease.ecs.replication.replication
 
-/** The live entity [id] names in [world]; rejects the command when none carries it. */
-internal fun liveEntity(world: World, id: NetworkId): Entity {
+/**
+ * Why the entity [id] names cannot be changed in [world], or null when it can: it must be live and
+ * held by [world]'s peer.
+ */
+internal fun heldRefusal(world: World, id: NetworkId): String? {
   val entity = world.entityOf(id)
-  if (entity == Entity.NONE) throw CommandRejected("Entity $id does not exist")
-  return entity
+  return when {
+    entity == Entity.NONE -> "Entity $id does not exist"
+    !world.replication.hasAuthority(entity) -> "Entity $id is held by another peer"
+    else -> null
+  }
 }
 
-/** The live entity [id] names, which [world] must hold authority over; rejects otherwise. */
-internal fun heldEntity(world: World, id: NetworkId): Entity {
-  val entity = liveEntity(world, id)
-  if (!world.replication.hasAuthority(entity)) {
-    throw CommandRejected("Entity $id is held by another peer")
-  }
-  return entity
+/** Throws [CommandRejected] with [refusal] when there is one. */
+internal fun rejectIf(refusal: String?) {
+  if (refusal != null) throw CommandRejected(refusal)
 }
 
 /**

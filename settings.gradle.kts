@@ -56,6 +56,8 @@ include(":ease-platform")
 
 include(":ease-assets")
 
+include(":ease-net")
+
 include(":ease-gpu")
 
 include(":ease-render")

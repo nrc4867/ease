@@ -38,6 +38,14 @@ public class CommandRegistry internal constructor() {
 
   internal fun replicatedSerializers(): List<ReplicatedSerializer<*>> = replicated.toList()
 
+  internal fun commandTypes(): List<Pair<KClass<*>, KSerializer<*>>> = commands.map {
+    it.type to it.serializer
+  }
+
+  internal fun componentTypes(): List<Pair<KClass<*>, KSerializer<*>>> = components.map {
+    it.type to it.serializer
+  }
+
   internal fun commandDescriptors(): List<SerialDescriptor> = commands.map {
     it.serializer.descriptor
   }
