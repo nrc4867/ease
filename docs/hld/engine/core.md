@@ -6,9 +6,10 @@ The core is the only layer every other module touches, so it stays small, alloca
 |---|---|---|
 | `ease-math` | Java | Vectors, quaternions, matrices, bounds, transforms. Final, immutable, never compared by identity or synchronized on, so each becomes a `value class` by adding a keyword once JDK 28's preview is usable. |
 | `ease-ecs` | Kotlin | Built on Fleks: entities, components, families and systems. Systems run in fixed phases: input, simulation, physics, animation, render extract. |
-| `ease-assets` | Kotlin | Every asset has a GUID. Importers (editor only) turn source files into cooked assets; loaders (runtime) read cooked assets. Both are plugins, so a game can add its own formats. |
+| `ease-assets` | Kotlin | Every asset has a GUID, kept in a `.meta` file beside its source. Importers (editor only) turn source files into cooked assets; loaders (runtime) read cooked assets. Both are plugins, so a game can add its own formats. |
 | `ease-jobs` | Kotlin | Fixed worker pool running a per-frame job graph; no blocking on the main thread. |
-| `ease-serialization` | Kotlin | Text formats for scenes and project data, so they diff cleanly in git; binary formats for cooked output. |
+| `ease-serialization` | Kotlin | Canonical YAML for scenes, prefabs and project data, so they diff and merge cleanly in git; binary formats for commands, the log and cooked output; format versions and migrations. |
+| `ease-scene` | Kotlin | Nodes, prefabs with overrides and sublevels, saved as one YAML file each (see `scene-files.md`). |
 
 Simulation runs at a fixed step and rendering interpolates between steps. That keeps physics and gameplay deterministic enough for replays and headless tests.
 
