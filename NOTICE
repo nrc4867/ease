@@ -17,6 +17,8 @@ io.github.quillraven.fleks:Fleks:2.16                        MIT
 io.github.quillraven.fleks:Fleks-jvm:2.16                    MIT
 org.jetbrains.kotlin:kotlin-stdlib:2.4.21                    Apache-2.0
 org.jetbrains.kotlinx:kotlinx-serialization-bom:1.13.0       Apache-2.0
+org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.13.0      Apache-2.0
+org.jetbrains.kotlinx:kotlinx-serialization-cbor-jvm:1.13.0  Apache-2.0
 org.jetbrains.kotlinx:kotlinx-serialization-core:1.13.0      Apache-2.0
 org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.13.0  Apache-2.0
 org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0      Apache-2.0

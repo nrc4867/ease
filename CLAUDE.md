@@ -46,6 +46,7 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | Render | `ease-render` | The render graph |
 | GPU | `ease-gpu` | wgpu device, surfaces, pipelines |
 | Platform | `ease-platform` | Windows, input, audio output, files, clocks |
+| World | `ease-commands` | Commands, undo and redo, the command log, their JSON and binary formats |
 | Core | `ease-ecs` | Entities, components, systems, phases |
 | Foundation | `ease-math` | Vectors, quaternions, matrices, bounds, transforms (Java) |
 | Test support | `ease-testing` | The allocation harness (`AllocationBudget`); test configurations only (Java) |

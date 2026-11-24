@@ -11,7 +11,7 @@ From the bottom:
 
 ## In the build
 
-`build-logic` gives every module a rank (`layers/ModuleLayers.kt`), finer than the four layers so that modules inside one layer still have an order: `ease-math`, `ease-ecs`, `ease-platform`, `ease-gpu`, `ease-render`, `ease-runtime`, then hosts such as `ease-player`, then games such as `sample`. Two checks hold the rule:
+`build-logic` gives every module a rank (`layers/ModuleLayers.kt`), finer than the four layers so that modules inside one layer still have an order: `ease-math`, `ease-ecs`, `ease-commands`, `ease-platform`, `ease-gpu`, `ease-render`, `ease-runtime`, then hosts such as `ease-player`, then games such as `sample`. Two checks hold the rule:
 
 - Gradle fails the build as soon as a module declares a dependency on a module of its own rank or above.
 - The Konsist test in `architecture-tests` fails when code imports a package of a module of its own rank or above.
@@ -20,4 +20,4 @@ Test-support modules such as `ease-testing` rank below everything, and Gradle le
 
 A new module gets its rank in `ModuleLayers.kt` before it can depend on anything.
 
-See `core.md`, `platform.md`, `gpu-and-rendering.md`, `physics-animation-audio.md` and `module-rules.md`.
+See `core.md`, `commands.md`, `platform.md`, `gpu-and-rendering.md`, `physics-animation-audio.md` and `module-rules.md`.
