@@ -158,4 +158,14 @@ class FileAssociationRegistryTest {
 
     assertEquals(0, reads)
   }
+
+  @Test
+  fun `a filter applies before ties are looked for`() {
+    registry.register(importers, FileMatch.Extension("png"), 3, Named("a"))
+    registry.register(importers, FileMatch.Extension("png"), 3, Named("b"))
+
+    val chosen = registry.resolve(importers, file("x.png")) { (it as Named).label == "b" }
+
+    assertEquals(listOf("b"), chosen.map { (it as Named).label })
+  }
 }

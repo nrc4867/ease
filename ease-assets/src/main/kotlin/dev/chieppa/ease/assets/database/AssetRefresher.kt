@@ -1,23 +1,28 @@
 package dev.chieppa.ease.assets.database
 
 import dev.chieppa.ease.assets.ContentHash
+import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.assets.meta.AssetMeta
 import dev.chieppa.ease.assets.meta.MetaFileException
 import dev.chieppa.ease.assets.meta.MetaFiles
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 
 /**
  * Brings the index and the problems in line with what is on disk for one source path: the single
- * rule behind loading a project and applying a change. With [updateMeta], a meta file whose hash
- * lags its source is rewritten; loading leaves files alone.
+ * rule behind loading a project and applying a change. A file that cannot be read becomes a
+ * problem, never an exception, and a GUID given up by one path is remembered so the paths that were
+ * refused it can be checked again.
  */
 internal class AssetRefresher(
   private val root: Path,
   private val index: AssetIndex,
   private val problems: MutableMap<Path, AssetProblem>,
-  private val updateMeta: Boolean,
+  private val cache: HashCache,
 ) {
+  private val released = LinkedHashSet<Guid>()
+
   /** Reads [source] (relative) from disk, records what changed in [changes]. */
   fun refresh(source: Path, changes: MutableList<AssetChange>) {
     val absolute = root.resolve(source)
@@ -39,9 +44,23 @@ internal class AssetRefresher(
     }
   }
 
+  /**
+   * The paths refused a GUID that has since been given up, so they can be refreshed: the ones whose
+   * duplicate holder was deleted or changed its GUID.
+   */
+  fun takeRecheck(): List<Path> {
+    val paths =
+      problems.entries
+        .filter { (it.value as? AssetProblem.DuplicateGuid)?.guid in released }
+        .map { it.key }
+    released.clear()
+    return paths
+  }
+
   private fun forget(source: Path, changes: MutableList<AssetChange>) {
     val old = index.at(source) ?: return
     index.remove(old)
+    released.add(old.guid)
     changes.add(AssetChange.Removed(old.guid, old.path))
   }
 
@@ -51,21 +70,23 @@ internal class AssetRefresher(
     metaPath: Path,
     changes: MutableList<AssetChange>,
   ) {
-    val meta = readMeta(source, metaPath, changes)?.takeIf { claim(source, it, changes) } ?: return
-    val old = index.at(source)
-    if (old != null && old.guid != meta.guid) forget(source, changes)
-    val hash = ContentHash.of(absolute)
-    val record = AssetRecord(meta.guid, source, hash)
-    val previous = index.at(source)
+    val meta = readMeta(source, metaPath, changes)
+    val hash = if (meta == null) null else hashOf(source, absolute)
+    if (meta != null && hash != null && claim(source, meta, changes)) {
+      record(AssetRecord(meta.guid, source, hash), changes)
+    }
+  }
+
+  private fun record(record: AssetRecord, changes: MutableList<AssetChange>) {
+    val old = index.at(record.path)
+    if (old != null && old.guid != record.guid) forget(record.path, changes)
+    val previous = index.at(record.path)
     when {
       previous == null -> changes.add(AssetChange.Added(record))
-      previous.contentHash != hash -> changes.add(AssetChange.Changed(record))
-      else -> return
+      previous.contentHash != record.contentHash -> changes.add(AssetChange.Changed(record))
     }
     index.put(record)
-    if (updateMeta && meta.contentHash != hash) {
-      MetaFiles.write(metaPath, AssetMeta(guid = meta.guid, contentHash = hash))
-    }
+    cache.put(record.path, record.contentHash)
   }
 
   /** The meta file's contents, or null after recording why it cannot be read. */
@@ -80,6 +101,15 @@ internal class AssetRefresher(
       forget(source, changes)
       problems[source] =
         AssetProblem.UnreadableMeta(MetaFiles.metaOf(source), failure.message.orEmpty())
+      null
+    }
+
+  /** The hash of the source, or null after recording that it cannot be read now. */
+  private fun hashOf(source: Path, absolute: Path): String? =
+    try {
+      ContentHash.of(absolute)
+    } catch (failure: IOException) {
+      problems[source] = AssetProblem.UnreadableSource(source, failure.message.orEmpty())
       null
     }
 

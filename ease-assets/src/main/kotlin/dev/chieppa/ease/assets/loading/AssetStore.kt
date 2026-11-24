@@ -2,6 +2,7 @@ package dev.chieppa.ease.assets.loading
 
 import dev.chieppa.ease.assets.ContentHash
 import dev.chieppa.ease.assets.Guid
+import dev.chieppa.ease.assets.associations.AmbiguousContributors
 import dev.chieppa.ease.assets.associations.FileAssociations
 import dev.chieppa.ease.assets.associations.ProjectFile
 import dev.chieppa.ease.assets.database.AssetDatabase
@@ -38,7 +39,8 @@ public class AssetStore(
   /**
    * Re-reads the file of asset [guid] for every handle on it. [expectedHash] is the hash the change
    * was made for, or [GONE_HASH] when the file is gone; a file that differs from it throws
-   * [AssetOutOfDate]. A loader that fails keeps the handle's last good value and sets its error.
+   * [AssetOutOfDate], and so does a file that cannot be read; either way the handles' errors say
+   * why. A loader that fails keeps the handle's last good value and sets its error.
    */
   public fun reload(guid: Guid, expectedHash: String) {
     val entries = loaded[guid] ?: return
@@ -47,12 +49,26 @@ public class AssetStore(
       entries.forEach { it.handle.fail("The asset's source file is gone") }
       return
     }
-    val bytes = read(record)
+    val bytes = readOrRefuse(record, entries)
     if (ContentHash.of(bytes) != expectedHash) {
-      throw AssetOutOfDate("${record.path} on this machine is not the version the change names")
+      refuse(entries, "${record.path} on this machine is not the version the change names")
     }
     entries.forEach { it.reload(guid, bytes) }
   }
+
+  /** Marks every handle in [entries] as failed with [reason], then throws [AssetOutOfDate]. */
+  private fun refuse(entries: List<Entry<*>>, reason: String): Nothing {
+    entries.forEach { it.handle.fail(reason) }
+    throw AssetOutOfDate(reason)
+  }
+
+  @Suppress("SwallowedException") // The reason is passed on in the refusal's message.
+  private fun readOrRefuse(record: AssetRecord, entries: List<Entry<*>>): ByteArray =
+    try {
+      read(record)
+    } catch (failure: IOException) {
+      refuse(entries, "${record.path} cannot be read: ${failure.message}")
+    }
 
   /** The handle already loaded for [guid] as a [type]; walks by index so it allocates nothing. */
   @Suppress("UNCHECKED_CAST") // Entries are looked up by the type they were made for.
@@ -91,8 +107,11 @@ public class AssetStore(
   private fun <T : Any> loaderFor(record: AssetRecord, type: KClass<T>): AssetLoader<T> {
     val file = ProjectFile.under(database.root, record.path)
     val loader =
-      associations.resolve(AssetLoader.kind, file).firstOrNull { it.type == type }
-        ?: throw AssetLoadException("No loader for ${record.path} produces ${type.simpleName}")
+      try {
+        associations.resolve(AssetLoader.kind, file) { it.type == type }.firstOrNull()
+      } catch (ambiguous: AmbiguousContributors) {
+        throw AssetLoadException(ambiguous.message.orEmpty(), ambiguous)
+      } ?: throw AssetLoadException("No loader for ${record.path} produces ${type.simpleName}")
     @Suppress("UNCHECKED_CAST") // Its type was just compared with the requested one.
     return loader as AssetLoader<T>
   }

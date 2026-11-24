@@ -82,4 +82,31 @@ class FileWatcherTest {
       assertTrue(collect(watcher).isEmpty())
     }
   }
+
+  @Test
+  fun `a manual watcher passes on that events were lost`() {
+    val watcher = ManualFileWatcher()
+    watcher.publish(folder, FileChangeKind.OVERFLOWED)
+
+    assertEquals(listOf(folder to FileChangeKind.OVERFLOWED), collect(watcher))
+  }
+
+  @Test
+  fun `the JDK watcher keeps watching after a folder came and went`() {
+    JdkFileWatcher().use { watcher ->
+      watcher.watch(folder)
+      val fleeting = folder.resolve("fleeting")
+      Files.createDirectories(fleeting.resolve("inner"))
+      fleeting.toFile().deleteRecursively()
+      val file = folder.resolve("later.txt")
+      Files.writeString(file, "x")
+
+      val seen = mutableSetOf<Path>()
+      while (file !in seen) {
+        watcher.awaitChanges { path, _ -> seen.add(path) }
+      }
+
+      assertTrue(file in seen)
+    }
+  }
 }

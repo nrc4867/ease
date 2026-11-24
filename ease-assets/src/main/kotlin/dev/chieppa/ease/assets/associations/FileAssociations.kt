@@ -19,10 +19,15 @@ public interface FileAssociations {
   ): Registration
 
   /**
-   * The contributors of [kind] for [file], best first. For a kind that takes one contributor,
-   * throws [AmbiguousContributors] when the two best tie.
+   * The contributors of [kind] for [file] that [accepts] takes, best first. The filter runs before
+   * ties are looked for, so contributors that differ in what [accepts] asks about never tie. For a
+   * kind that takes one contributor, throws [AmbiguousContributors] when the two best tie.
    */
-  public fun <T : Contributor> resolve(kind: ContributorKind<T>, file: ProjectFile): List<T>
+  public fun <T : Contributor> resolve(
+    kind: ContributorKind<T>,
+    file: ProjectFile,
+    accepts: (T) -> Boolean = { true },
+  ): List<T>
 
   /** Every contributor attached to [file], of every kind, with where each came from. */
   public fun attachments(file: ProjectFile): List<Attachment>

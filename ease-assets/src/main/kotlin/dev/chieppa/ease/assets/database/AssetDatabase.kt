@@ -1,6 +1,5 @@
 package dev.chieppa.ease.assets.database
 
-import dev.chieppa.ease.assets.ContentHash
 import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.assets.GuidSource
 import dev.chieppa.ease.assets.meta.AssetMeta
@@ -13,10 +12,14 @@ import java.nio.file.Path
  * The index of a project's assets: every source file under [root] with its meta file's GUID.
  * Lookups by GUID and by path are allocation-free. A watcher feeds it: [sync] applies what changed
  * on disk since the last call and returns it, so the owner decides when changes land, such as at a
- * tick boundary.
+ * tick boundary. When the watcher reports lost events, [sync] looks at every file again.
+ *
+ * Content hashes are kept per machine under `.ease/cache/` in [root], in a folder that ignores
+ * itself in git, never in the meta files. A meta file whose source is gone finds the file it moved
+ * to through the hash the cache recorded for its old path.
  *
  * Loading rejects a project with a GUID used twice, a meta file without a source (unless a new file
- * with the same content takes it over) or a source without a meta file. After loading, such files
+ * with the recorded hash takes it over) or a source without a meta file. After loading, such files
  * are reported in [problems] instead of stopping the running game.
  */
 public class AssetDatabase
@@ -29,8 +32,9 @@ private constructor(
   private val index = AssetIndex()
   private val problemsByPath = LinkedHashMap<Path, AssetProblem>()
   private val collector = ChangeCollector(root)
-  private val orphans = OrphanMatcher(root)
-  private val refresher = AssetRefresher(root, index, problemsByPath, updateMeta = true)
+  private val cache = HashCache(root)
+  private val orphans = OrphanMatcher(root, cache)
+  private val refresher = AssetRefresher(root, index, problemsByPath, cache)
 
   /** Every asset, in no particular order. */
   public val assets: Collection<AssetRecord>
@@ -54,14 +58,11 @@ private constructor(
     watcher.drain(collector)
     if (collector.isEmpty) return emptyList()
     val changes = mutableListOf<AssetChange>()
-    collector
-      .take()
-      .flatMap { withContents(it) }
-      .distinct()
-      .forEach {
-        refresher.refresh(it, changes)
-      }
-    orphans.match(problemsByPath).forEach { refresher.refresh(it, changes) }
+    val everything = collector.needsRescan()
+    val paths = collector.take()
+    settle(if (everything) allPaths() else paths.flatMap { withContents(it) }, changes)
+    settle(orphans.match(problemsByPath), changes)
+    cache.save()
     return pairMoves(changes)
   }
 
@@ -74,15 +75,46 @@ private constructor(
     check(Files.isRegularFile(absolute)) { "No source file at $path to adopt" }
     val meta = MetaFiles.metaOf(absolute)
     check(!Files.exists(meta)) { "$path already has a meta file" }
-    MetaFiles.write(meta, AssetMeta(guid = guids.next(), contentHash = ContentHash.of(absolute)))
-    refresher.refresh(path, mutableListOf())
+    MetaFiles.write(meta, AssetMeta(guid = guids.next()))
+    settle(listOf(path), mutableListOf())
+    cache.save()
     return checkNotNull(index.at(path)) { "$path was not indexed after adopting" }
   }
 
-  /** [source], plus every indexed asset under it when it is a folder that is gone. */
+  /** Refreshes [paths], then every path that was refused a GUID someone has given up. */
+  private fun settle(paths: Collection<Path>, changes: MutableList<AssetChange>) {
+    paths.distinct().forEach { refresher.refresh(it, changes) }
+    var again = refresher.takeRecheck()
+    while (again.isNotEmpty()) {
+      again.forEach { refresher.refresh(it, changes) }
+      again = refresher.takeRecheck()
+    }
+  }
+
+  /** [source], plus everything the database knows under it when it is not a file. */
   private fun withContents(source: Path): List<Path> =
-    if (Files.isRegularFile(root.resolve(source))) listOf(source)
-    else listOf(source) + index.under(source).map { it.path }
+    if (Files.isRegularFile(root.resolve(source))) {
+      listOf(source)
+    } else {
+      listOf(source) +
+        index.under(source).map { it.path } +
+        problemsByPath.keys.filter { it.startsWith(source) }
+    }
+
+  /** Every source on disk and every path the database holds, for a full look. */
+  private fun allPaths(): List<Path> =
+    sourcesOnDisk() + index.records.map { it.path } + problemsByPath.keys
+
+  private fun sourcesOnDisk(): List<Path> =
+    Files.walk(root).use { walk ->
+      walk
+        .filter { Files.isRegularFile(it) }
+        .map { root.relativize(it) }
+        .filter { !ProjectPaths.isHidden(it) }
+        .map { if (MetaFiles.isMeta(it)) MetaFiles.sourceOf(it) else it }
+        .distinct()
+        .toList()
+    }
 
   /** A removal and an addition of the same GUID in one sync is one move. */
   private fun pairMoves(changes: List<AssetChange>): List<AssetChange> {
@@ -97,6 +129,14 @@ private constructor(
         else -> change
       }
     }
+  }
+
+  private fun scan() {
+    settle(sourcesOnDisk(), mutableListOf())
+    settle(orphans.match(problemsByPath), mutableListOf())
+    cache.retain { Files.exists(MetaFiles.metaOf(root.resolve(it))) }
+    cache.save()
+    if (problemsByPath.isNotEmpty()) throw AssetDatabaseRejected(problems)
   }
 
   public companion object {
@@ -115,23 +155,5 @@ private constructor(
       watcher.watch(database.root)
       return database
     }
-  }
-
-  private fun scan() {
-    val loader = AssetRefresher(root, index, problemsByPath, updateMeta = false)
-    val sources =
-      Files.walk(root).use { walk ->
-        walk
-          .filter { Files.isRegularFile(it) }
-          .map { root.relativize(it) }
-          .filter { !ProjectPaths.isHidden(it) }
-          .map { if (MetaFiles.isMeta(it)) MetaFiles.sourceOf(it) else it }
-          .distinct()
-          .toList()
-      }
-    val changes = mutableListOf<AssetChange>()
-    sources.forEach { loader.refresh(it, changes) }
-    orphans.match(problemsByPath).forEach { loader.refresh(it, changes) }
-    if (problemsByPath.isNotEmpty()) throw AssetDatabaseRejected(problems)
   }
 }

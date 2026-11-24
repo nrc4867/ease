@@ -31,4 +31,10 @@ public sealed interface AssetProblem {
     override val message: String
       get() = "Meta file $meta cannot be read: $reason"
   }
+
+  /** A source file that cannot be read, such as one another program holds locked mid-save. */
+  public class UnreadableSource(public val source: Path, public val reason: String) : AssetProblem {
+    override val message: String
+      get() = "Source file $source cannot be read: $reason"
+  }
 }

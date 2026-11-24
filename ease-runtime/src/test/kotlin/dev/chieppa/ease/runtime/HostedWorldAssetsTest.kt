@@ -41,7 +41,7 @@ class HostedWorldAssetsTest {
     Files.writeString(file, text)
     MetaFiles.write(
       MetaFiles.metaOf(file),
-      AssetMeta(guid = guid, contentHash = ContentHash.of(file)),
+      AssetMeta(guid = guid),
     )
   }
 

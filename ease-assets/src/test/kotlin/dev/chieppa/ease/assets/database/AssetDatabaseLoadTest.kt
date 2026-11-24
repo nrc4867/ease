@@ -91,8 +91,9 @@ class AssetDatabaseLoadTest {
   }
 
   @Test
-  fun `a meta file left behind finds its moved source by content hash`() {
+  fun `a meta file left behind finds its moved source through the hash the last run cached`() {
     val guid = project.asset("old/hero.png", "pixels")
+    load()
     Files.createDirectories(project.path("new"))
     Files.move(project.path("old/hero.png"), project.path("new/renamed.png"))
 
@@ -105,8 +106,24 @@ class AssetDatabaseLoadTest {
   }
 
   @Test
+  fun `without a cache, as in a fresh clone, a left behind meta file is a problem`() {
+    project.asset("old/hero.png", "pixels")
+    load()
+    project.path(".ease").toFile().deleteRecursively()
+    Files.move(project.path("old/hero.png"), project.path("renamed.png"))
+
+    val rejected = assertFailsWith<AssetDatabaseRejected> { load() }
+
+    assertEquals(
+      setOf(AssetProblem.MetaWithoutSource::class, AssetProblem.SourceWithoutMeta::class),
+      rejected.problems.map { it::class }.toSet(),
+    )
+  }
+
+  @Test
   fun `a hash two new files share does not pick one of them`() {
     project.asset("old/hero.png", "pixels")
+    load()
     Files.delete(project.path("old/hero.png"))
     project.write("a.png", "pixels")
     project.write("b.png", "pixels")
@@ -114,6 +131,19 @@ class AssetDatabaseLoadTest {
     val rejected = assertFailsWith<AssetDatabaseRejected> { load() }
 
     assertEquals(3, rejected.problems.size)
+  }
+
+  @Test
+  fun `hashes are cached under a hidden folder that git ignores, never in meta files`() {
+    project.asset("art/rock.png", "rock")
+
+    val database = load()
+
+    val cache = project.path(".ease/cache")
+    assertTrue(Files.isRegularFile(cache.resolve("asset-hashes.yaml")))
+    assertEquals("*\n", Files.readString(cache.resolve(".gitignore")))
+    assertEquals(1, database.assets.size)
+    assertTrue(!Files.readString(project.path("art/rock.png.meta")).contains("sha256"))
   }
 
   @Test

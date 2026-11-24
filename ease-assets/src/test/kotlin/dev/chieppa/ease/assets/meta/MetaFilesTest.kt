@@ -13,11 +13,7 @@ import org.junit.jupiter.api.io.TempDir
 class MetaFilesTest {
   @TempDir lateinit var folder: Path
 
-  private val meta =
-    AssetMeta(
-      guid = Guid.parse("3f2b8c1e-5d4a-4e7b-9a60-1c2d3e4f5a6b"),
-      contentHash = "sha256:ab12cd",
-    )
+  private val meta = AssetMeta(guid = Guid.parse("3f2b8c1e-5d4a-4e7b-9a60-1c2d3e4f5a6b"))
 
   @Test
   fun `a meta file sits beside its source and names it`() {
@@ -30,15 +26,10 @@ class MetaFilesTest {
   }
 
   @Test
-  fun `a meta file is canonical YAML with sorted keys`() {
+  fun `a meta file holds only its format version and GUID, as canonical YAML`() {
     val text = MetaFiles.encode(meta)
 
-    assertEquals(
-      "contentHash: \"sha256:ab12cd\"\n" +
-        "formatVersion: 1\n" +
-        "guid: \"3f2b8c1e-5d4a-4e7b-9a60-1c2d3e4f5a6b\"\n",
-      text,
-    )
+    assertEquals("formatVersion: 1\nguid: \"3f2b8c1e-5d4a-4e7b-9a60-1c2d3e4f5a6b\"\n", text)
   }
 
   @Test
@@ -46,10 +37,7 @@ class MetaFilesTest {
     val file = folder.resolve("a.meta")
     MetaFiles.write(file, meta)
 
-    val back = MetaFiles.read(file)
-
-    assertEquals(meta.guid, back.guid)
-    assertEquals(meta.contentHash, back.contentHash)
+    assertEquals(meta.guid, MetaFiles.read(file).guid)
   }
 
   @Test
@@ -58,13 +46,13 @@ class MetaFilesTest {
 
     assertTrue(MetaFiles.write(file, meta))
     assertFalse(MetaFiles.write(file, meta))
-    assertTrue(MetaFiles.write(file, AssetMeta(guid = meta.guid, contentHash = "ffff")))
+    assertTrue(MetaFiles.write(file, AssetMeta(guid = Guid(1, 2))))
   }
 
   @Test
   fun `a meta file from a newer Ease is refused, naming the file`() {
     val file = folder.resolve("future.meta")
-    Files.writeString(file, "contentHash: x\nformatVersion: 99\nguid: \"${meta.guid}\"\n")
+    Files.writeString(file, "formatVersion: 99\nguid: \"${meta.guid}\"\n")
 
     val failure = assertFailsWith<MetaFileException> { MetaFiles.read(file) }
 
@@ -74,10 +62,27 @@ class MetaFilesTest {
   @Test
   fun `text that is not a meta file is refused, naming the file`() {
     val file = folder.resolve("broken.meta")
-    Files.writeString(file, "formatVersion: 1\nguid: not-a-guid\ncontentHash: x\n")
+    Files.writeString(file, "formatVersion: 1\nguid: not-a-guid\n")
 
     val failure = assertFailsWith<MetaFileException> { MetaFiles.read(file) }
 
     assertTrue(failure.message.orEmpty().contains("broken.meta"))
+  }
+
+  @Test
+  fun `a meta file that cannot be read as text is refused, naming the file`() {
+    val file = folder.resolve("binary.meta")
+    Files.write(file, byteArrayOf(0x66, 0x3a, 0x20, -1, -2, -3))
+
+    val failure = assertFailsWith<MetaFileException> { MetaFiles.read(file) }
+
+    assertTrue(failure.message.orEmpty().contains("binary.meta"))
+  }
+
+  @Test
+  fun `a meta file that is missing is refused, naming the file`() {
+    val failure = assertFailsWith<MetaFileException> { MetaFiles.read(folder.resolve("none.meta")) }
+
+    assertTrue(failure.message.orEmpty().contains("none.meta"))
   }
 }

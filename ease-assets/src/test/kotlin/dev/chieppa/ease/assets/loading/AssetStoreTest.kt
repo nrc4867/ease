@@ -15,6 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.io.TempDir
 
 class AssetStoreTest {
@@ -138,5 +139,52 @@ class AssetStoreTest {
     val guid = project.asset("a.txt", "one")
 
     store.reload(guid, ContentHash.of("x".toByteArray()))
+  }
+
+  private object LengthLoader : AssetLoader<Int> {
+    override val type: KClass<Int> = Int::class
+
+    override fun load(guid: Guid, bytes: ByteArray): Int = bytes.size
+  }
+
+  private object OtherTextLoader : AssetLoader<String> {
+    override val type: KClass<String> = String::class
+
+    override fun load(guid: Guid, bytes: ByteArray): String = "other"
+  }
+
+  @Test
+  fun `a file that cannot be read marks the handle and refuses the reload`() {
+    val guid = project.asset("a.txt", "one")
+    withTextLoader()
+    val handle = store.handle(guid, String::class)
+    val hash = ContentHash.of(project.path("a.txt"))
+    Files.delete(project.path("a.txt"))
+
+    assertFailsWith<AssetOutOfDate> { store.reload(guid, hash) }
+
+    assertEquals("one", handle.value)
+    assertTrue(handle.error.orEmpty().contains("cannot be read"))
+  }
+
+  @Test
+  fun `loaders for one extension that produce different types do not tie`() {
+    val guid = project.asset("a.txt", "four")
+    withTextLoader()
+    associations.register(AssetLoader.kind, FileMatch.Extension("txt"), 0, LengthLoader)
+
+    assertEquals("four", store.handle(guid, String::class).value)
+    assertEquals(4, store.handle(guid, Int::class).value)
+  }
+
+  @Test
+  fun `two loaders for one type that tie are a load error naming them`() {
+    val guid = project.asset("a.txt", "four")
+    withTextLoader()
+    associations.register(AssetLoader.kind, FileMatch.Extension("txt"), 0, OtherTextLoader)
+
+    val failure = assertFailsWith<AssetLoadException> { store.handle(guid, String::class) }
+
+    assertTrue(failure.message.orEmpty().contains("a.txt"))
   }
 }

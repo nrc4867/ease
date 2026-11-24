@@ -20,8 +20,15 @@ public class FileAssociationRegistry : FileAssociations {
     }
   }
 
-  override fun <T : Contributor> resolve(kind: ContributorKind<T>, file: ProjectFile): List<T> {
-    val ranked = matching(file).filter { it.kind === kind }
+  override fun <T : Contributor> resolve(
+    kind: ContributorKind<T>,
+    file: ProjectFile,
+    accepts: (T) -> Boolean,
+  ): List<T> {
+    val ranked =
+      matching(file).filter {
+        it.kind === kind && accepts(kind.type.javaObjectType.cast(it.contributor))
+      }
     if (kind.cardinality == Cardinality.ONE && ranked.size > 1 && tied(ranked[0], ranked[1])) {
       val contenders = ranked.filter { tied(ranked[0], it) }
       throw AmbiguousContributors(file, kind, contenders.map { it.attachment() })

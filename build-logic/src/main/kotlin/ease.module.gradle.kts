@@ -39,6 +39,8 @@ tasks.withType<Test>().configureEach {
   useJUnitPlatform()
   jvmArgs("--enable-native-access=ALL-UNNAMED")
   testLogging.exceptionFormat = TestExceptionFormat.FULL
+  // A test that waits for an event that never comes fails here instead of hanging the build.
+  systemProperty("junit.jupiter.execution.timeout.default", "5m")
 }
 
 tasks.named<Test>("test") { exclude("**/*GpuTest*") }

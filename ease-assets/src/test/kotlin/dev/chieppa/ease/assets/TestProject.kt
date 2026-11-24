@@ -25,7 +25,7 @@ internal class TestProject(val root: Path) {
     val file = write(name, text)
     MetaFiles.write(
       MetaFiles.metaOf(file),
-      AssetMeta(guid = guid, contentHash = ContentHash.of(file)),
+      AssetMeta(guid = guid),
     )
     return guid
   }

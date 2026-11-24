@@ -4,6 +4,7 @@ import dev.chieppa.ease.serialization.format.FormatMigrations
 import dev.chieppa.ease.serialization.format.UnsupportedFormatVersion
 import dev.chieppa.ease.serialization.yaml.CanonicalYaml
 import dev.chieppa.ease.serialization.yaml.YamlFormatException
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.serialization.SerializationException
@@ -45,6 +46,8 @@ public object MetaFiles {
       } catch (failure: SerializationException) {
         failure
       } catch (failure: IllegalArgumentException) {
+        failure
+      } catch (failure: IOException) {
         failure
       }
     throw MetaFileException(file, failure.message.orEmpty(), failure)
