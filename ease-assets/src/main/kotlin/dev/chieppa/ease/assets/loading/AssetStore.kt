@@ -8,7 +8,6 @@ import dev.chieppa.ease.assets.associations.ProjectFile
 import dev.chieppa.ease.assets.database.AssetDatabase
 import dev.chieppa.ease.assets.database.AssetRecord
 import java.io.IOException
-import java.nio.file.Files
 import kotlin.reflect.KClass
 
 /** The contents hash a reload carries when the asset's file is gone. */
@@ -101,8 +100,7 @@ public class AssetStore(
       throw AssetLoadException("${record.path} does not load: ${failure.message}", failure)
     }
 
-  private fun read(record: AssetRecord): ByteArray =
-    Files.readAllBytes(database.root.resolve(record.path))
+  private fun read(record: AssetRecord): ByteArray = database.read(record)
 
   private fun <T : Any> loaderFor(record: AssetRecord, type: KClass<T>): AssetLoader<T> {
     val file = ProjectFile.under(database.root, record.path)

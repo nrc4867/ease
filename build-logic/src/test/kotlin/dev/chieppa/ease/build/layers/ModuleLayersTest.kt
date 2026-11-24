@@ -27,6 +27,16 @@ class ModuleLayersTest {
   }
 
   @Test
+  fun `scenes sit above the assets and below the network`() {
+    assertNull(layerViolation("ease-scene", "ease-assets"))
+    assertNull(layerViolation("ease-scene", "ease-commands"))
+    assertNull(layerViolation("ease-net", "ease-scene"))
+    assertNull(layerViolation("ease-runtime", "ease-scene"))
+    assertNotNull(layerViolation("ease-assets", "ease-scene"))
+    assertNotNull(layerViolation("ease-scene", "ease-net"))
+  }
+
+  @Test
   fun `the serialization module sits between the core and the world`() {
     assertNull(layerViolation("ease-serialization", "ease-ecs"))
     assertNull(layerViolation("ease-commands", "ease-serialization"))

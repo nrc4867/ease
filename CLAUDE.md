@@ -47,7 +47,8 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | Render | `ease-render` | The extract snapshot, 2D cameras and the quad renderer |
 | GPU | `ease-gpu` | wgpu device, surfaces, pipelines |
 | Net | `ease-net` | Sessions between peers: the channel interface and an in-process link, delta snapshots and their acknowledgements, per-tick input with redundancy and a tick window, and the authority's command checks and rate limits |
-| Assets | `ease-assets` | Asset GUIDs and `.meta` sidecars, the asset database, loaders and reload commands, and the file association service |
+| Scene | `ease-scene` | Nodes (`NodeKey`, `Parent`, slots), scenes and prefabs as folders of canonical YAML (one file per node), prefab instances with overrides, sublevels, and scene reloads as commands |
+| Assets | `ease-assets` | Asset GUIDs and `.meta` sidecars, the asset database (folder assets included), loaders and reload commands, and the file association service |
 | Platform | `ease-platform` | Windows, input, audio output, file watching, clocks |
 | Data | `ease-serialization` | Canonical YAML (sorted keys, shortest floats, stable bytes) and format-version migrations, for meta files and later scenes |
 | World | `ease-commands` | Commands with their scope, targets and `validate`, the permission check, undo and redo for user origins, the command log, their JSON and compact binary formats |

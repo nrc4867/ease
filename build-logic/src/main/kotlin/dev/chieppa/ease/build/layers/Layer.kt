@@ -31,6 +31,9 @@ enum class Layer {
    */
   ASSETS,
 
+  /** Nodes, scenes, prefabs and sublevels, their merge-safe files and their reloads. */
+  SCENE,
+
   /** Sessions between peers: channels, snapshots, inputs and the authority's command checks. */
   NET,
 
