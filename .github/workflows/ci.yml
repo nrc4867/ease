@@ -78,7 +78,8 @@ jobs:
             ease/**/build/reports
             ease/**/build/test-results
 
-  # The *GpuTest tests on real wgpu over Mesa's software Vulkan driver, lavapipe.
+  # The *GpuTest tests on real wgpu over Mesa's software Vulkan driver, lavapipe, and the smoke apps
+  # that open windows, under a virtual X server.
   gpu:
     name: GPU tests (lavapipe)
     runs-on: ubuntu-latest
@@ -96,7 +97,7 @@ jobs:
           path: stretch
       - run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers vulkan-tools
+          sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers vulkan-tools xvfb
           vulkaninfo --summary
       - uses: actions/setup-java@v6
         with:
@@ -104,6 +105,8 @@ jobs:
           java-version: 25
       - uses: gradle/actions/setup-gradle@v5
       - run: ./gradlew gpuTest --continue
+        working-directory: ease
+      - run: xvfb-run -a ./gradlew :ease-platform:windowSmoke
         working-directory: ease
       - uses: actions/upload-artifact@v7
         if: failure()
@@ -113,7 +116,8 @@ jobs:
             ease/**/build/reports/tests
             ease/**/build/test-results
 
-  # Builds, loads this platform's natives and runs the unit tests on the other two desktops.
+  # Builds, loads this platform's natives, runs the unit tests and the smoke apps that open windows on
+  # the other two desktops.
   platforms:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -139,6 +143,9 @@ jobs:
           java-version: 25
       - uses: gradle/actions/setup-gradle@v5
       - run: ./gradlew assemble test --continue
+        working-directory: ease
+        shell: bash
+      - run: ./gradlew :ease-platform:windowSmoke
         working-directory: ease
         shell: bash
 
