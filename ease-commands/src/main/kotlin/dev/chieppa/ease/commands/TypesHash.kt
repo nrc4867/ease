@@ -16,11 +16,14 @@ internal fun typesHash(registry: CommandRegistry): Long {
     }
     hash = (hash xor SEPARATOR.code.toLong()) * FNV_PRIME
   }
+  val commands = registry.commandTypes().map { it.second.descriptor.serialName }
+  val components = registry.componentTypes().map { it.second.descriptor.serialName }
+  val replicated = registry.replicatedSerializers().map { it.name }
   add("commands")
-  registry.commandTypes().map { it.second.descriptor.serialName }.sorted().forEach(::add)
+  commands.sorted().forEach(::add)
   add("components")
-  registry.componentTypes().map { it.second.descriptor.serialName }.sorted().forEach(::add)
+  components.sorted().forEach(::add)
   add("replicated")
-  registry.replicatedSerializers().map { it.name }.sorted().forEach(::add)
+  replicated.sorted().forEach(::add)
   return hash
 }

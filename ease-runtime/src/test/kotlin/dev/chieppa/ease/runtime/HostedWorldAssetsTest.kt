@@ -21,6 +21,7 @@ import kotlin.reflect.KClass
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.io.TempDir
 
@@ -92,6 +93,21 @@ class HostedWorldAssetsTest {
     assertEquals(CommandOrigin.GAME, entry.origin)
     assertEquals(guid, command.asset)
     assertEquals(ContentHash.of(folder.resolve("greeting.txt")), command.contentHash)
+  }
+
+  @Test
+  fun `a reload is logged but never enters the user's undo history`() {
+    val (hosted, _) = host()
+    hosted.step()
+    Files.writeString(folder.resolve("greeting.txt"), "changed")
+    fileChanged()
+
+    hosted.step()
+
+    val log = hosted.history.log
+    val reload = log.all.last()
+    assertEquals(CommandOrigin.GAME, reload.origin)
+    assertFalse(hosted.history.canUndo)
   }
 
   @Test

@@ -70,15 +70,11 @@ public class WorldCodec internal constructor(registry: CommandRegistry) {
    * A writer of commands in the binary form into reused buffers, for one sender, held to what a
    * peer's [commandReader] accepts.
    */
-  public fun commandWriter(): CommandWriter = commandWriter(Wire.PEER)
+  public fun commandWriter(): CommandWriter =
+    CommandWriter(WireEncoder(module, tables, Wire.PEER), Wire.PEER)
 
   /** A reader of commands in the binary form received from peers, for one receiver. */
-  public fun commandReader(): CommandReader = commandReader(Wire.PEER)
-
-  private fun commandWriter(limits: Wire) =
-    CommandWriter(WireEncoder(module, tables, limits), limits)
-
-  private fun commandReader(limits: Wire) = CommandReader(WireDecoder(module, tables, limits))
+  public fun commandReader(): CommandReader = CommandReader(WireDecoder(module, tables, Wire.PEER))
 
   /** [command]'s type as the binary form numbers it, or -1 when it is not registered. */
   public fun commandTypeId(command: Command): Int = commandTable.idOf(command)
@@ -92,7 +88,7 @@ public class WorldCodec internal constructor(registry: CommandRegistry) {
    * which are far larger than what a peer may send.
    */
   public fun commandToBinary(command: Command): ByteArray {
-    val writer = commandWriter(Wire.LOG)
+    val writer = CommandWriter(WireEncoder(module, tables, Wire.LOG), Wire.LOG)
     var capacity = FIRST_BINARY_BYTES
     while (true) {
       val buffer = BitWriter(capacity)
@@ -112,7 +108,7 @@ public class WorldCodec internal constructor(registry: CommandRegistry) {
    * when they hold none.
    */
   public fun commandFromBinary(bytes: ByteArray): Command {
-    val reader = commandReader(Wire.LOG)
+    val reader = CommandReader(WireDecoder(module, tables, Wire.LOG))
     return reader.read(bytes, 0, bytes.size) ?: throw SerializationException(reader.detail)
   }
 

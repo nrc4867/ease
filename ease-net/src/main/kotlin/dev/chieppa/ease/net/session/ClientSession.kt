@@ -67,18 +67,17 @@ public class ClientSession(
    */
   public fun receive(): DecodeStatus {
     if (!greeted && !greet()) return DecodeStatus.MALFORMED
-    while (connection.isOpen) {
+    var status = DecodeStatus.OK
+    while (status == DecodeStatus.OK && connection.isOpen) {
       val length = connection.receive(ChannelKind.UNRELIABLE, incoming)
       if (length == Channels.NO_MESSAGE) break
-      if (!greeted) continue
-      val status = snapshots.receive(incoming, length)
-      if (status != DecodeStatus.OK) {
-        closeReason = CloseReason.MALFORMED_SNAPSHOT
-        connection.close()
-        return status
-      }
+      if (greeted) status = snapshots.receive(incoming, length)
     }
-    return DecodeStatus.OK
+    if (status != DecodeStatus.OK) {
+      closeReason = CloseReason.MALFORMED_SNAPSHOT
+      connection.close()
+    }
+    return status
   }
 
   /**
