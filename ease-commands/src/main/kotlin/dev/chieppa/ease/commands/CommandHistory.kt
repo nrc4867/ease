@@ -37,16 +37,25 @@ public class CommandHistory(
     redoStack.clear()
   }
 
-  /** Reverts the last change, logged at [tick] for [origin]. Returns false when there is none. */
+  /**
+   * Reverts the last change, logged at [tick] for [origin]. Returns false when there is none.
+   * Throws [CommandRejected], changing nothing, when the change cannot be reverted, such as after
+   * another peer took authority over its entity; that change is dropped, so the next undo reaches
+   * the one before it.
+   */
   public fun undo(tick: Long, origin: CommandOrigin): Boolean =
     move(undoStack, redoStack, tick, origin)
 
-  /** Applies the last undone change again. Returns false when there is none. */
+  /**
+   * Applies the last undone change again. Returns false when there is none. Throws
+   * [CommandRejected] as [undo] does, dropping that change.
+   */
   public fun redo(tick: Long, origin: CommandOrigin): Boolean =
     move(redoStack, undoStack, tick, origin)
 
   /**
-   * Applies the top of [from] and pushes its inverse onto [to]; [from] keeps it if it is rejected.
+   * Takes the top of [from], applies it and pushes its inverse onto [to]. A rejected entry stays
+   * off both stacks, so a change that can never apply again does not block the ones under it.
    */
   private fun move(
     from: ArrayDeque<Recorded>,
@@ -54,9 +63,8 @@ public class CommandHistory(
     tick: Long,
     origin: CommandOrigin,
   ): Boolean {
-    val recorded = from.lastOrNull() ?: return false
+    val recorded = from.removeLastOrNull() ?: return false
     val inverse = applyLogged(recorded.encoded, tick, origin)
-    from.removeLast()
     to.addLast(Recorded(inverse, recorded.origin))
     return true
   }

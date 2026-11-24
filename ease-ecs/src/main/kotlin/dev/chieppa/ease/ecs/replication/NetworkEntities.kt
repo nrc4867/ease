@@ -20,18 +20,24 @@ public class NetworkEntities internal constructor() {
   public operator fun contains(id: NetworkId): Boolean =
     entityIds.get(id.value, NO_ENTITY) != NO_ENTITY
 
-  /** A new id no entity has carried this session. */
-  internal fun issue(): NetworkId = NetworkId(next++)
+  /**
+   * A new id no entity has carried this session. Throws once every id below [NetworkId.LIMIT] has
+   * been issued, which ends the session rather than reusing one.
+   */
+  internal fun issue(): NetworkId {
+    check(next < NetworkId.LIMIT) { "Every network id of this session has been issued" }
+    return NetworkId(next++)
+  }
 
   /**
    * Records that [entity] carries [id]. An id from elsewhere, such as an authority's, moves the
    * next issued id past it.
    */
   internal fun register(id: NetworkId, entity: Entity) {
-    require(id.value > 0) { "Network ids start at 1, not ${id.value}" }
+    require(id.isValid) { "Network ids run from 1 to below ${NetworkId.LIMIT}, not ${id.value}" }
     check(id !in this) { "Network id $id is already carried by entity ${entityOf(id).id}" }
     entityIds.put(id.value, entity.id)
-    if (id.value >= next) next = id.value + 1
+    if (id.value >= next) next = Math.addExact(id.value, 1L)
   }
 
   /** Records that no live entity carries [id] any more; the id is never issued again. */

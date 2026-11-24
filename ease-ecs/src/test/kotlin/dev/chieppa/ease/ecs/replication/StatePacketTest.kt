@@ -3,6 +3,7 @@ package dev.chieppa.ease.ecs.replication
 import dev.chieppa.ease.ecs.LocalTransform
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /** State packets from an authority world applied to a replica world. */
@@ -107,6 +108,34 @@ class StatePacketTest {
     assertEquals(DecodeStatus.TRUNCATED, status)
     assertEquals(before, pair.replicaState())
     assertTrue(before.isNotEmpty())
+  }
+
+  @Test
+  fun `a component holding a float that is not finite is left out, and the rest arrives`() {
+    val release = ReplicaPair(ENTITIES, authorityDebug = false)
+    release.held.forEachIndexed { index, entity ->
+      release.authority.replication.write(entity, Lantern) {
+        fuel = if (index == 1) Float.NaN else index + 1f
+      }
+    }
+
+    val status = release.reader.read(release.writer.buffer, release.writeAll())
+
+    assertEquals(DecodeStatus.OK, status)
+    val fuels = release.mirrored.map { ReplicationWorlds.lanternOf(release.replica, it).fuel }
+    assertEquals(listOf(1f, 0f, 3f), fuels)
+  }
+
+  @Test
+  fun `a debug build throws on a float that is not finite, naming entity, component and field`() {
+    val entity = pair.held[0]
+    pair.authority.replication.write(entity, Lantern) { fuel = Float.POSITIVE_INFINITY }
+
+    val thrown = assertFailsWith<IllegalStateException> { pair.writeAll() }
+
+    val message = thrown.message.orEmpty()
+    assertTrue("Entity ${pair.authority.networkIdOf(entity)}" in message, message)
+    assertTrue("Lantern.fuel" in message, message)
   }
 
   private companion object {

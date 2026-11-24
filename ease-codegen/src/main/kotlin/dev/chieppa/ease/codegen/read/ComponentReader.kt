@@ -23,12 +23,12 @@ internal class ComponentReader(private val optionReaders: List<FieldOptionReader
       className = className,
       serialName = serialName(declaration) ?: qualified,
       fields = replicatedProperties(declaration).map { field(it) }.toList(),
-      isPublic = declaration.isPublic(),
+      visibility = classVisibility(declaration),
       isComponent = declaration.implements(COMPONENT),
       hasTypeCompanion = companionOf(declaration)?.implements(COMPONENT_TYPE) ?: false,
       hasNoArgumentConstructor =
         declaration.getConstructors().any { constructor ->
-          constructor.parameters.all { it.hasDefault }
+          isReachable(constructor) && constructor.parameters.all { it.hasDefault }
         },
     )
   }
@@ -46,7 +46,13 @@ internal class ComponentReader(private val optionReaders: List<FieldOptionReader
   private fun field(property: KSPropertyDeclaration): FieldModel {
     val type = property.type.resolve()
     val typeName = type.qualifiedName() ?: type.toString()
-    val plain = FieldModel(property.simpleName.asString(), typeName, type.isMarkedNullable)
+    val plain =
+      FieldModel(
+        property.simpleName.asString(),
+        typeName,
+        type.isMarkedNullable,
+        settable = isSettable(property),
+      )
     return optionReaders.fold(plain) { field, reader -> reader.read(property, field) }
   }
 

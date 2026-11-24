@@ -1,5 +1,6 @@
 package dev.chieppa.ease.codegen.rules
 
+import dev.chieppa.ease.codegen.model.ClassVisibility
 import dev.chieppa.ease.codegen.model.ComponentModel
 import dev.chieppa.ease.codegen.model.FieldModel
 
@@ -23,7 +24,12 @@ internal object ModelRules {
       add(Problem(null, "a replicated class needs a companion object that is its ComponentType"))
     }
     if (!model.hasNoArgumentConstructor) {
-      add(Problem(null, "a replicated class needs a constructor that takes no arguments"))
+      add(
+        Problem(null, "a replicated class needs a public or internal constructor without arguments")
+      )
+    }
+    if (model.visibility == ClassVisibility.HIDDEN) {
+      add(Problem(null, "a replicated class and every class around it must be public or internal"))
     }
     if (model.fields.size > MAX_FIELDS) {
       add(Problem(null, "a replicated class has at most $MAX_FIELDS fields"))
@@ -35,6 +41,9 @@ internal object ModelRules {
 
   private fun problems(field: FieldModel): List<Problem> = buildList {
     if (field.kind == null) add(Problem(field.name, unsupported(field)))
+    if (!field.settable) {
+      add(Problem(field.name, "a replicated field needs a public or internal setter"))
+    }
     val quantization = field.quantization ?: return@buildList
     if (quantization.bits !in QUANTIZED_BITS) {
       add(Problem(field.name, "@Quantized bits must be 1 to 30, not ${quantization.bits}"))
@@ -52,6 +61,3 @@ internal object ModelRules {
       else -> "a replicated field is a Float, Int or Boolean, not ${field.typeName}"
     }
 }
-
-/** One reason a model cannot replicate, on [field], or on the class when it is null. */
-internal data class Problem(val field: String?, val message: String)

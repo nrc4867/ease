@@ -15,8 +15,9 @@ public const val DEFAULT_ENTITY_CAPACITY: Int = 512
 /**
  * Builds a world whose systems run in [Phase] order on every `update`, whatever order [systems]
  * registers them in. Systems are constructed inside [systems], where the world being built is
- * current. Every entity gets a network id and authority held by the world's peer when it is
- * created; with [ReplicationSettings.debugChecks], each update ends by checking that replicated
+ * current. Every entity gets a network id and authority held by the world's peer: `spawnEntity`
+ * adds them inside the entity's creation, and an entity made with Fleks's own `entity` gets them
+ * right after. With [ReplicationSettings.debugChecks], each update ends by checking that replicated
  * components changed only through [Replication.write].
  */
 public fun phasedWorld(
@@ -28,7 +29,7 @@ public fun phasedWorld(
   val world =
     configureWorld(entityCapacity) {
       injectables { add(REPLICATION_INJECTABLE, state) }
-      onAddEntity { entity -> this.replication.identify(entity) }
+      onAddEntity { entity -> this.replication.identify(this, entity) }
       systems {
         PhasedSystems().apply(systems).inRunOrder().forEach { add(it) }
         if (state.debugChecks) add(ReplicationGuardSystem(state))

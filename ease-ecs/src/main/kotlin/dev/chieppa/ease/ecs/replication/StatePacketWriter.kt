@@ -38,14 +38,33 @@ public class StatePacketWriter(private val replication: Replication) {
     current = entity
   }
 
-  /** Writes the current entity's component of [type], with the change mask [fields]. */
-  public fun component(type: ComponentType<*>, fields: Int) {
+  /**
+   * Writes the current entity's component of [type], with the change mask [fields], and returns
+   * true. A component with a float the mask names that is not finite is left out, so replicas keep
+   * its last good value and the rest of the packet still applies, and this returns false; a debug
+   * build throws instead, naming the entity, component and field.
+   */
+  public fun component(type: ComponentType<*>, fields: Int): Boolean {
     val target = active()
     check(current != Entity.NONE) { "Start an entity before writing its components" }
     val id = replication.replicatedIdOf(type)
+    val replicated = replication.types[id]
+    val bad = replicated.nonFiniteField(replication.world, current, fields)
+    if (bad >= 0) {
+      refuseNonFinite(replicated.serializer, bad)
+      return false
+    }
     target.writeBits(id, ReplicatedTypes.ID_BITS)
-    replication.types[id].writeFrom(replication.world, current, target, fields)
+    replicated.writeFrom(replication.world, current, target, fields)
     components++
+    return true
+  }
+
+  private fun refuseNonFinite(serializer: ReplicatedSerializer<*>, field: Int) {
+    check(!replication.debugChecks) {
+      "${replication.describe(current)} holds a value that is not finite in " +
+        "${serializer.name}.${serializer.fieldNames[field]}"
+    }
   }
 
   /** Finishes the packet and returns its length in bytes. */

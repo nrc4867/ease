@@ -36,7 +36,8 @@ public class StatePacketReader(private val replication: Replication) {
       entity(apply)
       read++
     }
-    if (reader.ok && reader.remainingBits >= BYTE_BITS) reader.fail(DecodeStatus.TRAILING_DATA)
+    if (reader.ok && reader.remainingBits >= WireBits.BYTE_BITS)
+      reader.fail(DecodeStatus.TRAILING_DATA)
   }
 
   private fun entity(apply: Boolean) {
@@ -52,10 +53,11 @@ public class StatePacketReader(private val replication: Replication) {
 
   /** The replica [id] names, failing the read when it names none or one this world holds. */
   private fun entityFor(id: Long): Entity {
-    val entity = if (id > 0L) replication.entities.entityOf(NetworkId(id)) else Entity.NONE
+    val networkId = NetworkId(id)
+    val entity = if (networkId.isValid) replication.entities.entityOf(networkId) else Entity.NONE
     when {
       !reader.ok -> Unit
-      id <= 0L -> reader.fail(DecodeStatus.BAD_NETWORK_ID)
+      !networkId.isValid -> reader.fail(DecodeStatus.BAD_NETWORK_ID)
       entity == Entity.NONE -> reader.fail(DecodeStatus.UNKNOWN_ENTITY)
       replication.hasAuthority(entity) -> reader.fail(DecodeStatus.LOCAL_AUTHORITY)
     }
@@ -75,9 +77,5 @@ public class StatePacketReader(private val replication: Replication) {
       }
       else -> replication.types[typeId].check(reader)
     }
-  }
-
-  private companion object {
-    const val BYTE_BITS = 8
   }
 }

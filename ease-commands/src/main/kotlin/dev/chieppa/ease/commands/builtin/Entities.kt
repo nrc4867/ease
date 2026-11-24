@@ -4,6 +4,7 @@ import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.Snapshot
 import com.github.quillraven.fleks.World
 import dev.chieppa.ease.commands.CommandRejected
+import dev.chieppa.ease.ecs.replication.Authority
 import dev.chieppa.ease.ecs.replication.NetworkId
 import dev.chieppa.ease.ecs.replication.NetworkIdentity
 import dev.chieppa.ease.ecs.replication.entityOf
@@ -23,6 +24,23 @@ internal fun heldEntity(world: World, id: NetworkId): Entity {
     throw CommandRejected("Entity $id is held by another peer")
   }
   return entity
+}
+
+/**
+ * Why an entity made from [snapshot] cannot be created in [world], or null when it can: it may not
+ * carry its own network identity, and an `Authority` in it must be held by [world]'s peer, since
+ * moving authority is its own message, never a side effect of creating an entity.
+ */
+internal fun snapshotRefusal(world: World, snapshot: Snapshot): String? {
+  val authority = snapshot.components.filterIsInstance<Authority>().firstOrNull()
+  val localPeer = world.replication.localPeer
+  return when {
+    snapshot.components.any { it is NetworkIdentity } ->
+      "A created entity takes its network id from the world or the command, not its components"
+    authority != null && authority.holder != localPeer ->
+      "A created entity is held by this world's $localPeer, not ${authority.holder}"
+    else -> null
+  }
 }
 
 /** [snapshot] without the entity's network identity, which commands carry beside it. */

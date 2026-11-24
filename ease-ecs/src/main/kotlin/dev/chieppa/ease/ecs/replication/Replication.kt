@@ -34,8 +34,9 @@ public class Replication internal constructor(settings: ReplicationSettings) {
 
   @PublishedApi internal lateinit var world: World
 
+  /** Binds this to [world], once: entity hooks call it, since they can run during world setup. */
   internal fun attach(world: World) {
-    this.world = world
+    if (!this::world.isInitialized) this.world = world
   }
 
   /** Whether this world holds authority over [entity], and so may change its replicated state. */

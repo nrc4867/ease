@@ -19,6 +19,10 @@ internal constructor(public val id: Int, public val serializer: ReplicatedSerial
   public fun isOn(world: World, entity: Entity): Boolean =
     with(world) { entity.has(serializer.type) }
 
+  /** The first float field of [entity]'s component [fields] names that is not finite, or -1. */
+  public fun nonFiniteField(world: World, entity: Entity, fields: Int): Int =
+    serializer.nonFiniteField(serializer.componentOf(world, entity), fields)
+
   /** Writes [entity]'s component with the change mask [fields]. */
   public fun writeFrom(world: World, entity: Entity, writer: BitWriter, fields: Int) {
     val component = serializer.componentOf(world, entity)

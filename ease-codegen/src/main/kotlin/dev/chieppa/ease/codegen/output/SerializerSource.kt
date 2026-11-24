@@ -1,6 +1,8 @@
 package dev.chieppa.ease.codegen.output
 
+import dev.chieppa.ease.codegen.model.ClassVisibility
 import dev.chieppa.ease.codegen.model.ComponentModel
+import dev.chieppa.ease.codegen.model.FieldKind
 
 /**
  * The Kotlin source of a model's `ReplicatedSerializer`: an object in the class's package that
@@ -21,12 +23,15 @@ internal object SerializerSource {
 
   fun of(model: ComponentModel): String = buildString {
     appendLine("// Written by ease-codegen from ${model.className}; changes here are lost.")
-    appendLine("package ${model.packageName}")
-    appendLine()
+    if (model.packageName.isNotEmpty()) {
+      appendLine("package ${model.packageName}")
+      appendLine()
+    }
     imports.forEach { appendLine("import $it") }
     appendLine()
     appendHeader(model)
     appendChangedFields(model)
+    appendNonFinite(model)
     appendDiffers(model)
     appendWrite(model)
     appendRead(model)
@@ -36,12 +41,14 @@ internal object SerializerSource {
 
   private fun StringBuilder.appendHeader(model: ComponentModel) {
     val type = model.className
-    val visibility = if (model.isPublic) "public" else "internal"
+    val visibility = if (model.visibility == ClassVisibility.PUBLIC) "public" else "internal"
     appendLine("/** The replicated serializer of [$type]. */")
     appendLine("$visibility object ${model.serializerName} : ReplicatedSerializer<$type> {")
     appendLine("  override val name: String = \"${model.serialName}\"")
     appendLine("  override val type: ComponentType<$type> = $type")
     appendLine("  override val fieldCount: Int = ${model.fields.size}")
+    val names = model.fields.joinToString { "\"${it.name}\"" }
+    appendLine("  override val fieldNames: List<String> = listOf($names)")
     appendLine("  override val interpolatedFields: Int = ${mask(model.interpolatedFields)}")
     appendLine("  override val ownerFields: Int = ${mask(model.ownerFields)}")
     appendLine("  override val othersFields: Int = ${mask(model.othersFields)}")
@@ -61,6 +68,19 @@ internal object SerializerSource {
       appendLine("    if (${FieldSource.wireDiffers(field)}) mask = mask or (1 shl $index)")
     }
     appendLine("    return mask")
+    appendLine("  }")
+  }
+
+  private fun StringBuilder.appendNonFinite(model: ComponentModel) {
+    appendLine()
+    appendLine("  override fun nonFiniteField(value: ${model.className}, fields: Int): Int {")
+    model.fields.forEachIndexed { index, field ->
+      if (field.kind == FieldKind.FLOAT || field.kind == FieldKind.QUANTIZED_FLOAT) {
+        val named = "fields and (1 shl $index) != 0"
+        appendLine("    if ($named && !value.${field.name}.isFinite()) return $index")
+      }
+    }
+    appendLine("    return -1")
     appendLine("  }")
   }
 

@@ -1,7 +1,10 @@
 package dev.chieppa.ease.commands
 
+import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.Entity
+import com.github.quillraven.fleks.Snapshot
 import dev.chieppa.ease.commands.builtin.Destroy
+import dev.chieppa.ease.commands.builtin.Restore
 import dev.chieppa.ease.commands.builtin.SetTransform
 import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.ecs.LocalTransform
@@ -40,6 +43,9 @@ class CommandHistoryTest {
     history.execute(Spawn(listOf(LocalTransform.of(Transform.IDENTITY))), 0, CommandOrigin.GAME)
     return world.asEntityBag().map { world.networkIdOf(it) }.maxBy { it.value }
   }
+
+  private fun components(authority: Authority): List<Component<out Any>> =
+    listOf(LocalTransform(), authority)
 
   private fun isLive(id: NetworkId): Boolean = world.entityOf(id) != Entity.NONE
 
@@ -172,5 +178,60 @@ class CommandHistoryTest {
     assertFailsWith<CommandRejected> {
       history.execute(SetTransform(entity, moved), 1, CommandOrigin.NETWORK)
     }
+  }
+
+  @Test
+  fun `a restore under an id at or past the limit is rejected and later spawns still work`() {
+    val hostile =
+      Restore(NetworkId(Long.MAX_VALUE), Snapshot(listOf(LocalTransform()), emptyList()))
+    val atLimit = Restore(NetworkId(NetworkId.LIMIT), Snapshot(emptyList(), emptyList()))
+
+    assertFailsWith<CommandRejected> { history.execute(hostile, 1, CommandOrigin.NETWORK) }
+    assertFailsWith<CommandRejected> { history.execute(atLimit, 1, CommandOrigin.NETWORK) }
+
+    assertEquals(NetworkId(1), spawn())
+  }
+
+  @Test
+  fun `a spawn or restore that hands authority to another peer is rejected`() {
+    val foreign = Authority(holder = PeerId(2), owner = PeerId(2))
+    val owned = Authority(holder = PeerId.HOST, owner = PeerId(2))
+
+    assertFailsWith<CommandRejected> {
+      history.execute(Spawn(components(foreign)), 1, CommandOrigin.NETWORK)
+    }
+    assertFailsWith<CommandRejected> {
+      val snapshot = Snapshot(components(foreign), emptyList())
+      history.execute(Restore(NetworkId(9), snapshot), 1, CommandOrigin.NETWORK)
+    }
+    history.execute(Spawn(components(owned)), 1, CommandOrigin.NETWORK)
+    assertTrue(history.canUndo)
+  }
+
+  @Test
+  fun `an undo that can no longer apply is dropped, so the one under it is reachable`() {
+    val first = spawn()
+    val second = spawn()
+    history.execute(SetTransform(first, moved), 1, CommandOrigin.USER)
+    history.execute(SetTransform(second, moved), 2, CommandOrigin.USER)
+    with(world) { world.entityOf(second)[Authority].holder = PeerId(2) }
+
+    assertFailsWith<CommandRejected> { history.undo(3, CommandOrigin.USER) }
+    assertTrue(history.undo(4, CommandOrigin.USER))
+
+    assertEquals(Transform.IDENTITY, with(world) { world.entityOf(first)[LocalTransform].get() })
+    assertEquals(moved, with(world) { world.entityOf(second)[LocalTransform].get() })
+  }
+
+  @Test
+  fun `a redo that can no longer apply is dropped too`() {
+    val entity = spawn()
+    history.execute(SetTransform(entity, moved), 1, CommandOrigin.USER)
+    history.undo(2, CommandOrigin.USER)
+    with(world) { world.entityOf(entity)[Authority].holder = PeerId(2) }
+
+    assertFailsWith<CommandRejected> { history.redo(3, CommandOrigin.USER) }
+
+    assertFalse(history.canRedo)
   }
 }

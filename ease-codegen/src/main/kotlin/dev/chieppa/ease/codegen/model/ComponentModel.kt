@@ -11,8 +11,8 @@ internal data class ComponentModel(
   /** The serial name: the class's `@SerialName`, or its qualified name without one. */
   val serialName: String,
   val fields: List<FieldModel>,
-  /** Whether the class is public; its serializer is internal otherwise. */
-  val isPublic: Boolean = true,
+  /** How far the class can be seen, outer classes included. */
+  val visibility: ClassVisibility = ClassVisibility.PUBLIC,
   val isComponent: Boolean = true,
   val hasTypeCompanion: Boolean = true,
   val hasNoArgumentConstructor: Boolean = true,
@@ -21,9 +21,12 @@ internal data class ComponentModel(
   val qualifiedName: String
     get() = if (packageName.isEmpty()) className else "$packageName.$className"
 
-  /** The generated serializer's name: the class's own name with `Replicated` appended. */
+  /**
+   * The generated serializer's name: the class's name inside its package, nested names joined by
+   * `_`, with `Replicated` appended, so two nested classes of one name never collide.
+   */
   val serializerName: String
-    get() = className.substringAfterLast('.') + SERIALIZER_SUFFIX
+    get() = className.replace('.', '_') + SERIALIZER_SUFFIX
 
   /** The mask with a bit for each field [selected] picks, the first field lowest. */
   fun maskOf(selected: (FieldModel) -> Boolean): Int =

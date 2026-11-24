@@ -1,13 +1,5 @@
 package dev.chieppa.ease.ecs.replication
 
-private const val BYTE_BITS = 8
-private const val BYTE_MASK = 7
-private const val BYTE_SHIFT = 3
-private const val BYTE_VALUE = 0xFF
-private const val INT_BITS = 32
-private const val VARINT_GROUP_BITS = 7
-private const val VARINT_MAX_GROUPS = 10
-
 /**
  * Reads what a [BitWriter] wrote, treating every byte as hostile: a read never runs past the length
  * it was given and never throws. The first problem sets [status], and every read after it returns
@@ -37,7 +29,7 @@ public class BitReader {
   public fun reset(source: ByteArray, length: Int) {
     require(length in 0..source.size) { "Length $length is outside a ${source.size}-byte array" }
     bytes = source
-    limitBits = length * BYTE_BITS
+    limitBits = length * WireBits.BYTE_BITS
     bitPosition = 0
     status = DecodeStatus.OK
   }
@@ -49,15 +41,15 @@ public class BitReader {
 
   /** Reads [count] bits, from 0 to 32, as the lowest bits of the result. */
   public fun readBits(count: Int): Int {
-    require(count in 0..INT_BITS) { "Can read 0 to 32 bits at once, not $count" }
+    require(count in 0..WireBits.INT_BITS) { "Can read 0 to 32 bits at once, not $count" }
     if (ok && count > remainingBits) fail(DecodeStatus.TRUNCATED)
     if (!ok) return 0
     var result = 0
     var done = 0
     while (done < count) {
-      val offset = bitPosition and BYTE_MASK
-      val taken = minOf(BYTE_BITS - offset, count - done)
-      val byte = bytes[bitPosition ushr BYTE_SHIFT].toInt() and BYTE_VALUE
+      val offset = bitPosition and WireBits.BYTE_MASK
+      val taken = minOf(WireBits.BYTE_BITS - offset, count - done)
+      val byte = bytes[bitPosition ushr WireBits.BYTE_SHIFT].toInt() and WireBits.BYTE_VALUE
       val bits = (byte ushr offset) and ((1 shl taken) - 1)
       result = result or (bits shl done)
       done += taken
@@ -72,9 +64,9 @@ public class BitReader {
   /** Reads a number [BitWriter.writeVarLong] wrote; one longer than ten groups is malformed. */
   public fun readVarLong(): Long {
     var result = 0L
-    for (group in 0 until VARINT_MAX_GROUPS) {
-      val bits = readBits(VARINT_GROUP_BITS).toLong()
-      result = result or (bits shl (group * VARINT_GROUP_BITS))
+    for (group in 0 until WireBits.VARINT_MAX_GROUPS) {
+      val bits = readBits(WireBits.VARINT_GROUP_BITS).toLong()
+      result = result or (bits shl (group * WireBits.VARINT_GROUP_BITS))
       if (!readBoolean()) return result
     }
     fail(DecodeStatus.MALFORMED)

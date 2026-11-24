@@ -1,11 +1,15 @@
 package dev.chieppa.ease.codegen
 
+import dev.chieppa.ease.codegen.model.ClassVisibility
 import dev.chieppa.ease.codegen.model.ComponentModel
 import dev.chieppa.ease.codegen.model.FieldAudience
 import dev.chieppa.ease.codegen.model.FieldModel
 import dev.chieppa.ease.codegen.output.ComponentMasks
+import dev.chieppa.ease.codegen.output.SerializerSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /** The masks and names a model gives its serializer. */
 class ComponentModelTest {
@@ -30,9 +34,33 @@ class ComponentModelTest {
   }
 
   @Test
-  fun `the serializer is named after the class itself, nested or not`() {
-    assertEquals("LampReplicated", model.serializerName)
+  fun `the serializer is named after the whole nested path, so equal inner names never collide`() {
+    val other = model.copy(className = "Shelf.Lamp")
+    val topLevel = model.copy(className = "Lamp")
+
+    assertEquals("Outer_LampReplicated", model.serializerName)
+    assertEquals("Shelf_LampReplicated", other.serializerName)
+    assertEquals("LampReplicated", topLevel.serializerName)
     assertEquals("test.Outer.Lamp", model.qualifiedName)
+  }
+
+  @Test
+  fun `a class in the root package gets a serializer with no package line`() {
+    val rooted = model.copy(packageName = "", className = "Lamp")
+
+    val source = SerializerSource.of(rooted)
+
+    assertEquals("Lamp", rooted.qualifiedName)
+    assertFalse(source.lines().any { it.startsWith("package") }, source)
+    assertTrue("object LampReplicated" in source, source)
+  }
+
+  @Test
+  fun `an internal class or one nested in an internal class gets an internal serializer`() {
+    val internal = model.copy(visibility = ClassVisibility.INTERNAL)
+
+    assertTrue("internal object Outer_LampReplicated" in SerializerSource.of(internal))
+    assertTrue("public object Outer_LampReplicated" in SerializerSource.of(model))
   }
 
   @Test

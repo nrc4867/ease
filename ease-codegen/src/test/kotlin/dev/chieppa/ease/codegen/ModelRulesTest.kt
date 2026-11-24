@@ -1,5 +1,6 @@
 package dev.chieppa.ease.codegen
 
+import dev.chieppa.ease.codegen.model.ClassVisibility
 import dev.chieppa.ease.codegen.model.ComponentModel
 import dev.chieppa.ease.codegen.model.FieldAudience
 import dev.chieppa.ease.codegen.model.FieldModel
@@ -66,6 +67,32 @@ class ModelRulesTest {
 
     assertEquals(3, problems.size)
     assertTrue(problems.all { it.field == null })
+  }
+
+  @Test
+  fun `a field whose setter is private or protected is refused`() {
+    val model = model(FieldModel("level", FieldModel.FLOAT, settable = false), float("open"))
+
+    assertEquals(listOf<String?>("level"), problemFields(model))
+  }
+
+  @Test
+  fun `a class without a constructor generated code can call is refused`() {
+    val model = model(float("level")).copy(hasNoArgumentConstructor = false)
+
+    val problems = ModelRules.problems(model)
+
+    assertEquals(1, problems.size)
+    assertTrue("constructor" in problems.single().message)
+  }
+
+  @Test
+  fun `a class hidden by its own or an outer class's visibility is refused`() {
+    val hidden = model(float("level")).copy(visibility = ClassVisibility.HIDDEN)
+    val internal = model(float("level")).copy(visibility = ClassVisibility.INTERNAL)
+
+    assertEquals(listOf<String?>(null), problemFields(hidden))
+    assertEquals(emptyList(), ModelRules.problems(internal))
   }
 
   @Test

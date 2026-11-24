@@ -7,8 +7,12 @@ import com.github.quillraven.fleks.World
  * An authority world and a replica world holding the same entities under the same network ids, the
  * authority's peer holding every one, as two peers of a session would.
  */
-internal class ReplicaPair(entities: Int, replicaDebug: Boolean = true) {
-  val authority: World = ReplicationWorlds.world(PeerId.HOST)
+internal class ReplicaPair(
+  entities: Int,
+  replicaDebug: Boolean = true,
+  authorityDebug: Boolean = true,
+) {
+  val authority: World = ReplicationWorlds.world(PeerId.HOST, authorityDebug)
   val replica: World = ReplicationWorlds.world(PeerId(1), replicaDebug)
   val held: List<Entity> = List(entities) { ReplicationWorlds.lanternEntity(authority) }
   val mirrored: List<Entity> = held.map { entity ->

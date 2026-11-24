@@ -1,12 +1,5 @@
 package dev.chieppa.ease.ecs.replication
 
-private const val BYTE_BITS = 8
-private const val BYTE_MASK = 7
-private const val BYTE_SHIFT = 3
-private const val INT_BITS = 32
-private const val VARINT_GROUP_BITS = 7
-private const val VARINT_GROUP = 0x7F
-
 /**
  * Writes values bit by bit into [buffer], lowest bits first, without allocating. Writing past the
  * buffer's end throws: the engine sizes its own packets, so that is a bug, not hostile input.
@@ -21,7 +14,7 @@ public class BitWriter(capacityBytes: Int) {
 
   /** How many bytes the bits written so far take, the last one padded with zeros. */
   public val byteLength: Int
-    get() = (bitPosition + BYTE_MASK) ushr BYTE_SHIFT
+    get() = (bitPosition + WireBits.BYTE_MASK) ushr WireBits.BYTE_SHIFT
 
   /** Starts again from an empty buffer. */
   public fun reset() {
@@ -30,16 +23,16 @@ public class BitWriter(capacityBytes: Int) {
 
   /** Writes the lowest [count] bits of [value], for [count] from 0 to 32. */
   public fun writeBits(value: Int, count: Int) {
-    require(count in 0..INT_BITS) { "Can write 0 to 32 bits at once, not $count" }
-    check(bitPosition + count <= buffer.size * BYTE_BITS) {
+    require(count in 0..WireBits.INT_BITS) { "Can write 0 to 32 bits at once, not $count" }
+    check(bitPosition + count <= buffer.size * WireBits.BYTE_BITS) {
       "A ${buffer.size}-byte buffer has no room for $count more bits at bit $bitPosition"
     }
     var remaining = count
     var bits = value
     while (remaining > 0) {
-      val offset = bitPosition and BYTE_MASK
-      val taken = minOf(BYTE_BITS - offset, remaining)
-      putBits(bitPosition ushr BYTE_SHIFT, offset, bits, taken)
+      val offset = bitPosition and WireBits.BYTE_MASK
+      val taken = minOf(WireBits.BYTE_BITS - offset, remaining)
+      putBits(bitPosition ushr WireBits.BYTE_SHIFT, offset, bits, taken)
       bits = bits ushr taken
       remaining -= taken
       bitPosition += taken
@@ -67,9 +60,9 @@ public class BitWriter(capacityBytes: Int) {
     require(value >= 0) { "Variable-length numbers are not negative: $value" }
     var rest = value
     while (true) {
-      val group = (rest and VARINT_GROUP.toLong()).toInt()
-      rest = rest ushr VARINT_GROUP_BITS
-      writeBits(group, VARINT_GROUP_BITS)
+      val group = (rest and WireBits.VARINT_GROUP.toLong()).toInt()
+      rest = rest ushr WireBits.VARINT_GROUP_BITS
+      writeBits(group, WireBits.VARINT_GROUP_BITS)
       writeBoolean(rest != 0L)
       if (rest == 0L) return
     }
@@ -77,7 +70,7 @@ public class BitWriter(capacityBytes: Int) {
 
   /** Pads the last byte with zeros, so [byteLength] bytes of [buffer] hold the whole message. */
   public fun padToByte() {
-    val padding = (BYTE_BITS - (bitPosition and BYTE_MASK)) and BYTE_MASK
+    val padding = (WireBits.BYTE_BITS - (bitPosition and WireBits.BYTE_MASK)) and WireBits.BYTE_MASK
     writeBits(0, padding)
   }
 

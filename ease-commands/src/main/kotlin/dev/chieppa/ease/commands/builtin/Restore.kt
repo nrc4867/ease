@@ -9,6 +9,7 @@ import dev.chieppa.ease.commands.CommandRejected
 import dev.chieppa.ease.ecs.replication.NetworkId
 import dev.chieppa.ease.ecs.replication.NetworkIdentity
 import dev.chieppa.ease.ecs.replication.entityOf
+import dev.chieppa.ease.ecs.replication.spawnEntity
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -23,7 +24,7 @@ public class Restore(public val entity: NetworkId, public val snapshot: Snapshot
     refusal(world)?.let { throw CommandRejected(it) }
     @Suppress("UNCHECKED_CAST") // Fleks keeps every tag as a UniqueId of Any.
     val tags = snapshot.tags as List<EntityTags>
-    world.entity {
+    world.spawnEntity {
       it += NetworkIdentity(entity)
       it += snapshot.components
       it += tags
@@ -34,10 +35,8 @@ public class Restore(public val entity: NetworkId, public val snapshot: Snapshot
   /** Why this cannot apply to [world], or null when it can. */
   private fun refusal(world: World): String? =
     when {
-      entity.value <= 0L -> "Network ids start at 1, not ${entity.value}"
+      !entity.isValid -> "Network ids run from 1 to below ${NetworkId.LIMIT}, not ${entity.value}"
       world.entityOf(entity) != Entity.NONE -> "Entity $entity already exists"
-      snapshot.components.any { it is NetworkIdentity } ->
-        "A restored entity takes its id from the command, not its components"
-      else -> null
+      else -> snapshotRefusal(world, snapshot)
     }
 }

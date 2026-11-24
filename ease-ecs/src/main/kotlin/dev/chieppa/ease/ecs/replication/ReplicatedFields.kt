@@ -1,9 +1,6 @@
 package dev.chieppa.ease.ecs.replication
 
-import kotlin.math.roundToInt
-
-private const val FLOAT_BITS = 32
-private const val INT_BITS = 32
+import kotlin.math.roundToLong
 
 /**
  * How fields go on the wire, shared by the serializers KSP writes and the schema-driven ones.
@@ -25,28 +22,33 @@ public object ReplicatedFields {
 
   /** Writes [value] at full precision. */
   public fun writeFloat(writer: BitWriter, value: Float) {
-    writer.writeBits(value.toRawBits(), FLOAT_BITS)
+    writer.writeBits(value.toRawBits(), WireBits.FLOAT_BITS)
   }
 
   /** Reads a full-precision float, failing on one that is not finite. */
   public fun readFloat(reader: BitReader): Float {
-    val value = Float.fromBits(reader.readBits(FLOAT_BITS))
+    val value = Float.fromBits(reader.readBits(WireBits.FLOAT_BITS))
     if (value.isFinite()) return value
     reader.fail(DecodeStatus.BAD_VALUE)
     return 0f
   }
 
-  /** [value] as a step from 0 to `2^bits - 1` over [min] to [max], clamped; `NaN` is [min]. */
+  /**
+   * [value] as a step from 0 to `2^bits - 1` over [min] to [max], clamped; `NaN` is [min]. The
+   * arithmetic is in `Double`, since a `Float` cannot hold `2^bits - 1` past 24 bits.
+   */
   public fun quantize(value: Float, bits: Int, min: Float, max: Float): Int {
-    val steps = (1 shl bits) - 1
+    val steps = (1L shl bits) - 1
     val clamped = if (value.isNaN()) min else value.coerceIn(min, max)
-    return ((clamped - min) / (max - min) * steps).roundToInt()
+    val fraction = (clamped.toDouble() - min) / (max.toDouble() - min)
+    val step = (fraction * steps).roundToLong()
+    return step.coerceIn(0L, steps).toInt()
   }
 
-  /** The float a [quantize]d [step] stands for. */
+  /** The float a [quantize]d [step] stands for, computed in `Double` so wide steps stay exact. */
   public fun dequantize(step: Int, bits: Int, min: Float, max: Float): Float {
-    val steps = (1 shl bits) - 1
-    return min + (max - min) * step / steps
+    val steps = (1L shl bits) - 1
+    return (min + (max.toDouble() - min) * step / steps).toFloat()
   }
 
   /** Writes [value] quantized to [bits] bits over [min] to [max]. */
@@ -60,9 +62,9 @@ public object ReplicatedFields {
 
   /** Writes [value] in 32 bits. */
   public fun writeInt(writer: BitWriter, value: Int) {
-    writer.writeBits(value, INT_BITS)
+    writer.writeBits(value, WireBits.INT_BITS)
   }
 
   /** Reads a 32-bit int. */
-  public fun readInt(reader: BitReader): Int = reader.readBits(INT_BITS)
+  public fun readInt(reader: BitReader): Int = reader.readBits(WireBits.INT_BITS)
 }

@@ -20,6 +20,9 @@ public interface ReplicatedSerializer<T : Component<T>> {
   /** How many fields replicate, up to [ReplicatedFields.MAX_FIELDS]. */
   public val fieldCount: Int
 
+  /** The fields' names, in wire order, for messages. */
+  public val fieldNames: List<String>
+
   /** The fields replicas blend between snapshots. */
   public val interpolatedFields: Int
 
@@ -37,6 +40,12 @@ public interface ReplicatedSerializer<T : Component<T>> {
 
   /** The fields whose wire value differs between [value] and [baseline], after quantization. */
   public fun changedFields(value: T, baseline: T): Int
+
+  /**
+   * The first float field [fields] names that holds a value that is not finite in [value], which no
+   * reader accepts, or -1 when there is none.
+   */
+  public fun nonFiniteField(value: T, fields: Int): Int
 
   /** Whether any field of [a] differs from [b] at all, bit for bit. */
   public fun differs(a: T, b: T): Boolean

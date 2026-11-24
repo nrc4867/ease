@@ -12,6 +12,8 @@ internal data class FieldModel(
   val quantization: Quantization? = null,
   val interpolated: Boolean = false,
   val audience: FieldAudience = FieldAudience.EVERYONE,
+  /** Whether generated code can set the property: its setter is not private or protected. */
+  val settable: Boolean = true,
 ) {
   /** How the field goes on the wire, or null for a type that cannot replicate. */
   val kind: FieldKind?
@@ -31,22 +33,4 @@ internal data class FieldModel(
     const val INT = "kotlin.Int"
     const val BOOLEAN = "kotlin.Boolean"
   }
-}
-
-/** A float's quantization: [bits] bits spread over [min] to [max]. */
-internal data class Quantization(val bits: Int, val min: Float, val max: Float)
-
-/** Who receives a field, as the `Audience` enum of `ease-ecs` names it. */
-internal enum class FieldAudience {
-  EVERYONE,
-  OWNER_ONLY,
-  ALL_BUT_OWNER,
-}
-
-/** How a field goes on the wire. */
-internal enum class FieldKind {
-  FLOAT,
-  QUANTIZED_FLOAT,
-  INT,
-  BOOLEAN,
 }
