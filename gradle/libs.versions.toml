@@ -11,11 +11,14 @@ spotless = "8.12.0"
 ktfmt = "0.64"
 google-java-format = "2.0.0"
 detekt = "2.0.0-alpha.6"
+fleks = "2.16"
+jmh = "0.7.4"
 
 [libraries]
 webgpu-native-ffm = { module = "dev.chieppa:webgpu-native-ffm", version.ref = "webgpu-native-ffm" }
 lwjgl = { module = "org.lwjgl:lwjgl", version.ref = "lwjgl" }
 lwjgl-sdl = { module = "org.lwjgl:lwjgl-sdl", version.ref = "lwjgl" }
+fleks = { module = "io.github.quillraven.fleks:Fleks", version.ref = "fleks" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
@@ -32,3 +35,5 @@ detekt-gradle-plugin = { module = "dev.detekt:detekt-gradle-plugin", version.ref
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+# A build tool only (JMH is GPL with the classpath exception): never on a shipped classpath.
+jmh = { id = "me.champeau.jmh", version.ref = "jmh" }
