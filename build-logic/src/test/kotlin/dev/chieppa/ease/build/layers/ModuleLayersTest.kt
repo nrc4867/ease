@@ -39,4 +39,24 @@ class ModuleLayersTest {
   fun `only a test-support module is subject to the test-only rule`() {
     assertNull(testSupportViolation("ease-ecs", "ease-math", "api"))
   }
+
+  @Test
+  fun `a build-tool module may be taken only by ksp configurations`() {
+    assertNull(buildToolViolation("ease-ecs", "ease-codegen", "ksp"))
+    assertNull(buildToolViolation("sample", "ease-codegen", "kspTest"))
+    assertNotNull(buildToolViolation("ease-ecs", "ease-codegen", "implementation"))
+    assertNotNull(buildToolViolation("ease-ecs", "ease-codegen", "testImplementation"))
+    assertNotNull(buildToolViolation("ease-ecs", "ease-codegen", "compileOnly"))
+  }
+
+  @Test
+  fun `only a build-tool module is subject to the ksp-only rule`() {
+    assertNull(buildToolViolation("ease-ecs", "ease-math", "api"))
+  }
+
+  @Test
+  fun `a build-tool module ranks below every module, so it can use none of them`() {
+    assertNotNull(layerViolation("ease-codegen", "ease-testing"))
+    assertNotNull(layerViolation("ease-codegen", "ease-ecs"))
+  }
 }

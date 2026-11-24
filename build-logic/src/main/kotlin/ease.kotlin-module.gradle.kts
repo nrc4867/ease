@@ -12,14 +12,24 @@ kotlin {
   explicitApi()
 }
 
+// Code KSP writes under build/ is neither formatted nor analyzed: it is checked through the
+// processor that writes it.
 spotless {
-  kotlin { ktfmt(catalogVersion("ktfmt")).googleStyle() }
+  kotlin {
+    targetExclude("build/**")
+    ktfmt(catalogVersion("ktfmt")).googleStyle()
+  }
   kotlinGradle { ktfmt(catalogVersion("ktfmt")).googleStyle() }
 }
 
 detekt {
   buildUponDefaultConfig = true
   config.setFrom(rootDir.resolve("config/detekt/detekt.yml"))
+}
+
+tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
+  val generated = layout.buildDirectory.get().asFile
+  setSource(source.filter { !it.startsWith(generated) })
 }
 
 dependencies { "testImplementation"(kotlin("test")) }

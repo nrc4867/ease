@@ -1,12 +1,12 @@
 package dev.chieppa.ease.commands
 
-import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.Snapshot
 import dev.chieppa.ease.commands.builtin.Destroy
 import dev.chieppa.ease.commands.builtin.Restore
 import dev.chieppa.ease.commands.builtin.SetTransform
 import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.ecs.LocalTransform
+import dev.chieppa.ease.ecs.replication.NetworkId
 import dev.chieppa.ease.math.Quat
 import dev.chieppa.ease.math.Transform
 import dev.chieppa.ease.math.Vec3
@@ -18,7 +18,7 @@ import kotlinx.serialization.SerializationException
 
 class WorldCodecTest {
   private val codec = worldCodec { command(Nudge::class, Nudge.serializer()) }
-  private val entity = Entity(7)
+  private val entity = NetworkId(7)
   private val transform =
     Transform(Vec3(1f, -2f, 3.5f), Quat.fromAxisAngle(Vec3(1f, 0f, 0f), 0.25f), Vec3(2f, 2f, 2f))
 

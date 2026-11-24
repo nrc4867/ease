@@ -1,10 +1,11 @@
 package dev.chieppa.ease.sample
 
-import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.Family
 import com.github.quillraven.fleks.World.Companion.family
 import dev.chieppa.ease.commands.CommandOrigin
 import dev.chieppa.ease.commands.builtin.Spawn
+import dev.chieppa.ease.ecs.replication.NetworkId
+import dev.chieppa.ease.ecs.replication.networkIdOf
 import dev.chieppa.ease.runtime.HostedWorld
 import dev.chieppa.ease.runtime.InputScript
 
@@ -30,9 +31,9 @@ public class CourierScript : InputScript {
     )
   }
 
-  private fun courier(world: HostedWorld): Entity {
+  private fun courier(world: HostedWorld): NetworkId {
     val family = couriers ?: world.world.family { all(Courier) }.also { couriers = it }
-    return family.first()
+    return world.world.networkIdOf(family.first())
   }
 
   public companion object {

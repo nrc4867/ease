@@ -38,6 +38,8 @@ val stretchDir =
 
 includeBuild(stretchDir)
 
+include(":ease-codegen")
+
 include(":ease-testing")
 
 include(":ease-math")

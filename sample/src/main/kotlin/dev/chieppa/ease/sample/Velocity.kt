@@ -2,10 +2,12 @@ package dev.chieppa.ease.sample
 
 import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType
+import dev.chieppa.ease.ecs.replication.Replicated
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** How fast an entity moves, in world units a second along x and y. */
+@Replicated
 @Serializable
 @SerialName("sample.Velocity")
 public class Velocity : Component<Velocity> {

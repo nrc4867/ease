@@ -1,11 +1,20 @@
 package dev.chieppa.ease.commands
 
+import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.Entity
+import com.github.quillraven.fleks.Snapshot
 import dev.chieppa.ease.commands.builtin.Destroy
+import dev.chieppa.ease.commands.builtin.Restore
 import dev.chieppa.ease.commands.builtin.SetTransform
 import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.phasedWorld
+import dev.chieppa.ease.ecs.replication.Authority
+import dev.chieppa.ease.ecs.replication.NetworkId
+import dev.chieppa.ease.ecs.replication.PeerId
+import dev.chieppa.ease.ecs.replication.ReplicationSettings
+import dev.chieppa.ease.ecs.replication.entityOf
+import dev.chieppa.ease.ecs.replication.networkIdOf
 import dev.chieppa.ease.math.Quat
 import dev.chieppa.ease.math.Transform
 import dev.chieppa.ease.math.Vec3
@@ -19,17 +28,26 @@ import kotlin.test.assertTrue
 /** Scenario tests: commands through the real history, outcomes checked as full world state. */
 class CommandHistoryTest {
   private val codec = worldCodec()
-  private val world = phasedWorld {}
+  private val world = freshWorld()
   private val history = CommandHistory(world, codec)
   private val moved =
     Transform(Vec3(1f, 2f, 3f), Quat.fromAxisAngle(Vec3(0f, 1f, 0f), 0.5f), Vec3.ONE)
 
   private fun state(): String = codec.worldToJson(world)
 
-  private fun spawn(): Entity {
+  private fun freshWorld() =
+    phasedWorld(replication = ReplicationSettings(serializers = codec.replicated)) {}
+
+  /** Spawns an entity with a transform and returns its network id, the newest in the world. */
+  private fun spawn(): NetworkId {
     history.execute(Spawn(listOf(LocalTransform.of(Transform.IDENTITY))), 0, CommandOrigin.GAME)
-    return world.asEntityBag().first()
+    return world.asEntityBag().map { world.networkIdOf(it) }.maxBy { it.value }
   }
+
+  private fun components(authority: Authority): List<Component<out Any>> =
+    listOf(LocalTransform(), authority)
+
+  private fun isLive(id: NetworkId): Boolean = world.entityOf(id) != Entity.NONE
 
   @Test
   fun `move, undo and redo return the world to exactly the same state`() {
@@ -58,7 +76,7 @@ class CommandHistoryTest {
     history.redo(2, CommandOrigin.USER)
 
     assertEquals(spawned, state())
-    assertTrue(entity in world)
+    assertTrue(isLive(entity))
   }
 
   @Test
@@ -68,7 +86,7 @@ class CommandHistoryTest {
     val alive = state()
 
     history.execute(Destroy(entity), 2, CommandOrigin.USER)
-    assertFalse(entity in world)
+    assertFalse(isLive(entity))
     history.undo(3, CommandOrigin.USER)
 
     assertEquals(alive, state())
@@ -127,9 +145,93 @@ class CommandHistoryTest {
     history.execute(Destroy(entity), 4, CommandOrigin.USER)
     history.undo(5, CommandOrigin.USER)
 
-    val fresh = phasedWorld {}
+    val fresh = freshWorld()
     history.log.replayOnto(fresh)
 
     assertEquals(state(), codec.worldToJson(fresh))
+  }
+
+  @Test
+  fun `a logged command names its entity by network id, so a reused Fleks id is never hit`() {
+    val first = spawn()
+    val second = spawn()
+    history.execute(Destroy(first), 1, CommandOrigin.USER)
+    val third = spawn()
+    val reused = world.entityOf(third)
+
+    history.execute(SetTransform(second, moved), 2, CommandOrigin.USER)
+    history.undo(3, CommandOrigin.USER)
+    history.undo(4, CommandOrigin.USER)
+    history.undo(5, CommandOrigin.USER)
+
+    assertTrue(isLive(first))
+    assertFalse(isLive(third))
+    assertEquals(Transform.IDENTITY, with(world) { world.entityOf(second)[LocalTransform].get() })
+    assertNotEquals(Entity.NONE, reused)
+  }
+
+  @Test
+  fun `a command on an entity another peer holds is rejected`() {
+    val entity = spawn()
+    with(world) { world.entityOf(entity)[Authority].holder = PeerId(2) }
+
+    assertFailsWith<CommandRejected> {
+      history.execute(SetTransform(entity, moved), 1, CommandOrigin.NETWORK)
+    }
+  }
+
+  @Test
+  fun `a restore under an id at or past the limit is rejected and later spawns still work`() {
+    val hostile =
+      Restore(NetworkId(Long.MAX_VALUE), Snapshot(listOf(LocalTransform()), emptyList()))
+    val atLimit = Restore(NetworkId(NetworkId.LIMIT), Snapshot(emptyList(), emptyList()))
+
+    assertFailsWith<CommandRejected> { history.execute(hostile, 1, CommandOrigin.NETWORK) }
+    assertFailsWith<CommandRejected> { history.execute(atLimit, 1, CommandOrigin.NETWORK) }
+
+    assertEquals(NetworkId(1), spawn())
+  }
+
+  @Test
+  fun `a spawn or restore that hands authority to another peer is rejected`() {
+    val foreign = Authority(holder = PeerId(2), owner = PeerId(2))
+    val owned = Authority(holder = PeerId.HOST, owner = PeerId(2))
+
+    assertFailsWith<CommandRejected> {
+      history.execute(Spawn(components(foreign)), 1, CommandOrigin.NETWORK)
+    }
+    assertFailsWith<CommandRejected> {
+      val snapshot = Snapshot(components(foreign), emptyList())
+      history.execute(Restore(NetworkId(9), snapshot), 1, CommandOrigin.NETWORK)
+    }
+    history.execute(Spawn(components(owned)), 1, CommandOrigin.NETWORK)
+    assertTrue(history.canUndo)
+  }
+
+  @Test
+  fun `an undo that can no longer apply is dropped, so the one under it is reachable`() {
+    val first = spawn()
+    val second = spawn()
+    history.execute(SetTransform(first, moved), 1, CommandOrigin.USER)
+    history.execute(SetTransform(second, moved), 2, CommandOrigin.USER)
+    with(world) { world.entityOf(second)[Authority].holder = PeerId(2) }
+
+    assertFailsWith<CommandRejected> { history.undo(3, CommandOrigin.USER) }
+    assertTrue(history.undo(4, CommandOrigin.USER))
+
+    assertEquals(Transform.IDENTITY, with(world) { world.entityOf(first)[LocalTransform].get() })
+    assertEquals(moved, with(world) { world.entityOf(second)[LocalTransform].get() })
+  }
+
+  @Test
+  fun `a redo that can no longer apply is dropped too`() {
+    val entity = spawn()
+    history.execute(SetTransform(entity, moved), 1, CommandOrigin.USER)
+    history.undo(2, CommandOrigin.USER)
+    with(world) { world.entityOf(entity)[Authority].holder = PeerId(2) }
+
+    assertFailsWith<CommandRejected> { history.redo(3, CommandOrigin.USER) }
+
+    assertFalse(history.canRedo)
   }
 }

@@ -2,6 +2,7 @@ package dev.chieppa.ease.commands
 
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.phasedWorld
+import dev.chieppa.ease.ecs.replication.networkIdOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -27,23 +28,25 @@ class WorldCodecTypesTest {
   }
 
   @Test
-  fun `the codec lists the built-in components`() {
+  fun `the codec lists the built-in components and the replicated ones`() {
     val names = codec.componentDescriptors.map { it.serialName }
+    val replicated = codec.replicated.map { it.name }
 
-    assertEquals(listOf("ease.LocalTransform"), names)
+    assertEquals(listOf("ease.LocalTransform", "ease.Authority"), names)
+    assertEquals(listOf("ease.LocalTransform"), replicated)
   }
 
   @Test
-  fun `a filter keeps the entities named by id`() {
+  fun `a filter keeps the entities named by network id`() {
     val world = phasedWorld {}
     world.entity { it += LocalTransform() }
     val second = world.entity { it += LocalTransform().apply { x = 2f } }
 
-    val written = Json.parseToJsonElement(codec.worldToJson(world, EntityFilter(setOf(second.id))))
+    val id = world.networkIdOf(second)
+    val written = Json.parseToJsonElement(codec.worldToJson(world, EntityFilter(setOf(id))))
 
     val only = written.jsonArray.single()
-    val entity = only.jsonObject.getValue("entity")
-    assertTrue(entity.toString().contains(second.id.toString()), written.toString())
+    assertEquals(id.value.toString(), only.jsonObject.getValue("entity").toString())
     assertTrue("2.0" in written.toString(), written.toString())
   }
 

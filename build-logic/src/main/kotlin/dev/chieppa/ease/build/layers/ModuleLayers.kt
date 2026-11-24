@@ -6,6 +6,7 @@ package dev.chieppa.ease.build.layers
  */
 val moduleLayers: Map<String, Layer> =
   mapOf(
+    "ease-codegen" to Layer.BUILD_TOOL,
     "ease-testing" to Layer.TEST_SUPPORT,
     "ease-math" to Layer.FOUNDATION,
     "ease-ecs" to Layer.CORE,
@@ -50,6 +51,16 @@ fun testSupportViolation(from: String, to: String, configuration: String): Strin
   if (layerOf(to) != Layer.TEST_SUPPORT || configuration.startsWith("test")) return null
   return "$from may take $to only in a test configuration, not $configuration: " +
     "test-support modules never reach main code"
+}
+
+/**
+ * Why [from] may not take [to] in [configuration], or null when it may: a build-tool module is only
+ * for the configurations of symbol processing, whose names start with `ksp`.
+ */
+fun buildToolViolation(from: String, to: String, configuration: String): String? {
+  if (layerOf(to) != Layer.BUILD_TOOL || configuration.startsWith("ksp")) return null
+  return "$from may take $to only in a ksp configuration, not $configuration: " +
+    "build tools run inside the build and never reach a classpath"
 }
 
 /** The test-support modules, comma-separated, for tests that check imports against them. */

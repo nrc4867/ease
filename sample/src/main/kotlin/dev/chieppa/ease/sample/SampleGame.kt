@@ -17,6 +17,8 @@ public class SampleGame : GameModule {
   override fun registerTypes(registry: CommandRegistry) {
     registry.component(Velocity::class, Velocity.serializer())
     registry.component(Courier::class, Courier.serializer())
+    registry.replicated(VelocityReplicated)
+    registry.replicated(CourierReplicated)
     registry.command(Steer::class, Steer.serializer())
   }
 

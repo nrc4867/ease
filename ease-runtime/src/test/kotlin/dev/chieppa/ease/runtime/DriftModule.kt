@@ -8,6 +8,7 @@ import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.PhasedSystems
+import dev.chieppa.ease.ecs.replication.replication
 import dev.chieppa.ease.render.Quad
 
 /** A game whose one quad drifts one unit along x every tick. */
@@ -21,8 +22,10 @@ internal class DriftModule : GameModule {
   }
 
   private class DriftSystem : IteratingSystem(family { all(LocalTransform) }) {
+    private val replication = world.replication
+
     override fun onTickEntity(entity: Entity) {
-      entity[LocalTransform].x += 1f
+      replication.write(entity, LocalTransform) { x += 1f }
     }
   }
 }

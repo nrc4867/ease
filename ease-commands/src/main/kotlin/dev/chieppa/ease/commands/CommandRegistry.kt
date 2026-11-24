@@ -1,6 +1,7 @@
 package dev.chieppa.ease.commands
 
 import com.github.quillraven.fleks.Component
+import dev.chieppa.ease.ecs.replication.ReplicatedSerializer
 import kotlin.reflect.KClass
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -9,12 +10,13 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 
 /**
- * The command and component types a [WorldCodec] can read and write. Engine modules and games
- * register their own; the built-in commands and components are always present.
+ * The command and component types a [WorldCodec] can read and write, and the components that
+ * replicate. Engine modules and games register their own; the built-ins are always present.
  */
 public class CommandRegistry internal constructor() {
   private val commands = mutableListOf<Registration<out Command>>()
   private val components = mutableListOf<Registration<out Component<*>>>()
+  private val replicated = mutableListOf<ReplicatedSerializer<*>>()
 
   /** Registers a command type with its generated serializer. */
   public fun <T : Command> command(type: KClass<T>, serializer: KSerializer<T>) {
@@ -25,6 +27,16 @@ public class CommandRegistry internal constructor() {
   public fun <T : Component<*>> component(type: KClass<T>, serializer: KSerializer<T>) {
     components += Registration(type, serializer)
   }
+
+  /**
+   * Registers a replicated component type with the serializer KSP generated for it, or one a
+   * `ReplicatedSchema` made. Register its full-precision serializer with [component] as well.
+   */
+  public fun replicated(serializer: ReplicatedSerializer<*>) {
+    replicated += serializer
+  }
+
+  internal fun replicatedSerializers(): List<ReplicatedSerializer<*>> = replicated.toList()
 
   internal fun commandDescriptors(): List<SerialDescriptor> = commands.map {
     it.serializer.descriptor

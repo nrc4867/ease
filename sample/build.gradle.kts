@@ -6,10 +6,12 @@ import dev.chieppa.ease.build.desktopApp
 plugins {
   id("ease.kotlin-module")
   alias(libs.plugins.kotlinSerialization)
+  id("com.google.devtools.ksp")
 }
 
 dependencies {
   implementation(project(":ease-runtime"))
+  ksp(project(":ease-codegen"))
   runtimeOnly(project(":ease-player"))
   runtimeOnly(project(":ease-agent"))
   testImplementation(project(":ease-testing"))

@@ -2,6 +2,12 @@ package dev.chieppa.ease.build.layers
 
 /** A layer of modules, lowest first. A module may depend only on modules in lower layers. */
 enum class Layer {
+  /**
+   * Code that runs only inside the build, such as annotation processors. Only `ksp` configurations
+   * may take them, so they never reach a classpath.
+   */
+  BUILD_TOOL,
+
   /** Helpers for tests, such as the allocation harness. Only test source sets may use them. */
   TEST_SUPPORT,
 
