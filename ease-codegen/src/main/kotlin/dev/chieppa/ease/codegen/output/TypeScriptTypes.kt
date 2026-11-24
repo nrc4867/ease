@@ -1,5 +1,6 @@
 package dev.chieppa.ease.codegen.output
 
+import dev.chieppa.ease.codegen.model.IDENTIFIER
 import dev.chieppa.ease.codegen.model.PrimitiveKind
 import dev.chieppa.ease.codegen.model.TypeRef
 
@@ -7,6 +8,8 @@ import dev.chieppa.ease.codegen.model.TypeRef
 internal object TypeScriptTypes {
   /** The interface every value of an open hierarchy is declared as. */
   const val OPEN_BASE = "ease.Typed"
+
+  private const val TYPED_SUFFIX = "Typed"
 
   /** [type] as a TypeScript type. */
   fun of(type: TypeRef): String =
@@ -48,7 +51,9 @@ internal object TypeScriptTypes {
   /** [text] as a double-quoted string literal. */
   fun quoted(text: String): String = "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
-  /** [value] without a trailing `.0` when it is whole. */
-  fun plain(value: Double): String =
-    if (value == Math.rint(value)) value.toLong().toString() else value.toString()
+  /** [name] as a property name: bare when it is an identifier, else quoted. */
+  fun propertyName(name: String): String = if (IDENTIFIER.matches(name)) name else quoted(name)
+
+  /** The name of the interface that adds the `type` property to the class [serialName]. */
+  fun typedName(serialName: String): String = serialName + TYPED_SUFFIX
 }

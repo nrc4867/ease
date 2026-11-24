@@ -6,7 +6,8 @@ import kotlinx.serialization.Serializable
 
 @Doc(
   "An entity's id for the whole session. It is never reused, so commands, the command log and " +
-    "the network name entities by it. Ids run from 1 up to, not including, 2^62."
+    "the network name entities by it. Ids run from 1 up to, not including, 2^53, " +
+    "so a script holds every id exactly as a number."
 )
 @Serializable
 @SerialName("ease.NetworkId")
@@ -19,7 +20,7 @@ public value class NetworkId(@Doc("The id as a number.") public val value: Long)
   override fun toString(): String = "#$value"
 
   public companion object {
-    /** The first id no entity may carry, 2^62. */
-    public const val LIMIT: Long = 1L shl 62
+    /** The first id no entity may carry, 2^53: the ids a JavaScript number holds exactly. */
+    public const val LIMIT: Long = 1L shl 53
   }
 }

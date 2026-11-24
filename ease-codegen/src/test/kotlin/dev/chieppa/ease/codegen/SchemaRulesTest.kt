@@ -10,7 +10,7 @@ import dev.chieppa.ease.codegen.rules.SchemaRules
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Which `@Range`s the schema outputs accept, on types built in code. */
+/** Which `@Range`s and names the schema outputs accept, on types built in code. */
 class SchemaRulesTest {
   private val number = TypeRef.Primitive(PrimitiveKind.NUMBER)
 
@@ -55,5 +55,23 @@ class SchemaRulesTest {
       )
 
     assertEquals(listOf<String?>("empty", "endless", "unset"), problemFields(type))
+  }
+
+  @Test
+  fun `a problem names the Kotlin property, not its serial name`() {
+    val field =
+      SerialField("max-speed", number, range = ValueRange(1.0, 1.0), propertyName = "maxSpeed")
+
+    assertEquals(listOf<String?>("maxSpeed"), problemFields(type(field)))
+  }
+
+  @Test
+  fun `a serial name whose dotted parts are not identifiers is refused`() {
+    val bad = SerialType("my-game.Lamp", TypeKind.CLASS)
+    val good = SerialType("my_game.Lamp2", TypeKind.CLASS)
+    val bare = SerialType("Lamp", TypeKind.CLASS)
+
+    assertEquals(listOf<String?>(null), problemFields(bad))
+    assertEquals(emptyList(), SchemaRules.problems(good) + SchemaRules.problems(bare))
   }
 }

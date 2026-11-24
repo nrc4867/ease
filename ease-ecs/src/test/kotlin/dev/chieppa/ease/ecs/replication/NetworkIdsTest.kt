@@ -53,6 +53,16 @@ class NetworkIdsTest {
     assertFalse(world.replication.hasAuthority(replica))
   }
 
+  @Test
+  fun `every valid id is a whole number a script holds exactly`() {
+    val largest = NetworkId(NetworkId.LIMIT - 1)
+
+    assertTrue(largest.isValid)
+    assertEquals(largest.value, largest.value.toDouble().toLong())
+    assertEquals(largest.value, (largest.value + 1).toDouble().toLong() - 1)
+    assertFalse(NetworkId(NetworkId.LIMIT).isValid)
+  }
+
   private companion object {
     const val RECEIVED = 40L
   }

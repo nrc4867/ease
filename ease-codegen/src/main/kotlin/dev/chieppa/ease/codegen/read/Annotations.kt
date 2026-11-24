@@ -15,6 +15,15 @@ internal fun KSAnnotated.annotation(qualifiedName: String): KSAnnotation? =
 internal fun KSAnnotated.isSerializable(): Boolean =
   annotation(AnnotationNames.SERIALIZABLE) != null
 
+/**
+ * The serializer [this] declaration names with `@Serializable(with = X::class)`, or null when it
+ * has none: a bare `@Serializable` leaves `with` at its default, `KSerializer`.
+ */
+internal fun KSAnnotated.customSerializer(): KSType? {
+  val with = annotation(AnnotationNames.SERIALIZABLE)?.argument("with") as? KSType ?: return null
+  return with.takeUnless { it.qualifiedName() == AnnotationNames.DEFAULT_SERIALIZER }
+}
+
 /** The qualified name of the type's declaration, or null for one without a name. */
 internal fun KSType.qualifiedName(): String? = declaration.qualifiedName?.asString()
 
@@ -40,6 +49,7 @@ internal object AnnotationNames {
   const val SERIAL_NAME = "kotlinx.serialization.SerialName"
   const val SERIALIZABLE = "kotlinx.serialization.Serializable"
   const val TRANSIENT = "kotlinx.serialization.Transient"
+  const val DEFAULT_SERIALIZER = "kotlinx.serialization.KSerializer"
 
   private const val ANNOTATIONS = "dev.chieppa.ease.annotations"
   const val DOC = "$ANNOTATIONS.Doc"

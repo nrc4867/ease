@@ -8,4 +8,6 @@ internal data class SerialField(
   val range: ValueRange? = null,
   /** Whether a reader may leave it out: it has a default value. */
   val optional: Boolean = false,
+  /** The Kotlin property's name, which differs from [name] under `@SerialName`. */
+  val propertyName: String = name,
 )

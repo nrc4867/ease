@@ -45,19 +45,30 @@ internal class SerialTypeReader {
   private fun readClass(declaration: KSClassDeclaration): SerialType {
     val serialName = declaration.serialName()
     val doc = declaration.doc()
+    val custom = declaration.customSerializer()
     return when {
+      custom != null -> customOf(serialName, doc, custom)
       declaration.classKind == ClassKind.ENUM_CLASS -> enumOf(declaration, serialName, doc)
       Modifier.SEALED in declaration.modifiers -> sealedOf(declaration, serialName, doc)
       else ->
         SerialType(
           serialName,
-          if (isValueClass(declaration)) TypeKind.VALUE else TypeKind.CLASS,
+          if (declaration.isValueClass()) TypeKind.VALUE else TypeKind.CLASS,
           doc,
           fields = fieldsOf(declaration),
-          discriminated = hasPolymorphicBase(declaration),
+          discriminated = declaration.hasPolymorphicBase(),
         )
     }
   }
+
+  /** A class with its own serializer is as that serializer writes it, which only it knows. */
+  private fun customOf(serialName: String, doc: String?, serializer: KSType) =
+    SerialType(
+      serialName,
+      TypeKind.VALUE,
+      doc,
+      fields = listOf(SerialField("value", types.readSerializedWith(serializer))),
+    )
 
   private fun enumOf(declaration: KSClassDeclaration, serialName: String, doc: String?) =
     SerialType(
@@ -83,15 +94,25 @@ internal class SerialTypeReader {
           .filter { it.isSerializable() }
           .map { subtype -> subtype.serialName().also { discovered.putIfAbsent(it, subtype) } }
           .toList(),
-      discriminated = hasPolymorphicBase(declaration),
+      discriminated = declaration.hasPolymorphicBase(),
     )
 
-  private fun fieldsOf(declaration: KSClassDeclaration): List<SerialField> {
+  /** The properties of the serializable superclass first, as the serialization plugin writes. */
+  private fun fieldsOf(declaration: KSClassDeclaration): List<SerialField> =
+    serializableSuperclass(declaration)?.let { fieldsOf(it) }.orEmpty() + ownFields(declaration)
+
+  private fun serializableSuperclass(declaration: KSClassDeclaration): KSClassDeclaration? =
+    declaration.superTypes
+      .map { it.resolve().declaration }
+      .filterIsInstance<KSClassDeclaration>()
+      .firstOrNull { it.classKind == ClassKind.CLASS && it.isSerializable() }
+
+  private fun ownFields(declaration: KSClassDeclaration): List<SerialField> {
     val constructorParameters = declaration.primaryConstructor?.parameters.orEmpty()
     val parameters = constructorParameters.associateBy { it.name }
     return declaration
       .getDeclaredProperties()
-      .filter { isSerialized(it) }
+      .filter { it.isSerialized() }
       .map { property ->
         val parameter = parameters[property.simpleName]
         SerialField(
@@ -100,36 +121,16 @@ internal class SerialTypeReader {
           doc = property.doc(),
           range = property.range(),
           optional = parameter?.hasDefault ?: true,
+          propertyName = property.simpleName.asString(),
         )
       }
       .toList()
   }
 
   private fun typeOf(property: KSPropertyDeclaration): TypeRef {
-    val custom = property.annotation(AnnotationNames.SERIALIZABLE)?.argument("with")
-    if (custom is KSType) return types.readSerializedWith(custom)
+    property.customSerializer()?.let {
+      return types.readSerializedWith(it)
+    }
     return types.read(property.type.resolve())
   }
-
-  private fun isSerialized(property: KSPropertyDeclaration): Boolean =
-    property.hasBackingField &&
-      property.annotation(AnnotationNames.TRANSIENT) == null &&
-      property.extensionReceiver == null
-
-  private fun isValueClass(declaration: KSClassDeclaration): Boolean =
-    Modifier.VALUE in declaration.modifiers || Modifier.INLINE in declaration.modifiers
-
-  /**
-   * Whether a supertype other than `kotlin.*` and `java.*` ones is an interface or a class others
-   * extend: the class then travels as one of that base's subtypes, with its serial name under
-   * `type`.
-   */
-  private fun hasPolymorphicBase(declaration: KSClassDeclaration): Boolean =
-    declaration.superTypes
-      .map { it.resolve().declaration }
-      .filterIsInstance<KSClassDeclaration>()
-      .any { base ->
-        val name = base.qualifiedName?.asString().orEmpty()
-        !name.startsWith("kotlin.") && !name.startsWith("java.")
-      }
 }

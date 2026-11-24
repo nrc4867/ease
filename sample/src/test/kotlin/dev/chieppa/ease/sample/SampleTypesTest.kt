@@ -2,6 +2,7 @@ package dev.chieppa.ease.sample
 
 import dev.chieppa.ease.agent.list
 import dev.chieppa.ease.agent.text
+import dev.chieppa.ease.annotations.GeneratedFiles
 import java.io.File
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -26,8 +27,16 @@ class SampleTypesTest {
   /** The block of `ease.d.ts` that declares [serialName]. */
   private fun declaration(serialName: String): String {
     val declarations = File(checkNotNull(System.getProperty("ease.dts"))).readText()
-    val marker = "// ease-type: "
-    return declarations.split(marker).single { it.lineSequence().first() == serialName }
+    val block = GeneratedFiles.DECLARED_MARKER + serialName + "\n"
+    val start = declarations.indexOf(block)
+    check(start >= 0) { "$serialName is not declared in ease.d.ts" }
+    val next =
+      Regex(
+        Regex.escape(GeneratedFiles.DECLARED_MARKER) +
+          "|" +
+          Regex.escape(GeneratedFiles.REACHED_MARKER)
+      )
+    return declarations.substring(start + block.length).split(next).first()
   }
 
   private fun schema(group: String, serialName: String) =

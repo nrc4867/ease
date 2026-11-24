@@ -35,7 +35,7 @@ class SchemaCatalogTest {
   }
 
   private val crateProperties =
-    setOf("id", "label", "tags", "weights", "mood", "weather", "lid", "height")
+    setOf("id", "label", "tags", "weights", "mood", "weather", "lid", "height", "again")
 
   @Test
   fun `a class has its properties by serial name, a doc, and requires what has no default`() {
@@ -85,7 +85,7 @@ class SchemaCatalogTest {
     assertEquals("integer", defs.child("test.CrateId").text("type"))
     val weather = defs.child("test.Weather").list("oneOf")
     assertEquals(
-      listOf("#/\$defs/test.Rain", "#/\$defs/test.Sun"),
+      listOf("#/\$defs/test.Rain:typed", "#/\$defs/test.Sun:typed"),
       weather.map { it.text("\$ref") },
     )
   }
@@ -97,6 +97,54 @@ class SchemaCatalogTest {
     assertEquals(JsonPrimitive("test.Rain"), rain.property("type")["const"])
     assertEquals(strings("type", "millimeters"), rain["required"])
     assertEquals(strings("type"), schema("test.Sun")["required"])
+  }
+
+  @Test
+  fun `a bare Serializable on a property leaves the type described as itself`() {
+    val again = schema("test.Crate").property("again")
+
+    assertEquals("#/\$defs/test.Mood", again.text("\$ref"))
+  }
+
+  @Test
+  fun `a class a custom serializer writes is described through its SerializedAs target`() {
+    val stamp = schema("test.Stamp")
+
+    assertEquals("#/\$defs/test.StampData", stamp.text("\$ref"))
+    val data = stamp.child("\$defs").child("test.StampData")
+    assertEquals(setOf("tick"), data.child("properties").keys)
+    assertTrue("properties" !in stamp)
+  }
+
+  @Test
+  fun `a class with a custom serializer and no SerializedAs is any value`() {
+    val opaque = schema("test.Opaque")
+
+    assertTrue("properties" !in opaque)
+    assertTrue("type" !in opaque)
+  }
+
+  @Test
+  fun `a subclass of a serializable base lists the base's properties first`() {
+    val hammer = schema("test.Hammer")
+
+    assertEquals(listOf("type", "weight", "name"), hammer.child("properties").keys.toList())
+    assertEquals(strings("type", "weight", "name"), hammer["required"])
+  }
+
+  @Test
+  fun `a member held directly is plain and one held through its sealed base requires type`() {
+    val holder = schema("test.Holder")
+    val defs = holder.child("\$defs")
+
+    assertEquals("#/\$defs/test.Rain", holder.property("rain").text("\$ref"))
+    assertEquals(strings("millimeters"), defs.child("test.Rain")["required"])
+    val weather = defs.child("test.Weather").list("oneOf")
+    assertEquals(
+      listOf("#/\$defs/test.Rain:typed", "#/\$defs/test.Sun:typed"),
+      weather.map { it.text("\$ref") },
+    )
+    assertEquals(strings("type", "millimeters"), defs.child("test.Rain:typed")["required"])
   }
 
   @Test

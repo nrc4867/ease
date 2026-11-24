@@ -1,5 +1,6 @@
 package dev.chieppa.ease.agent.describe
 
+import dev.chieppa.ease.annotations.GeneratedFiles
 import java.net.URL
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -17,7 +18,7 @@ public class SchemaCatalog private constructor(private val schemas: Map<String, 
 
   public companion object {
     /** Where each module's schemas are on the class path. */
-    public const val RESOURCE: String = "META-INF/ease/schemas.json"
+    public const val RESOURCE: String = "${GeneratedFiles.DIRECTORY}/${GeneratedFiles.SCHEMAS_FILE}"
 
     /** The schemas of every module visible to [loader]; the first module to name a type wins. */
     public fun load(loader: ClassLoader): SchemaCatalog {

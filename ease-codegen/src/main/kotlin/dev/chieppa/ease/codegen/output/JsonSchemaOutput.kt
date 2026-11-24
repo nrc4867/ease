@@ -22,7 +22,7 @@ internal class JsonSchemaOutput(private val writer: ResourceWriter) : ModelOutpu
     if (schemas.isEmpty()) return
     val sorted = JsonObject(schemas.toSortedMap())
     val content = PRETTY.encodeToString(JsonObject.serializer(), sorted) + "\n"
-    writer.write(sources, ResourceFiles.SCHEMAS, ResourceFiles.JSON, content)
+    writer.write(sources, ResourceFiles.SCHEMAS_FILE, content)
   }
 
   private companion object {

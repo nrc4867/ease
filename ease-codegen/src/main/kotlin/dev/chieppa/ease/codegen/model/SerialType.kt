@@ -14,7 +14,10 @@ internal data class SerialType(
   val values: List<String> = emptyList(),
   /** The serial names of a sealed hierarchy's subtypes. */
   val subtypes: List<String> = emptyList(),
-  /** Whether it is written with its serial name under `type`: it belongs to a polymorphic base. */
+  /**
+   * Whether it belongs to a polymorphic base. It is written with its serial name under `type` when
+   * a value goes through that base, as the world codec writes commands and components.
+   */
   val discriminated: Boolean = false,
 )
 

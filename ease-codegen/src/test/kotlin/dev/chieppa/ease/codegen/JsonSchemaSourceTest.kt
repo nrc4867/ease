@@ -10,6 +10,7 @@ import dev.chieppa.ease.codegen.model.ValueRange
 import dev.chieppa.ease.codegen.output.JsonSchemaSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
@@ -23,12 +24,19 @@ class JsonSchemaSourceTest {
   private fun schema(root: SerialType, vararg others: SerialType): JsonObject =
     JsonSchemaSource.of(DescribedType(root, (listOf(root) + others).associateBy { it.serialName }))
 
-  private fun classOf(name: String, vararg fields: SerialField, doc: String? = null) =
-    SerialType(name, TypeKind.CLASS, doc, fields.toList())
+  private fun classOf(
+    name: String,
+    vararg fields: SerialField,
+    doc: String? = null,
+    discriminated: Boolean = false,
+  ) = SerialType(name, TypeKind.CLASS, doc, fields.toList(), discriminated = discriminated)
 
   private fun JsonObject.child(key: String) = getValue(key).jsonObject
 
   private fun JsonObject.text(key: String) = getValue(key).jsonPrimitive.content
+
+  private fun JsonObject.strings(key: String) =
+    getValue(key).jsonArray.map { it.jsonPrimitive.content }
 
   @Test
   fun `a schema names its draft, its id and its title`() {
@@ -52,6 +60,15 @@ class JsonSchemaSourceTest {
   }
 
   @Test
+  fun `a range end beyond what a Long holds stays the double it is`() {
+    val size = SerialField("size", number, range = ValueRange(0.0, 1e20))
+
+    val property = schema(classOf("game.Big", size)).child("properties").child("size")
+
+    assertEquals(JsonPrimitive(1e20), property.getValue("maximum"))
+  }
+
+  @Test
   fun `a type that refers to itself points at the schema root`() {
     val next = SerialField("next", TypeRef.Nullable(TypeRef.Named("game.Node")))
 
@@ -68,10 +85,7 @@ class JsonSchemaSourceTest {
     val part = schema(holder).child("properties").child("part")
 
     assertEquals("object", part.text("type"))
-    assertEquals(
-      listOf("type"),
-      part.getValue("required").jsonArray.map { it.jsonPrimitive.content },
-    )
+    assertEquals(listOf("type"), part.strings("required"))
   }
 
   @Test
@@ -83,5 +97,46 @@ class JsonSchemaSourceTest {
 
     assertEquals(setOf("game.Id"), defs.keys)
     assertEquals("An id.", defs.child("game.Id").text("description"))
+  }
+
+  @Test
+  fun `the top-level schema of a member of a polymorphic base requires type`() {
+    val rain = classOf("game.Rain", SerialField("mm", number), discriminated = true)
+
+    val schema = schema(rain)
+
+    assertEquals(JsonPrimitive("game.Rain"), schema.child("properties").child("type")["const"])
+    assertEquals(listOf("type", "mm"), schema.strings("required"))
+  }
+
+  @Test
+  fun `a field typed with the member itself holds it without type, a sealed base with it`() {
+    val rain = classOf("game.Rain", SerialField("mm", number), discriminated = true)
+    val weather = SerialType("game.Weather", TypeKind.SEALED, subtypes = listOf("game.Rain"))
+    val holder =
+      classOf(
+        "game.Holder",
+        SerialField("rain", TypeRef.Named("game.Rain")),
+        SerialField("weather", TypeRef.Named("game.Weather")),
+      )
+
+    val schema = schema(holder, rain, weather)
+
+    val defs = schema.child("\$defs")
+    val properties = schema.child("properties")
+    assertEquals("#/\$defs/game.Rain", properties.child("rain").text("\$ref"))
+    assertEquals(listOf("mm"), defs.child("game.Rain").strings("required"))
+    val variant = defs.child("game.Rain:typed")
+    assertEquals(listOf("type", "mm"), variant.strings("required"))
+    val oneOf = defs.child("game.Weather").getValue("oneOf").jsonArray
+    assertEquals(listOf("#/\$defs/game.Rain:typed"), oneOf.map { it.jsonObject.text("\$ref") })
+  }
+
+  @Test
+  fun `a sealed hierarchy with no serializable subtype accepts nothing`() {
+    val schema = schema(SerialType("game.Empty", TypeKind.SEALED))
+
+    assertFalse("oneOf" in schema)
+    assertEquals(JsonObject(emptyMap()), schema.child("not"))
   }
 }

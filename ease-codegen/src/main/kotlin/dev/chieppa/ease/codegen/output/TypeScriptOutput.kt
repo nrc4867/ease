@@ -18,6 +18,6 @@ internal class TypeScriptOutput(private val writer: ResourceWriter) : ModelOutpu
   override fun finish() {
     if (types.isEmpty()) return
     val content = TypeScriptSource.of(types)
-    writer.write(sources, ResourceFiles.TYPES, ResourceFiles.DECLARATIONS, content)
+    writer.write(sources, ResourceFiles.TYPES_FILE, content)
   }
 }

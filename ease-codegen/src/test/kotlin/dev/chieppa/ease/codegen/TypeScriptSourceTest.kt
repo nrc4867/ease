@@ -7,6 +7,7 @@ import dev.chieppa.ease.codegen.model.SerialType
 import dev.chieppa.ease.codegen.model.TypeKind
 import dev.chieppa.ease.codegen.model.TypeRef
 import dev.chieppa.ease.codegen.model.ValueRange
+import dev.chieppa.ease.codegen.output.ResourceFiles
 import dev.chieppa.ease.codegen.output.TypeScriptSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,8 +22,11 @@ class TypeScriptSourceTest {
     DescribedType(it, types.associateBy { type -> type.serialName })
   }
 
+  private val marker = Regex("// ease-(declared|reached): ")
+
+  /** The block of [serialName], from the marker line to the next block. */
   private fun block(source: String, serialName: String): String =
-    source.split(TypeScriptSource.BLOCK_MARKER).single { it.lineSequence().first() == serialName }
+    source.split(marker).single { it.lineSequence().first() == serialName }
 
   private fun classOf(name: String, vararg fields: SerialField, discriminated: Boolean = false) =
     SerialType(name, TypeKind.CLASS, fields = fields.toList(), discriminated = discriminated)
@@ -55,25 +59,66 @@ class TypeScriptSourceTest {
   }
 
   @Test
-  fun `a member of a polymorphic base carries its serial name as the literal type`() {
+  fun `a member of a polymorphic base has a typed form, and the plain interface has no type`() {
     val destroy = classOf("ease.Destroy", discriminated = true)
 
     val block = block(TypeScriptSource.of(described(destroy)), "ease.Destroy")
 
+    assertTrue("interface Destroy {" in block, block)
+    assertTrue("interface DestroyTyped extends Destroy {" in block, block)
     assertTrue("type: \"ease.Destroy\";" in block, block)
+    assertEquals(1, Regex("type: ").findAll(block).count(), block)
   }
 
   @Test
-  fun `enums, value classes and sealed hierarchies are type aliases`() {
+  fun `a class outside a polymorphic base has no typed form`() {
+    val block = block(TypeScriptSource.of(described(classOf("game.Plain"))), "game.Plain")
+
+    assertTrue("Typed" !in block, block)
+  }
+
+  @Test
+  fun `enums, value classes and sealed hierarchies are type aliases of the typed forms`() {
     val mood = SerialType("game.Mood", TypeKind.ENUM, values = listOf("CALM", "angry"))
     val weather =
       SerialType("game.Weather", TypeKind.SEALED, subtypes = listOf("game.Rain", "game.Sun"))
+    val rain = classOf("game.Rain", discriminated = true)
+    val sun = classOf("game.Sun", discriminated = true)
 
-    val source = TypeScriptSource.of(described(mood, valueOf("game.Id"), weather))
+    val source = TypeScriptSource.of(described(mood, valueOf("game.Id"), weather, rain, sun))
 
     assertTrue("type Mood = \"CALM\" | \"angry\";" in block(source, "game.Mood"))
     assertTrue("type Id = number;" in block(source, "game.Id"))
-    assertTrue("type Weather = game.Rain | game.Sun;" in block(source, "game.Weather"))
+    assertTrue("type Weather = game.RainTyped | game.SunTyped;" in block(source, "game.Weather"))
+  }
+
+  @Test
+  fun `a sealed hierarchy with no serializable subtype is never`() {
+    val none = SerialType("game.Empty", TypeKind.SEALED)
+
+    val block = block(TypeScriptSource.of(described(none)), "game.Empty")
+
+    assertTrue("type Empty = never;" in block, block)
+  }
+
+  @Test
+  fun `a property name that is not an identifier is quoted`() {
+    val fast = classOf("game.Fast", SerialField("max-speed", number), SerialField("speed", number))
+
+    val block = block(TypeScriptSource.of(described(fast)), "game.Fast")
+
+    assertTrue("\"max-speed\": number;" in block, block)
+    assertTrue("  speed: number;" in block, block)
+  }
+
+  @Test
+  fun `a range end beyond what a Long holds is spelled as the double it is`() {
+    val big = classOf("game.Big", SerialField("size", number, range = ValueRange(0.0, 1e20)))
+
+    val block = block(TypeScriptSource.of(described(big)), "game.Big")
+
+    assertTrue("@maximum 1.0E20" in block, block)
+    assertTrue("9223372036854775807" !in block, block)
   }
 
   @Test
@@ -105,6 +150,18 @@ class TypeScriptSourceTest {
 
     val source = TypeScriptSource.of(described(a, b, valueOf("game.Id")))
 
-    assertEquals(1, Regex("// ease-type: game.Id").findAll(source).count())
+    assertEquals(1, Regex("ease-(declared|reached): game.Id").findAll(source).count())
+  }
+
+  @Test
+  fun `a block says whether the module declares the type or only reaches it`() {
+    val id = valueOf("game.Id")
+    val lamp = classOf("game.Lamp", SerialField("id", TypeRef.Named("game.Id")))
+    val reachable = mapOf("game.Lamp" to lamp, "game.Id" to id)
+
+    val source = TypeScriptSource.of(listOf(DescribedType(lamp, reachable)))
+
+    assertTrue("${ResourceFiles.DECLARED_MARKER}game.Lamp" in source, source)
+    assertTrue("${ResourceFiles.REACHED_MARKER}game.Id" in source, source)
   }
 }

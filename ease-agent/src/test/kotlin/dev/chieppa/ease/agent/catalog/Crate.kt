@@ -22,5 +22,7 @@ internal class Crate(
 
   @Doc("How tall it is.") @Range(0.0, 9.5) var height: Double? = null
 
+  @Serializable var again: Mood = Mood.CALM
+
   @Transient val scratch: Int = 0
 }
