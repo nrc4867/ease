@@ -44,20 +44,22 @@ internal object ModelRules {
     if (!field.settable) {
       add(Problem(field.name, "a replicated field needs a public or internal setter"))
     }
-    val quantization = field.quantization ?: return@buildList
-    if (quantization.bits !in QUANTIZED_BITS) {
-      add(Problem(field.name, "@Quantized bits must be 1 to 30, not ${quantization.bits}"))
+    val bits = field.quantizedBits ?: return@buildList
+    if (bits !in QUANTIZED_BITS) {
+      add(Problem(field.name, "@Quantized bits must be 1 to 30, not $bits"))
     }
-    val finite = quantization.min.isFinite() && quantization.max.isFinite()
-    if (!finite || quantization.max <= quantization.min) {
-      add(Problem(field.name, "@Quantized needs finite min < max"))
+    val range = field.range
+    if (range == null) {
+      add(Problem(field.name, "@Quantized needs a @Range(min, max) on the field"))
+    } else if (!range.isProper) {
+      add(Problem(field.name, "@Range on a @Quantized field needs finite min < max"))
     }
   }
 
   private fun unsupported(field: FieldModel): String =
     when {
       field.nullable -> "a replicated field may not be nullable"
-      field.quantization != null -> "@Quantized goes on a Float, not ${field.typeName}"
+      field.quantizedBits != null -> "@Quantized goes on a Float, not ${field.typeName}"
       else -> "a replicated field is a Float, Int or Boolean, not ${field.typeName}"
     }
 }

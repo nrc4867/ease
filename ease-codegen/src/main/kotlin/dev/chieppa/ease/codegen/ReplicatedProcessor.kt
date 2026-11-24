@@ -19,7 +19,7 @@ import dev.chieppa.ease.codegen.rules.ModelRules
  */
 internal class ReplicatedProcessor(
   private val reader: ComponentReader,
-  private val outputs: List<ModelOutput>,
+  private val outputs: List<ModelOutput<ComponentModel>>,
   private val logger: KSPLogger,
 ) : SymbolProcessor {
   override fun process(resolver: Resolver): List<KSAnnotated> {
@@ -46,6 +46,6 @@ internal class ReplicatedProcessor(
     }
     val source = declaration.containingFile
     if (problems.isNotEmpty() || source == null) return
-    outputs.forEach { it.component(model, source) }
+    outputs.forEach { it.accept(model, source) }
   }
 }

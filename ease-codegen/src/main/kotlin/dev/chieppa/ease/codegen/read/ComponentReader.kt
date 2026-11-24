@@ -21,7 +21,7 @@ internal class ComponentReader(private val optionReaders: List<FieldOptionReader
     return ComponentModel(
       packageName = packageName,
       className = className,
-      serialName = serialName(declaration) ?: qualified,
+      serialName = declaration.serialNameAnnotation() ?: qualified,
       fields = replicatedProperties(declaration).map { field(it) }.toList(),
       visibility = classVisibility(declaration),
       isComponent = declaration.implements(COMPONENT),
@@ -32,9 +32,6 @@ internal class ComponentReader(private val optionReaders: List<FieldOptionReader
         },
     )
   }
-
-  private fun serialName(declaration: KSClassDeclaration): String? =
-    declaration.annotation(AnnotationNames.SERIAL_NAME)?.argument("value") as? String
 
   private fun replicatedProperties(
     declaration: KSClassDeclaration

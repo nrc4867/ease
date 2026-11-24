@@ -31,7 +31,7 @@ While working, run only the tests for what changed (`./gradlew :<module>:test --
 
 Native libraries (wgpu-native from webgpu-native-ffm, SDL3 from LWJGL) resolve only this machine's natives jar. `-Pnatives=<platform>` (`windows-x64`, `linux-x64`, `linux-arm64`, `macos-x64`, `macos-arm64`) picks another, for packaging. A library module takes the bindings with `implementation` and the natives only for its tests or smoke apps; hosts such as `ease-player` take the natives with `runtimeOnly` (see `NativePlatform`, `WebgpuNatives` and `LwjglNatives` in `build-logic`).
 
-Programs that open real windows are smoke apps, never tests: `./gradlew :ease-platform:windowSmoke` opens, resizes and closes a window; `:sample:sampleSmoke` runs the sample game in the player for 120 frames and resizes halfway. `:sample:runSample` runs it until its window is closed. `:sample:sampleHeadless` runs it in the player with no window or GPU for 600 ticks (`--headless <ticks>`); CI's check job runs it. `:sample:runAgentHost` serves the sample world to agents over MCP until stopped and prints the `claude mcp add` line (see `docs/hld/editor/agent-access.md`); it is not part of `check`. CI runs the smoke apps; run one locally only when changing what it covers. The player runs whichever one `GameModule` is on its classpath, so a game, not the player, owns the run tasks: it takes `ease-player` with `runtimeOnly`.
+Programs that open real windows are smoke apps, never tests: `./gradlew :ease-platform:windowSmoke` opens, resizes and closes a window; `:sample:sampleSmoke` runs the sample game in the player for 120 frames and resizes halfway. `:sample:runSample` runs it until its window is closed. `:sample:sampleHeadless` runs it in the player with no window or GPU for 600 ticks (`--headless <ticks>`); CI's check job runs it. `:sample:assembleEaseTypes` joins every module's TypeScript declarations into the sample's `ease.d.ts`. `:sample:runAgentHost` serves the sample world to agents over MCP until stopped and prints the `claude mcp add` line (see `docs/hld/editor/agent-access.md`); it is not part of `check`. CI runs the smoke apps; run one locally only when changing what it covers. The player runs whichever one `GameModule` is on its classpath, so a game, not the player, owns the run tasks: it takes `ease-player` with `runtimeOnly`.
 
 ## Modules
 
@@ -49,9 +49,10 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | Platform | `ease-platform` | Windows, input, audio output, files, clocks |
 | World | `ease-commands` | Commands, undo and redo, the command log, their JSON and binary formats |
 | Core | `ease-ecs` | Entities, components, systems, phases; network ids, authority, `@Replicated`, the bit codec, replicated serializers and state packets |
+| Foundation | `ease-annotations` | `@Doc`, `@Range` and `@SerializedAs`: the documentation, ranges and serializer hints that `ease-codegen` turns into `ease.d.ts` and JSON Schemas; every public serialized type and field carries `@Doc` |
 | Foundation | `ease-math` | Vectors, quaternions, matrices, bounds, transforms (Java) |
 | Test support | `ease-testing` | The allocation harness (`AllocationBudget`); test configurations only (Java) |
-| Build tool | `ease-codegen` | The KSP processor that writes `@Replicated` components' serializers; `ksp` configurations only, never shipped |
+| Build tool | `ease-codegen` | The KSP processors: `@Replicated` components' serializers, and for every `@Serializable` type a JSON Schema and a TypeScript declaration under `META-INF/ease`; `ksp` configurations only, never shipped |
 
 `build-logic` holds the convention plugins (`ease.kotlin-module`, `ease.java-module`, `ease.root`, `ease.licenses`), `checkSources` and its rules, and the license check, each with a test.
 

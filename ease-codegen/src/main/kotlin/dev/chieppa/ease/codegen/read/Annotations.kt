@@ -11,6 +11,10 @@ internal fun KSAnnotated.annotation(qualifiedName: String): KSAnnotation? =
     it.annotationType.resolve().qualifiedName() == qualifiedName
   }
 
+/** Whether [this] declaration carries `@Serializable`. */
+internal fun KSAnnotated.isSerializable(): Boolean =
+  annotation(AnnotationNames.SERIALIZABLE) != null
+
 /** The qualified name of the type's declaration, or null for one without a name. */
 internal fun KSType.qualifiedName(): String? = declaration.qualifiedName?.asString()
 
@@ -26,7 +30,7 @@ internal fun KSAnnotation.enumArgument(name: String): String? =
     else -> value?.toString()?.substringAfterLast('.')
   }
 
-/** Names of the annotations the readers know, as `ease-ecs` declares them. */
+/** Names of the annotations the readers know, as `ease-ecs` and `ease-annotations` declare them. */
 internal object AnnotationNames {
   private const val REPLICATION = "dev.chieppa.ease.ecs.replication"
   const val REPLICATED = "$REPLICATION.Replicated"
@@ -34,4 +38,11 @@ internal object AnnotationNames {
   const val INTERPOLATED = "$REPLICATION.Interpolated"
   const val REPLICATED_TO = "$REPLICATION.ReplicatedTo"
   const val SERIAL_NAME = "kotlinx.serialization.SerialName"
+  const val SERIALIZABLE = "kotlinx.serialization.Serializable"
+  const val TRANSIENT = "kotlinx.serialization.Transient"
+
+  private const val ANNOTATIONS = "dev.chieppa.ease.annotations"
+  const val DOC = "$ANNOTATIONS.Doc"
+  const val RANGE = "$ANNOTATIONS.Range"
+  const val SERIALIZED_AS = "$ANNOTATIONS.SerializedAs"
 }

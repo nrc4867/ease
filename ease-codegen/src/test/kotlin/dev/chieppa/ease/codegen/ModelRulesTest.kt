@@ -4,7 +4,7 @@ import dev.chieppa.ease.codegen.model.ClassVisibility
 import dev.chieppa.ease.codegen.model.ComponentModel
 import dev.chieppa.ease.codegen.model.FieldAudience
 import dev.chieppa.ease.codegen.model.FieldModel
-import dev.chieppa.ease.codegen.model.Quantization
+import dev.chieppa.ease.codegen.model.ValueRange
 import dev.chieppa.ease.codegen.rules.ModelRules
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,8 +15,10 @@ class ModelRulesTest {
   private fun model(vararg fields: FieldModel) =
     ComponentModel("test", "Lamp", "test.Lamp", fields.toList())
 
-  private fun float(name: String, quantization: Quantization? = null) =
-    FieldModel(name, FieldModel.FLOAT, quantization = quantization)
+  private fun float(name: String, bits: Int? = null, range: ValueRange? = null) =
+    FieldModel(name, FieldModel.FLOAT, quantizedBits = bits, range = range)
+
+  private val unit = ValueRange(0.0, 1.0)
 
   private fun problemFields(model: ComponentModel): List<String?> =
     ModelRules.problems(model).map { it.field }
@@ -25,7 +27,7 @@ class ModelRulesTest {
   fun `floats, ints and booleans with valid options pass`() {
     val model =
       model(
-        float("level", Quantization(8, 0f, 1f)),
+        float("level", bits = 8, range = unit),
         FieldModel("count", FieldModel.INT, audience = FieldAudience.OWNER_ONLY),
         FieldModel("on", FieldModel.BOOLEAN, interpolated = true),
       )
@@ -48,13 +50,23 @@ class ModelRulesTest {
   fun `quantization needs a float, 1 to 30 bits and a finite range`() {
     val model =
       model(
-        FieldModel("count", FieldModel.INT, quantization = Quantization(8, 0f, 1f)),
-        float("wide", Quantization(31, 0f, 1f)),
-        float("empty", Quantization(8, 1f, 1f)),
-        float("endless", Quantization(8, 0f, Float.POSITIVE_INFINITY)),
+        FieldModel("count", FieldModel.INT, quantizedBits = 8, range = unit),
+        float("wide", bits = 31, range = unit),
+        float("empty", bits = 8, range = ValueRange(1.0, 1.0)),
+        float("endless", bits = 8, range = ValueRange(0.0, Double.POSITIVE_INFINITY)),
       )
 
     assertEquals(listOf<String?>("count", "wide", "empty", "endless"), problemFields(model))
+  }
+
+  @Test
+  fun `a quantized field without a range is refused, whatever its bits`() {
+    val model = model(float("level", bits = 8), float("plain", range = unit))
+
+    val problems = ModelRules.problems(model)
+
+    assertEquals(listOf<String?>("level"), problems.map { it.field })
+    assertTrue("@Range" in problems.single().message, problems.single().message)
   }
 
   @Test

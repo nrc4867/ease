@@ -1,4 +1,5 @@
 import dev.chieppa.ease.build.desktopApp
+import dev.chieppa.ease.build.types.AssembleEaseTypes
 
 // The sample game: a second, unrelated consumer that keeps the engine free of any one game. It runs
 // in the player, which finds its GameModule on the classpath; the player brings this machine's
@@ -11,6 +12,7 @@ plugins {
 
 dependencies {
   implementation(project(":ease-runtime"))
+  implementation(project(":ease-annotations"))
   ksp(project(":ease-codegen"))
   runtimeOnly(project(":ease-player"))
   runtimeOnly(project(":ease-agent"))
@@ -54,4 +56,18 @@ tasks.register<JavaExec>("runAgentHost") {
   classpath = main.runtimeClasspath
   mainClass = "dev.chieppa.ease.agent.AgentMainKt"
   jvmArgs("--enable-native-access=ALL-UNNAMED")
+}
+
+// The game's ease.d.ts: its own types joined with every engine module's, for scripts and tests.
+val easeTypes =
+  tasks.register<AssembleEaseTypes>("assembleEaseTypes") {
+    group = "build"
+    description = "Writes ease.d.ts from the type declarations of every module the game runs on."
+    classpath.from(main.runtimeClasspath)
+    output = layout.buildDirectory.file("ease/ease.d.ts")
+  }
+
+tasks.withType<Test>().configureEach {
+  inputs.file(easeTypes.flatMap { it.output })
+  systemProperty("ease.dts", easeTypes.get().output.get().asFile.path)
 }

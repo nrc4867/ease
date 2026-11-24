@@ -9,7 +9,10 @@ internal data class FieldModel(
   /** The property's type, qualified, such as `kotlin.Float`. */
   val typeName: String,
   val nullable: Boolean = false,
-  val quantization: Quantization? = null,
+  /** The bits `@Quantized` sends the float in, or null for a field that is not quantized. */
+  val quantizedBits: Int? = null,
+  /** The field's `@Range`; a quantized float spreads its bits over it. */
+  val range: ValueRange? = null,
   val interpolated: Boolean = false,
   val audience: FieldAudience = FieldAudience.EVERYONE,
   /** Whether generated code can set the property: its setter is not private or protected. */
@@ -20,8 +23,8 @@ internal data class FieldModel(
     get() =
       when {
         nullable -> null
-        typeName == FLOAT && quantization != null -> FieldKind.QUANTIZED_FLOAT
-        quantization != null -> null
+        typeName == FLOAT && quantizedBits != null -> FieldKind.QUANTIZED_FLOAT
+        quantizedBits != null -> null
         typeName == FLOAT -> FieldKind.FLOAT
         typeName == INT -> FieldKind.INT
         typeName == BOOLEAN -> FieldKind.BOOLEAN

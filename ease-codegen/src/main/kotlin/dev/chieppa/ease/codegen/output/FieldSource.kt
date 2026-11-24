@@ -54,7 +54,8 @@ internal object FieldSource {
     "$FIELDS.quantize($value, ${range(field)})"
 
   private fun range(field: FieldModel): String {
-    val quantization = checkNotNull(field.quantization)
-    return "${quantization.bits}, ${quantization.min}f, ${quantization.max}f"
+    val bits = checkNotNull(field.quantizedBits)
+    val range = checkNotNull(field.range)
+    return "$bits, ${range.min.toFloat()}f, ${range.max.toFloat()}f"
   }
 }

@@ -1,5 +1,7 @@
 package dev.chieppa.ease.commands.builtin
 
+import dev.chieppa.ease.annotations.Doc
+import dev.chieppa.ease.annotations.SerializedAs
 import dev.chieppa.ease.math.Quat
 import dev.chieppa.ease.math.Transform
 import dev.chieppa.ease.math.Vec3
@@ -11,6 +13,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
 /** Writes a [Transform] as `{translation, rotation, scale}` with named float fields. */
+@SerializedAs(TransformData::class)
 internal object TransformSerializer : KSerializer<Transform> {
   override val descriptor: SerialDescriptor = TransformData.serializer().descriptor
 
@@ -22,12 +25,13 @@ internal object TransformSerializer : KSerializer<Transform> {
     decoder.decodeSerializableValue(TransformData.serializer()).toTransform()
 }
 
+@Doc("A translation, a rotation and a scale.")
 @Serializable
 @SerialName("ease.Transform")
 private class TransformData(
-  val translation: Vec3Data,
-  val rotation: QuatData,
-  val scale: Vec3Data,
+  @Doc("Position in world units.") val translation: Vec3Data,
+  @Doc("Rotation as a quaternion.") val rotation: QuatData,
+  @Doc("Scale along each axis; 1 leaves the size unchanged.") val scale: Vec3Data,
 ) {
   fun toTransform(): Transform = Transform(translation.toVec3(), rotation.toQuat(), scale.toVec3())
 
@@ -41,8 +45,14 @@ private class TransformData(
   }
 }
 
+@Doc("Three floats along x, y and z.")
 @Serializable
-private class Vec3Data(val x: Float, val y: Float, val z: Float) {
+@SerialName("ease.Vec3")
+private class Vec3Data(
+  @Doc("The x component.") val x: Float,
+  @Doc("The y component.") val y: Float,
+  @Doc("The z component.") val z: Float,
+) {
   fun toVec3(): Vec3 = Vec3(x, y, z)
 
   companion object {
@@ -50,8 +60,15 @@ private class Vec3Data(val x: Float, val y: Float, val z: Float) {
   }
 }
 
+@Doc("A rotation as a quaternion; 0, 0, 0, 1 is no rotation.")
 @Serializable
-private class QuatData(val x: Float, val y: Float, val z: Float, val w: Float) {
+@SerialName("ease.Quat")
+private class QuatData(
+  @Doc("The x component.") val x: Float,
+  @Doc("The y component.") val y: Float,
+  @Doc("The z component.") val z: Float,
+  @Doc("The w component.") val w: Float,
+) {
   fun toQuat(): Quat = Quat(x, y, z, w)
 
   companion object {

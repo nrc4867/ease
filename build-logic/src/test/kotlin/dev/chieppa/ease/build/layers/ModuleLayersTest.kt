@@ -12,6 +12,13 @@ class ModuleLayersTest {
   }
 
   @Test
+  fun `the annotations module sits below the core, so every module with serialized types can use it`() {
+    assertNull(layerViolation("ease-ecs", "ease-annotations"))
+    assertNull(layerViolation("sample", "ease-annotations"))
+    assertNotNull(layerViolation("ease-annotations", "ease-ecs"))
+  }
+
+  @Test
   fun `a module may not depend on its own layer or above`() {
     assertNotNull(layerViolation("ease-gpu", "ease-render"))
     assertNotNull(layerViolation("ease-runtime", "sample"))

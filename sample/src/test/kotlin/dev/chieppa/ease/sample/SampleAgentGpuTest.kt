@@ -31,7 +31,7 @@ class SampleAgentGpuTest {
     val tools = agent.client.listTools().names()
     assertEquals(listOf("describe", "query", "capture", "logs", "test"), tools)
 
-    val names = agent.json(agent.call("describe")).list("components").names()
+    val names = agent.json(agent.call("describe")).list("components").map { it.text("title") }
     assertTrue(names.containsAll(listOf("ease.LocalTransform", "ease.Quad", "sample.Velocity")))
 
     val world = agent.json(agent.call("query")).list("entities")
