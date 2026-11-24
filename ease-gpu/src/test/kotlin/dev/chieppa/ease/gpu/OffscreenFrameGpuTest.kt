@@ -57,5 +57,5 @@ class OffscreenFrameGpuTest {
   private fun close(a: Int, b: Int): Boolean =
     listOf(16, 8, 0).all { shift -> abs((a shr shift and 0xFF) - (b shr shift and 0xFF)) <= 1 }
 
-  private fun hex(rgb: Int) = "#%06x".format(rgb)
+  private fun hex(rgb: Int) = "#" + rgb.toString(16).padStart(6, '0')
 }
