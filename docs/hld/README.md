@@ -68,6 +68,7 @@ Ease is a game engine: a set of libraries, an editor built on them, and games th
 - `code-quality/code-shape.md`: line, file and class shape, registration, dependency injection.
 - `code-quality/testing.md`: public-behavior tests, no waits, no goldens, tiers.
 - `code-quality/performance.md`: allocation budgets, benchmarks, profiling.
+- `code-quality/dependencies.md`: the permissive-license rule, its check and the shipped dependencies.
 - `code-quality/ci.md`: pipelines on free GitHub runners.
 - `code-quality/comments-and-docs.md`: comments, Markdown rules, remove-never-deprecate.
 - `code-quality/carried-from-squash.md`: Squash rules that apply unchanged.

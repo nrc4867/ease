@@ -5,6 +5,7 @@ dependencies {
   implementation(libs.spotless.gradle.plugin)
   implementation(libs.detekt.gradle.plugin)
   testImplementation(kotlin("test"))
+  testImplementation(gradleTestKit())
 }
 
 tasks.test {

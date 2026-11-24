@@ -19,4 +19,5 @@ Every rule here is checked by a tool, not by memory or review. Rules start from 
 | Remove, never deprecate | detekt forbids `@Deprecated` |
 | Comments describe current behavior only | Source check for history words; guideline for length |
 | Small Markdown files | Source check: fails a `.md` file over 150 lines |
+| Shipped dependencies use permissive licenses | `checkLicenses` and `checkNotice` in `check`; see `dependencies.md` |
 | Tests run on GitHub's free runners | CI on `ubuntu-latest`, GPU tests on software Vulkan |

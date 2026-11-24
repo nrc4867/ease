@@ -2,7 +2,7 @@
 
 `ease-platform` is a set of interfaces (window, input devices, audio output, file system, clock) with two backends. Nothing above this layer imports LWJGL.
 
-- **`platform-desktop`** uses LWJGL: GLFW for windows and native handles, SDL for gamepads (rumble, gyro, broad controller database), OpenAL Soft for audio output.
+- **`platform-desktop`** uses LWJGL: GLFW for windows and native handles, SDL for gamepads (rumble, gyro, broad controller database), and miniaudio, through our own FFM bindings, for audio output.
 - **`platform-headless`** has no window, scripted or recorded input, and a null audio device. It is what tests, CI and servers run on.
 
 ## Input

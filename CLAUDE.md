@@ -22,6 +22,7 @@ Gradle needs JDK 25 as `JAVA_HOME`. Stretch is found as `../stretch` or through 
 ./gradlew checkSources           # the rules no linter covers
 ./gradlew :ease-ecs:test         # one module's tests
 ./gradlew gpuTest                # the *GpuTest tests; need a WebGPU adapter
+./gradlew generateNotice         # rewrite NOTICE after a dependency change; check fails while it is stale
 ./gradlew installGitHook         # the pre-commit hook; any compile installs it too
 ```
 
@@ -44,7 +45,7 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | Core | `ease-ecs` | Entities, components, systems, phases |
 | Foundation | `ease-math` | Vectors, quaternions, matrices, bounds, transforms (Java) |
 
-`build-logic` holds the convention plugins (`ease.kotlin-module`, `ease.java-module`, `ease.root`), `checkSources` and its rules, each with a test.
+`build-logic` holds the convention plugins (`ease.kotlin-module`, `ease.java-module`, `ease.root`, `ease.licenses`), `checkSources` and its rules, and the license check, each with a test.
 
 ## Rules the checks enforce
 
