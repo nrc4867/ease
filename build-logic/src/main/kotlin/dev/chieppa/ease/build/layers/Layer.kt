@@ -11,6 +11,9 @@ enum class Layer {
   /** The world model: entities, components, systems. */
   CORE,
 
+  /** Changes to a world: commands, undo, the command log and their formats. */
+  WORLD,
+
   /** Windows, input, audio output, files, clocks. */
   PLATFORM,
 

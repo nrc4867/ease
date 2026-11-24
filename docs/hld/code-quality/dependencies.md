@@ -27,6 +27,7 @@ The `ease.licenses` convention plugin, applied to the root project, resolves eve
 |---|---|---|
 | `dev.chieppa:webgpu-native-ffm` | MIT | wgpu bindings over FFM. Its natives jars bundle wgpu-native, offered as MIT or Apache-2.0 |
 | `io.github.quillraven.fleks:Fleks` | MIT | Worlds, components, families and systems under `ease-ecs`. Brings `kotlinx-serialization-json` (Apache-2.0) |
+| `org.jetbrains.kotlinx:kotlinx-serialization-cbor` | Apache-2.0 | The binary form of commands in `ease-commands`, for the command log and the network |
 | `org.jetbrains.kotlin:kotlin-stdlib` | Apache-2.0 | The Kotlin standard library |
 | `org.lwjgl:lwjgl`, `org.lwjgl:lwjgl-sdl` | BSD-3-Clause | SDL3 windows and native handles in `ease-platform`. Their natives jars bundle SDL3 (Zlib) |
 | `org.jetbrains:annotations` | Apache-2.0 | Nullability annotations, pulled in by the Kotlin standard library |

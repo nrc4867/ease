@@ -1,11 +1,13 @@
 plugins {
   id("ease.kotlin-module")
   alias(libs.plugins.jmh)
+  alias(libs.plugins.kotlinSerialization)
 }
 
 dependencies {
   api(project(":ease-math"))
   api(libs.fleks)
+  api(libs.kotlinx.serialization.core)
   testImplementation(project(":ease-testing"))
 }
 

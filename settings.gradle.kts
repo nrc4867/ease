@@ -44,6 +44,8 @@ include(":ease-math")
 
 include(":ease-ecs")
 
+include(":ease-commands")
+
 include(":ease-platform")
 
 include(":ease-gpu")
