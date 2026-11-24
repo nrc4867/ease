@@ -165,6 +165,10 @@ jobs:
         run: |
           echo "changes $CHANGES, code '$CODE', jobs $RESULTS"
           test "$CHANGES" = success
+          # Explicit exits: bash -e does not stop on a failure inside an || or && list.
           for result in $RESULTS; do
-            test "$result" = success || { test "$CODE" = false && test "$result" = skipped; }
+            if [ "$result" = success ]; then continue; fi
+            if [ "$CODE" = false ] && [ "$result" = skipped ]; then continue; fi
+            echo "A required job ended $result"
+            exit 1
           done
