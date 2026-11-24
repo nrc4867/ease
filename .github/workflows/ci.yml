@@ -106,7 +106,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v5
       - run: ./gradlew gpuTest --continue
         working-directory: ease
-      - run: xvfb-run -a ./gradlew :ease-platform:windowSmoke :ease-player:playerSmoke
+      - run: xvfb-run -a ./gradlew :ease-platform:windowSmoke :sample:sampleSmoke
         working-directory: ease
       - uses: actions/upload-artifact@v7
         if: failure()
@@ -148,10 +148,10 @@ jobs:
       - run: ./gradlew :ease-platform:windowSmoke
         working-directory: ease
         shell: bash
-      # Windows runners have no GPU adapter, so the player draws only on macOS here and on Linux in
-      # the lavapipe job.
+      # Windows runners have no GPU adapter, so the player draws the sample only on macOS here and
+      # on Linux in the lavapipe job.
       - if: matrix.os == 'macos-latest'
-        run: ./gradlew :ease-player:playerSmoke
+        run: ./gradlew :sample:sampleSmoke
         working-directory: ease
         shell: bash
 

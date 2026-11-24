@@ -31,7 +31,7 @@ While working, run only the tests for what changed (`./gradlew :<module>:test --
 
 Native libraries (wgpu-native from webgpu-native-ffm, SDL3 from LWJGL) resolve only this machine's natives jar. `-Pnatives=<platform>` (`windows-x64`, `linux-x64`, `linux-arm64`, `macos-x64`, `macos-arm64`) picks another, for packaging. A library module takes the bindings with `implementation` and the natives only for its tests or smoke apps; hosts such as `ease-player` take the natives with `runtimeOnly` (see `NativePlatform`, `WebgpuNatives` and `LwjglNatives` in `build-logic`).
 
-Programs that open real windows are smoke apps, never tests: `./gradlew :ease-platform:windowSmoke` opens, resizes and closes a window; `:ease-player:playerSmoke` draws 120 frames of the triangle and resizes halfway. `:ease-player:runPlayer` runs the player until its window is closed. CI runs them; run one locally only when changing what it covers.
+Programs that open real windows are smoke apps, never tests: `./gradlew :ease-platform:windowSmoke` opens, resizes and closes a window; `:sample:sampleSmoke` runs the sample game in the player for 120 frames and resizes halfway. `:sample:runSample` runs it until its window is closed. CI runs the smoke apps; run one locally only when changing what it covers. The player runs whichever one `GameModule` is on its classpath, so a game, not the player, owns the run tasks: it takes `ease-player` with `runtimeOnly`.
 
 ## Modules
 
@@ -40,10 +40,10 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | Layer | Module | Holds |
 | --- | --- | --- |
 | Game | `sample` | The sample game that keeps the engine free of any one game |
-| Host | `ease-player` | The generic launcher every game runs in |
+| Host | `ease-player` | The generic launcher every game runs in; finds the game's `GameModule` on the classpath |
 | Host | `viewport-spike` | The Phase 1 editor viewport check (engine on Stretch's device); never ships |
-| Runtime | `ease-runtime` | Worlds, ticking, views, game modules |
-| Render | `ease-render` | The render graph |
+| Runtime | `ease-runtime` | Hosted worlds, ticking, game modules |
+| Render | `ease-render` | The extract snapshot, 2D cameras and the quad renderer |
 | GPU | `ease-gpu` | wgpu device, surfaces, pipelines |
 | Platform | `ease-platform` | Windows, input, audio output, files, clocks |
 | World | `ease-commands` | Commands, undo and redo, the command log, their JSON and binary formats |
