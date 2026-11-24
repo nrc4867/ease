@@ -15,6 +15,7 @@ Ease is a game engine: a set of libraries, an editor built on them, and games th
 ## engine/
 - `engine/layers.md`: the four module layers.
 - `engine/core.md`: math, ECS, assets, jobs, serialization.
+- `engine/scene-files.md`: scene, prefab and meta files shaped for merging.
 - `engine/commands.md`: commands, undo and redo, the command log and their formats.
 - `engine/platform.md`: platform backends and the input action layer.
 - `engine/gpu-and-rendering.md`: WebGPU bindings, the render graph, lighting pipelines.

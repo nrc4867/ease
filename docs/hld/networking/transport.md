@@ -4,7 +4,7 @@ Replication talks to a `Transport` interface with three channel kinds: unreliabl
 
 | Transport | Used for |
 |---|---|
-| Loopback | Server and clients in one process: editor multi-client play, headless tests |
+| Loopback | Server and clients in one process: editor multi-client play, headless tests. A network simulator adds latency, jitter, loss, duplication and bandwidth caps, counted on a manual clock |
 | [GameNetworkingSockets](https://github.com/ValveSoftware/GameNetworkingSockets) | Real games, client-server and P2P. Valve's open-source version of Steam's networking layer, with a plain C interface, so it gets our own FFM bindings like wgpu |
 | Steam networking | Optional, for a Steam release: the same API with Steam's relay network and identities |
 
