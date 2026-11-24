@@ -1,6 +1,8 @@
 package dev.chieppa.ease.ecs.replication
 
-/** A float sent in [bits] bits spread evenly over [min] to [max], as `@Quantized` declares one. */
+/**
+ * A float sent in [bits] bits spread evenly over [min] to [max], as `@Quantized` and `@Range` say.
+ */
 public class Quantization(public val bits: Int, public val min: Float, public val max: Float) {
   init {
     require(bits in ReplicatedFields.QUANTIZED_BITS) { "Quantized bits are 1 to 30, not $bits" }

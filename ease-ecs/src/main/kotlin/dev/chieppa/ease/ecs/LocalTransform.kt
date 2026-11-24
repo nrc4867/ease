@@ -2,6 +2,8 @@ package dev.chieppa.ease.ecs
 
 import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType
+import dev.chieppa.ease.annotations.Doc
+import dev.chieppa.ease.annotations.Range
 import dev.chieppa.ease.ecs.replication.Interpolated
 import dev.chieppa.ease.ecs.replication.Quantized
 import dev.chieppa.ease.ecs.replication.Replicated
@@ -11,25 +13,45 @@ import dev.chieppa.ease.math.Vec3
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/**
- * An entity's position, rotation and scale relative to its parent, as plain floats so systems can
- * update it in place. [get] and [set] convert to and from the immutable [Transform]. It replicates
- * with the position interpolated and the rotation quantized to 16 bits a component.
- */
+@Doc(
+  "An entity's position, rotation (a quaternion) and scale relative to its parent, as plain " +
+    "floats. It replicates with the position interpolated and each rotation component quantized."
+)
 @Replicated
 @Serializable
 @SerialName("ease.LocalTransform")
 public class LocalTransform : Component<LocalTransform> {
-  @Interpolated public var x: Float = 0f
-  @Interpolated public var y: Float = 0f
-  @Interpolated public var z: Float = 0f
-  @Interpolated @Quantized(ROTATION_BITS, -1f, 1f) public var rotationX: Float = 0f
-  @Interpolated @Quantized(ROTATION_BITS, -1f, 1f) public var rotationY: Float = 0f
-  @Interpolated @Quantized(ROTATION_BITS, -1f, 1f) public var rotationZ: Float = 0f
-  @Interpolated @Quantized(ROTATION_BITS, -1f, 1f) public var rotationW: Float = 1f
-  public var scaleX: Float = 1f
-  public var scaleY: Float = 1f
-  public var scaleZ: Float = 1f
+  @Doc("Position along x, in world units.") @Interpolated public var x: Float = 0f
+  @Doc("Position along y, in world units.") @Interpolated public var y: Float = 0f
+  @Doc("Position along z, in world units.") @Interpolated public var z: Float = 0f
+
+  @Doc("Rotation quaternion, x component.")
+  @Interpolated
+  @Quantized(ROTATION_BITS)
+  @Range(-1.0, 1.0)
+  public var rotationX: Float = 0f
+
+  @Doc("Rotation quaternion, y component.")
+  @Interpolated
+  @Quantized(ROTATION_BITS)
+  @Range(-1.0, 1.0)
+  public var rotationY: Float = 0f
+
+  @Doc("Rotation quaternion, z component.")
+  @Interpolated
+  @Quantized(ROTATION_BITS)
+  @Range(-1.0, 1.0)
+  public var rotationZ: Float = 0f
+
+  @Doc("Rotation quaternion, w component; 1 with the other three 0 is no rotation.")
+  @Interpolated
+  @Quantized(ROTATION_BITS)
+  @Range(-1.0, 1.0)
+  public var rotationW: Float = 1f
+
+  @Doc("Scale along x; 1 leaves the size unchanged.") public var scaleX: Float = 1f
+  @Doc("Scale along y; 1 leaves the size unchanged.") public var scaleY: Float = 1f
+  @Doc("Scale along z; 1 leaves the size unchanged.") public var scaleZ: Float = 1f
 
   override fun type(): ComponentType<LocalTransform> = LocalTransform
 

@@ -1,7 +1,6 @@
 package dev.chieppa.ease.sample
 
 import dev.chieppa.ease.agent.list
-import dev.chieppa.ease.agent.names
 import dev.chieppa.ease.agent.text
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -21,8 +20,8 @@ class SampleAgentTest {
   }
 
   private fun fieldNames(types: JsonElement, name: String): Set<String> {
-    val type = types.jsonArray.single { it.text("name") == name }
-    return type.list("fields").names().toSet()
+    val type = types.jsonArray.single { it.text("title") == name }.jsonObject
+    return type.getValue("properties").jsonObject.keys - "type"
   }
 
   @Test

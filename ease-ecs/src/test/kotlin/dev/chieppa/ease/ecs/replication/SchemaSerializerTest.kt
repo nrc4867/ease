@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 class SchemaSerializerTest {
   private val schema =
     replicatedSchema("test.Lantern") {
-      quantized("brightness", Quantization(bits = 8, min = 0f, max = 1f), interpolated = true)
+      quantized("brightness", bits = 8, range = 0f..1f, interpolated = true)
       float("fuel")
       int("charges", audience = Audience.OWNER_ONLY)
       boolean("lit", audience = Audience.ALL_BUT_OWNER)

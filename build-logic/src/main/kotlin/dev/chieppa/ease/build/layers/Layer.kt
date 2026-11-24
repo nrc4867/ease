@@ -11,7 +11,7 @@ enum class Layer {
   /** Helpers for tests, such as the allocation harness. Only test source sets may use them. */
   TEST_SUPPORT,
 
-  /** Plain value types every other module may use. */
+  /** Plain value types and annotations every other module may use. */
   FOUNDATION,
 
   /** The world model: entities, components, systems. */

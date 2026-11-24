@@ -44,6 +44,8 @@ include(":ease-testing")
 
 include(":ease-math")
 
+include(":ease-annotations")
+
 include(":ease-ecs")
 
 include(":ease-commands")

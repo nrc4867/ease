@@ -13,13 +13,15 @@ public class SchemaBuilder internal constructor() {
     add(SchemaField(name, SchemaFieldKind.FLOAT, interpolated, audience))
   }
 
-  /** A float sent as [quantization] says. */
+  /** A float sent in [bits] bits spread evenly over [range], as `@Quantized` and `@Range` say. */
   public fun quantized(
     name: String,
-    quantization: Quantization,
+    bits: Int,
+    range: ClosedFloatingPointRange<Float>,
     interpolated: Boolean = false,
     audience: Audience = Audience.EVERYONE,
   ) {
+    val quantization = Quantization(bits, range.start, range.endInclusive)
     add(SchemaField(name, SchemaFieldKind.QUANTIZED_FLOAT, interpolated, audience, quantization))
   }
 

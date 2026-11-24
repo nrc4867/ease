@@ -3,7 +3,6 @@ package dev.chieppa.ease.codegen.read
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import dev.chieppa.ease.codegen.model.FieldAudience
 import dev.chieppa.ease.codegen.model.FieldModel
-import dev.chieppa.ease.codegen.model.Quantization
 
 /**
  * Reads one kind of field annotation into a [FieldModel]. The [ComponentReader] runs every reader
@@ -14,13 +13,16 @@ internal fun interface FieldOptionReader {
   fun read(property: KSPropertyDeclaration, field: FieldModel): FieldModel
 }
 
-/** `@Quantized(bits, min, max)`. */
+/** `@Quantized(bits)`. */
 internal val quantizedReader = FieldOptionReader { property, field ->
   val annotation = property.annotation(AnnotationNames.QUANTIZED) ?: return@FieldOptionReader field
-  val bits = annotation.argument("bits") as? Int ?: 0
-  val min = annotation.argument("min") as? Float ?: 0f
-  val max = annotation.argument("max") as? Float ?: 0f
-  field.copy(quantization = Quantization(bits, min, max))
+  field.copy(quantizedBits = annotation.argument("bits") as? Int ?: 0)
+}
+
+/** `@Range(min, max)`. */
+internal val rangeReader = FieldOptionReader { property, field ->
+  val range = property.range() ?: return@FieldOptionReader field
+  field.copy(range = range)
 }
 
 /** `@Interpolated`. */
@@ -40,4 +42,4 @@ internal val audienceReader = FieldOptionReader { property, field ->
 
 /** The readers of the replication field options. */
 internal val replicationOptionReaders: List<FieldOptionReader> =
-  listOf(quantizedReader, interpolatedReader, audienceReader)
+  listOf(quantizedReader, rangeReader, interpolatedReader, audienceReader)

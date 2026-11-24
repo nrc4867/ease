@@ -9,6 +9,7 @@ val moduleLayers: Map<String, Layer> =
     "ease-codegen" to Layer.BUILD_TOOL,
     "ease-testing" to Layer.TEST_SUPPORT,
     "ease-math" to Layer.FOUNDATION,
+    "ease-annotations" to Layer.FOUNDATION,
     "ease-ecs" to Layer.CORE,
     "ease-commands" to Layer.WORLD,
     "ease-platform" to Layer.PLATFORM,

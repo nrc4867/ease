@@ -7,6 +7,7 @@ plugins {
 
 dependencies {
   api(project(":ease-math"))
+  api(project(":ease-annotations"))
   api(libs.fleks)
   api(libs.kotlinx.serialization.core)
   testImplementation(project(":ease-testing"))

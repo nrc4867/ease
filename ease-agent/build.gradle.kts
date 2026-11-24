@@ -6,6 +6,7 @@ plugins {
   id("ease.kotlin-module")
   // For the test game's own component.
   alias(libs.plugins.kotlinSerialization)
+  id("com.google.devtools.ksp")
   // A plain MCP client over HTTP for this module's and games' tests.
   `java-test-fixtures`
 }
@@ -28,6 +29,7 @@ dependencies {
       classifier(WebgpuNatives.classifier(providers))
     }
   )
+  kspTest(project(":ease-codegen"))
   testImplementation(libs.kotlinx.coroutines.test)
   testFixturesImplementation(libs.kotlinx.serialization.json)
 }

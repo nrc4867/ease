@@ -2,24 +2,34 @@ package dev.chieppa.ease.render
 
 import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType
+import dev.chieppa.ease.annotations.Doc
+import dev.chieppa.ease.annotations.Range
 import dev.chieppa.ease.ecs.replication.Quantized
 import dev.chieppa.ease.ecs.replication.Replicated
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/**
- * Draws its entity as a square of [size] world units on a side, centered on the entity's
- * `LocalTransform` position, in an opaque color with channels from 0 to 1. It replicates with each
- * channel quantized to 8 bits.
- */
+@Doc(
+  "Draws its entity as a square centered on the entity's LocalTransform position, in an opaque " +
+    "color. It replicates with each color channel quantized."
+)
 @Replicated
 @Serializable
 @SerialName("ease.Quad")
 public class Quad : Component<Quad> {
-  public var size: Float = 1f
-  @Quantized(CHANNEL_BITS, 0f, 1f) public var red: Float = 1f
-  @Quantized(CHANNEL_BITS, 0f, 1f) public var green: Float = 1f
-  @Quantized(CHANNEL_BITS, 0f, 1f) public var blue: Float = 1f
+  @Doc("The square's side, in world units.") public var size: Float = 1f
+
+  @Doc("Red channel, 0 to 1.") @Quantized(CHANNEL_BITS) @Range(0.0, 1.0) public var red: Float = 1f
+
+  @Doc("Green channel, 0 to 1.")
+  @Quantized(CHANNEL_BITS)
+  @Range(0.0, 1.0)
+  public var green: Float = 1f
+
+  @Doc("Blue channel, 0 to 1.")
+  @Quantized(CHANNEL_BITS)
+  @Range(0.0, 1.0)
+  public var blue: Float = 1f
 
   override fun type(): ComponentType<Quad> = Quad
 

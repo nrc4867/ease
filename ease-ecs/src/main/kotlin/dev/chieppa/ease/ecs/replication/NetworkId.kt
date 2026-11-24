@@ -1,15 +1,18 @@
 package dev.chieppa.ease.ecs.replication
 
+import dev.chieppa.ease.annotations.Doc
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/**
- * An entity's id for the whole session. Unlike a Fleks entity id it is never reused, so commands,
- * the command log and the network name entities by it. Ids start at 1 and stay below [LIMIT], so an
- * id from a peer can never push the next issued id past `Long.MAX_VALUE`.
- */
+@Doc(
+  "An entity's id for the whole session. It is never reused, so commands, the command log and " +
+    "the network name entities by it. Ids run from 1 up to, not including, 2^53, " +
+    "so a script holds every id exactly as a number."
+)
 @Serializable
+@SerialName("ease.NetworkId")
 @JvmInline
-public value class NetworkId(public val value: Long) {
+public value class NetworkId(@Doc("The id as a number.") public val value: Long) {
   /** Whether an entity can carry this id: from 1 up to, not including, [LIMIT]. */
   public val isValid: Boolean
     get() = value in 1 until LIMIT
@@ -17,7 +20,7 @@ public value class NetworkId(public val value: Long) {
   override fun toString(): String = "#$value"
 
   public companion object {
-    /** The first id no entity may carry, 2^62. */
-    public const val LIMIT: Long = 1L shl 62
+    /** The first id no entity may carry, 2^53: the ids a JavaScript number holds exactly. */
+    public const val LIMIT: Long = 1L shl 53
   }
 }

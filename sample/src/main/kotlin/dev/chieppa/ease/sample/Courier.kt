@@ -2,11 +2,12 @@ package dev.chieppa.ease.sample
 
 import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType
+import dev.chieppa.ease.annotations.Doc
 import dev.chieppa.ease.ecs.replication.Replicated
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/** Marks the square the [CourierScript] steers. */
+@Doc("Marks the square the courier script steers.")
 @Replicated
 @Serializable
 @SerialName("sample.Courier")
