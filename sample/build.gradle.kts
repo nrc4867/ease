@@ -37,6 +37,14 @@ tasks.register<JavaExec>("sampleSmoke") {
   desktopApp(this)
 }
 
+tasks.register<JavaExec>("sampleHeadless") {
+  group = "verification"
+  description = "Runs the sample game in the player headless for 600 ticks, input script attached."
+  classpath = main.runtimeClasspath
+  mainClass = "dev.chieppa.ease.player.PlayerKt"
+  args("--headless", "600")
+}
+
 tasks.register<JavaExec>("runAgentHost") {
   group = "application"
   description =

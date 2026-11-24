@@ -7,7 +7,7 @@ Ease is built to run well on one floor machine, a Steam Deck class handheld. The
 | Floor machine | Steam Deck class: 4-core Zen 2 CPU, RDNA 2 GPU with 8 compute units, 16 GB shared memory, 1280×800 |
 | Frame rate | 60 fps on the floor machine at 1280×800 |
 | Frame time | 16.6 ms total: simulation step ≤ 4 ms, render submission ≤ 4 ms, GPU ≤ 12 ms |
-| Allocation | No allocation per frame in steady state, measured by the allocation harness |
+| Allocation | No allocation per tick in steady state, measured by the allocation harness; a command applied through the history at most 4 KB (about 1.8 KB measured) |
 | Memory | Game process ≤ 4 GB RAM, ≤ 2 GB GPU memory |
 | Load time | Cold start to menu ≤ 10 s; level or floor change ≤ 3 s |
 

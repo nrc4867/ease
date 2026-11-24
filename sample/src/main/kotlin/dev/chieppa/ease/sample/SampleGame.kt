@@ -7,11 +7,17 @@ import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.render.Camera2D
 import dev.chieppa.ease.runtime.GameModule
 import dev.chieppa.ease.runtime.HostedWorld
+import dev.chieppa.ease.runtime.InputScript
 
-/** The sample game: a few colored squares bouncing around the [Playfield]. */
+/**
+ * The sample game: a few colored squares bouncing around the [Playfield], and with its input script
+ * a courier square steered by commands.
+ */
 public class SampleGame : GameModule {
   override fun registerTypes(registry: CommandRegistry) {
     registry.component(Velocity::class, Velocity.serializer())
+    registry.component(Courier::class, Courier.serializer())
+    registry.command(Steer::class, Steer.serializer())
   }
 
   override fun systems(systems: PhasedSystems) {
@@ -21,6 +27,8 @@ public class SampleGame : GameModule {
   override fun populate(world: HostedWorld) {
     SQUARES.forEach { world.execute(Spawn(it.components())) }
   }
+
+  override fun inputScript(): InputScript = CourierScript()
 
   override fun camera(): Camera2D = Camera2D(visibleHeight = Playfield.VISIBLE_HEIGHT)
 
