@@ -11,3 +11,4 @@
 | P2P signaling | Deferred; client-server and direct connect first | The object model matters at the start, the matchmaking path does not |
 | In-game UI | Own engine UI, drawn by the renderer | Controller-first focus navigation and one look across HUD, menus and dialogue |
 | Target hardware | A Steam Deck class floor machine at 60 fps and 1280×800, with the budgets in `targets.md` | One concrete low-end machine turns performance into numbers every feature is held to |
+| Versioning | Semantic `0.x` releases, exact pins in game projects, an integer `formatVersion` with step-by-step code migrations on every surface outside the repo (see `versioning.md`) | Game repos upgrade on purpose, and old files and saves keep loading without golden fixtures |
