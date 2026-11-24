@@ -10,6 +10,7 @@ import com.github.quillraven.fleks.Entity
 public class StatePacketWriter(private val replication: Replication) {
   private var writer: BitWriter? = null
   private var entityCountAt = 0
+  private var entityAt = 0
   private var entities = 0
   private var componentCountAt = 0
   private var components = 0
@@ -30,6 +31,7 @@ public class StatePacketWriter(private val replication: Replication) {
     val target = active()
     finishEntity(target)
     check(entities < StatePackets.MAX_ENTITIES) { "A packet carries ${entities} entities at most" }
+    entityAt = target.bitPosition
     target.writeVarLong(replication.networkIdOf(entity).value)
     componentCountAt = target.bitPosition
     target.writeBits(0, StatePackets.COMPONENT_COUNT_BITS)
@@ -58,6 +60,26 @@ public class StatePacketWriter(private val replication: Replication) {
     replicated.writeFrom(replication.world, current, target, fields)
     components++
     return true
+  }
+
+  /** How many entities the packet carries so far, the current one included. */
+  public val entityCount: Int
+    get() = entities
+
+  /** The packet's length so far in bits, the current entity included. */
+  public val bitLength: Int
+    get() = active().bitPosition
+
+  /**
+   * Takes the current entity back out of the packet, as if [entity] had not been called for it,
+   * such as when it would make the packet too long.
+   */
+  public fun dropEntity() {
+    val target = active()
+    check(current != Entity.NONE) { "There is no entity to drop" }
+    target.rewind(entityAt)
+    entities--
+    current = Entity.NONE
   }
 
   private fun refuseNonFinite(serializer: ReplicatedSerializer<*>, field: Int) {

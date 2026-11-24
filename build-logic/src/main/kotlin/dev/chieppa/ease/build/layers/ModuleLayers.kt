@@ -15,6 +15,7 @@ val moduleLayers: Map<String, Layer> =
     "ease-commands" to Layer.WORLD,
     "ease-platform" to Layer.PLATFORM,
     "ease-assets" to Layer.ASSETS,
+    "ease-net" to Layer.NET,
     "ease-gpu" to Layer.GPU,
     "ease-render" to Layer.RENDER,
     "ease-runtime" to Layer.RUNTIME,

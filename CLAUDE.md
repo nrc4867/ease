@@ -45,11 +45,12 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | Host | `viewport-spike` | The Phase 1 editor viewport check (engine on Stretch's device); never ships |
 | Runtime | `ease-runtime` | Hosted worlds, ticking, game modules |
 | Render | `ease-render` | The extract snapshot, 2D cameras and the quad renderer |
-| Assets | `ease-assets` | Asset GUIDs and `.meta` sidecars, the asset database, loaders and reload commands, and the file association service |
 | GPU | `ease-gpu` | wgpu device, surfaces, pipelines |
+| Net | `ease-net` | Sessions between peers: the channel interface and an in-process link, delta snapshots and their acknowledgements, per-tick input with redundancy and a tick window, and the authority's command checks and rate limits |
+| Assets | `ease-assets` | Asset GUIDs and `.meta` sidecars, the asset database, loaders and reload commands, and the file association service |
 | Platform | `ease-platform` | Windows, input, audio output, file watching, clocks |
 | Data | `ease-serialization` | Canonical YAML (sorted keys, shortest floats, stable bytes) and format-version migrations, for meta files and later scenes |
-| World | `ease-commands` | Commands, undo and redo, the command log, their JSON and binary formats |
+| World | `ease-commands` | Commands with their scope, targets and `validate`, the permission check, undo and redo for user origins, the command log, their JSON and compact binary formats |
 | Core | `ease-ecs` | Entities, components, systems, phases; network ids, authority, `@Replicated`, the bit codec, replicated serializers and state packets |
 | Foundation | `ease-annotations` | `@Doc`, `@Range` and `@SerializedAs`: the documentation, ranges and serializer hints that `ease-codegen` turns into `ease.d.ts` and JSON Schemas; every public serialized type and field carries `@Doc` |
 | Foundation | `ease-math` | Vectors, quaternions, matrices, bounds, transforms (Java) |

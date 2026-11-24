@@ -12,18 +12,21 @@ public class StatePacketReader(private val replication: Replication) {
   private val reader = BitReader()
 
   /** Reads the first [length] bytes of [bytes] and applies them, or refuses them all. */
-  public fun read(bytes: ByteArray, length: Int): DecodeStatus =
+  public fun read(bytes: ByteArray, length: Int): DecodeStatus = read(bytes, 0, length)
+
+  /** Reads the [length] bytes of [bytes] from [offset] and applies them, or refuses them all. */
+  public fun read(bytes: ByteArray, offset: Int, length: Int): DecodeStatus =
     when {
-      length < 0 || length > bytes.size -> DecodeStatus.TRUNCATED
+      offset < 0 || length < 0 || offset > bytes.size - length -> DecodeStatus.TRUNCATED
       length > StatePackets.MAX_BYTES -> DecodeStatus.TOO_LONG
-      else -> checkThenApply(bytes, length)
+      else -> checkThenApply(bytes, offset, length)
     }
 
-  private fun checkThenApply(bytes: ByteArray, length: Int): DecodeStatus {
-    reader.reset(bytes, length)
+  private fun checkThenApply(bytes: ByteArray, offset: Int, length: Int): DecodeStatus {
+    reader.reset(bytes, offset, length)
     pass(apply = false)
     if (!reader.ok) return reader.status
-    reader.reset(bytes, length)
+    reader.reset(bytes, offset, length)
     pass(apply = true)
     return reader.status
   }

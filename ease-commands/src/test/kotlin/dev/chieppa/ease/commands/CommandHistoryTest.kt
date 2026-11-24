@@ -40,7 +40,7 @@ class CommandHistoryTest {
 
   /** Spawns an entity with a transform and returns its network id, the newest in the world. */
   private fun spawn(): NetworkId {
-    history.execute(Spawn(listOf(LocalTransform.of(Transform.IDENTITY))), 0, CommandOrigin.GAME)
+    history.execute(Spawn(listOf(LocalTransform.of(Transform.IDENTITY))), 0, CommandOrigin.USER)
     return world.asEntityBag().map { world.networkIdOf(it) }.maxBy { it.value }
   }
 
@@ -130,7 +130,7 @@ class CommandHistoryTest {
     val entries = history.log.all
     assertEquals(listOf(0L, 5L, 6L, 7L), entries.map { it.tick })
     assertEquals(
-      listOf(CommandOrigin.GAME, CommandOrigin.AGENT, CommandOrigin.USER, CommandOrigin.USER),
+      listOf(CommandOrigin.USER, CommandOrigin.AGENT, CommandOrigin.USER, CommandOrigin.USER),
       entries.map { it.origin },
     )
     assertEquals(CommandOrigin.AGENT, history.nextUndoOrigin)
@@ -205,7 +205,7 @@ class CommandHistoryTest {
       history.execute(Restore(NetworkId(9), snapshot), 1, CommandOrigin.NETWORK)
     }
     history.execute(Spawn(components(owned)), 1, CommandOrigin.NETWORK)
-    assertTrue(history.canUndo)
+    assertEquals(1, history.log.all.size)
   }
 
   @Test
@@ -233,5 +233,44 @@ class CommandHistoryTest {
     assertFailsWith<CommandRejected> { history.redo(3, CommandOrigin.USER) }
 
     assertFalse(history.canRedo)
+  }
+
+  @Test
+  fun `changes the user did not ask for apply and are logged but are never undone`() {
+    val entity = spawn()
+    history.execute(SetTransform(entity, moved), 1, CommandOrigin.USER)
+    val edited = state()
+    val reload = SetTransform(entity, Transform.IDENTITY)
+
+    for (origin in CommandOrigin.entries.filterNot { it.undoable }) {
+      history.execute(reload, 2, origin)
+      val logged = history.log.all.last()
+      assertEquals(origin, logged.origin)
+    }
+
+    assertNotEquals(edited, state())
+    assertEquals(CommandOrigin.USER, history.nextUndoOrigin)
+    assertTrue(history.undo(3, CommandOrigin.USER))
+    assertEquals(Transform.IDENTITY, with(world) { world.entityOf(entity)[LocalTransform].get() })
+  }
+
+  @Test
+  fun `a change the user did not ask for leaves redo in place`() {
+    val entity = spawn()
+    history.execute(SetTransform(entity, moved), 1, CommandOrigin.USER)
+    history.undo(2, CommandOrigin.USER)
+
+    history.execute(Spawn(listOf(LocalTransform())), 3, CommandOrigin.GAME)
+
+    assertTrue(history.redo(4, CommandOrigin.USER))
+    assertEquals(moved, with(world) { world.entityOf(entity)[LocalTransform].get() })
+  }
+
+  @Test
+  fun `only the user and agents acting for them can undo`() {
+    assertEquals(
+      setOf(CommandOrigin.USER, CommandOrigin.AGENT),
+      CommandOrigin.entries.filter { it.undoable }.toSet(),
+    )
   }
 }

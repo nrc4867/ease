@@ -5,6 +5,7 @@ import dev.chieppa.ease.commands.builtin.Restore
 import dev.chieppa.ease.commands.builtin.SetTransform
 import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.ecs.LocalTransform
+import dev.chieppa.ease.ecs.replication.BitWriter
 import dev.chieppa.ease.ecs.replication.NetworkId
 import dev.chieppa.ease.math.Transform
 import kotlin.random.Random
@@ -45,9 +46,27 @@ class ReceivedCommandTest {
 
   @Test
   fun `a declared length past the end of the bytes is refused`() {
-    val bytes = byteArrayOf(CBOR_PAIR, CBOR_LONG_TEXT, MAX, MAX, MAX, MAX)
+    val writer = BitWriter(SMALL)
+    writer.writeVarLong(codec.commandTypeId(commands[1]).toLong())
+    writer.writeVarLong(HUGE_SIZE)
+    writer.padToByte()
 
-    assertRefused(CommandRefusal.MALFORMED, codec.receiveCommand(bytes))
+    assertRefused(CommandRefusal.MALFORMED, codec.receiveCommand(writer.buffer.copyOf(SMALL)))
+  }
+
+  @Test
+  fun `a command type id past the registered ones is refused`() {
+    val writer = BitWriter(SMALL)
+    writer.writeVarLong(codec.commandTypeCount.toLong())
+
+    assertRefused(CommandRefusal.MALFORMED, codec.receiveCommand(writer.buffer.copyOf(1)))
+  }
+
+  @Test
+  fun `bytes left over after a command are refused`() {
+    val bytes = codec.commandToBinary(commands[0])
+
+    assertRefused(CommandRefusal.MALFORMED, codec.receiveCommand(bytes.copyOf(bytes.size + 1)))
   }
 
   @Test
@@ -91,9 +110,7 @@ class ReceivedCommandTest {
     const val MAX_FLIPS = 4
     const val BYTE_BITS = 8
 
-    /** A CBOR array of two, then a text string whose four-byte length follows. */
-    const val CBOR_PAIR: Byte = 0x82.toByte()
-    const val CBOR_LONG_TEXT: Byte = 0x7A
-    const val MAX: Byte = 0x7F
+    const val SMALL = 8
+    const val HUGE_SIZE = 1_000_000L
   }
 }

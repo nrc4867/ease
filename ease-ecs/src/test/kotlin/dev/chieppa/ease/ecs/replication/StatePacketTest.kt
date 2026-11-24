@@ -138,7 +138,20 @@ class StatePacketTest {
     assertTrue("Lantern.fuel" in message, message)
   }
 
+  @Test
+  fun `an offset and length whose sum overflows are refused as truncated, never thrown`() {
+    assertEquals(DecodeStatus.TRUNCATED, pair.reader.read(ByteArray(ENTITIES), Int.MAX_VALUE, 2))
+  }
+
+  @Test
+  fun `a writer with no room throws its own exception`() {
+    val writer = BitWriter(1)
+
+    assertFailsWith<BitWriterFull> { writer.writeBits(0, PAST_ONE_BYTE) }
+  }
+
   private companion object {
+    const val PAST_ONE_BYTE = 9
     const val ENTITIES = 3
     const val OVERSIZED = 2_000
     const val DELTA = 1f / 60f

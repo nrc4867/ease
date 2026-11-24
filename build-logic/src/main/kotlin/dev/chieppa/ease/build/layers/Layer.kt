@@ -31,6 +31,9 @@ enum class Layer {
    */
   ASSETS,
 
+  /** Sessions between peers: channels, snapshots, inputs and the authority's command checks. */
+  NET,
+
   /** WebGPU device, surfaces, pipelines. */
   GPU,
 

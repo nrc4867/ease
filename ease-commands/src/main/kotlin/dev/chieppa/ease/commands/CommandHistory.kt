@@ -4,8 +4,10 @@ import com.github.quillraven.fleks.World
 
 /**
  * Applies commands to one world with undo and redo, and logs every change, undo and redo included.
- * Commands and their inverses are kept in the binary form and read fresh before each apply, so a
- * command never shares objects with the world it changed.
+ * Only changes from an [undoable][CommandOrigin.undoable] origin enter the undo history; others,
+ * such as a peer's command or an asset reload, apply and are logged but never sit between the user
+ * and their own edits. Commands and their inverses are kept in the binary form and read fresh
+ * before each apply, so a command never shares objects with the world it changed.
  */
 public class CommandHistory(
   private val world: World,
@@ -28,12 +30,14 @@ public class CommandHistory(
     get() = undoStack.lastOrNull()?.origin
 
   /**
-   * Applies [command] at [tick] for [origin] and makes it the next change to undo. Clears redo.
-   * Throws [CommandRejected], changing nothing, when the command cannot apply.
+   * Applies [command] at [tick] for [origin]. From an undoable origin it becomes the next change to
+   * undo and clears redo; from any other, undo and redo are left as they were. Throws
+   * [CommandRejected], changing nothing, when the command cannot apply.
    */
   public fun execute(command: Command, tick: Long, origin: CommandOrigin) {
     val inverse = applyLogged(codec.commandToBinary(command), tick, origin)
-    undoStack.addLast(Recorded(inverse, origin))
+    if (!origin.undoable) return
+    undoStack.addLast(Recorded(codec.commandToBinary(inverse), origin))
     redoStack.clear()
   }
 
@@ -65,14 +69,15 @@ public class CommandHistory(
   ): Boolean {
     val recorded = from.removeLastOrNull() ?: return false
     val inverse = applyLogged(recorded.encoded, tick, origin)
-    to.addLast(Recorded(inverse, recorded.origin))
+    to.addLast(Recorded(codec.commandToBinary(inverse), recorded.origin))
     return true
   }
 
-  private fun applyLogged(encoded: ByteArray, tick: Long, origin: CommandOrigin): ByteArray {
+  /** Applies the command [encoded] holds, logs it, and returns its inverse. */
+  private fun applyLogged(encoded: ByteArray, tick: Long, origin: CommandOrigin): Command {
     val inverse = codec.commandFromBinary(encoded).apply(world)
     log.append(tick, origin, encoded)
-    return codec.commandToBinary(inverse)
+    return inverse
   }
 
   /** A change on a stack: the command that applies it, and who made the original change. */

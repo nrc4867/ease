@@ -7,11 +7,13 @@ package dev.chieppa.ease.ecs.replication
  */
 public class BitReader {
   private var bytes: ByteArray = ByteArray(0)
+  private var startBits = 0
   private var limitBits = 0
+  private var cursor = 0
 
   /** How many bits have been read. */
-  public var bitPosition: Int = 0
-    private set
+  public val bitPosition: Int
+    get() = cursor - startBits
 
   /** [DecodeStatus.OK], or the first problem met. */
   public var status: DecodeStatus = DecodeStatus.OK
@@ -23,14 +25,22 @@ public class BitReader {
 
   /** How many bits are left to read. */
   public val remainingBits: Int
-    get() = limitBits - bitPosition
+    get() = limitBits - cursor
 
   /** Reads the first [length] bytes of [source] from the start, which must lie inside it. */
   public fun reset(source: ByteArray, length: Int) {
-    require(length in 0..source.size) { "Length $length is outside a ${source.size}-byte array" }
+    reset(source, 0, length)
+  }
+
+  /** Reads the [length] bytes of [source] from [offset], which must lie inside it. */
+  public fun reset(source: ByteArray, offset: Int, length: Int) {
+    require(offset >= 0 && length >= 0 && offset <= source.size - length) {
+      "$length bytes from $offset are outside a ${source.size}-byte array"
+    }
     bytes = source
-    limitBits = length * WireBits.BYTE_BITS
-    bitPosition = 0
+    startBits = offset * WireBits.BYTE_BITS
+    limitBits = (offset + length) * WireBits.BYTE_BITS
+    cursor = startBits
     status = DecodeStatus.OK
   }
 
@@ -47,13 +57,13 @@ public class BitReader {
     var result = 0
     var done = 0
     while (done < count) {
-      val offset = bitPosition and WireBits.BYTE_MASK
+      val offset = cursor and WireBits.BYTE_MASK
       val taken = minOf(WireBits.BYTE_BITS - offset, count - done)
-      val byte = bytes[bitPosition ushr WireBits.BYTE_SHIFT].toInt() and WireBits.BYTE_VALUE
+      val byte = bytes[cursor ushr WireBits.BYTE_SHIFT].toInt() and WireBits.BYTE_VALUE
       val bits = (byte ushr offset) and ((1 shl taken) - 1)
       result = result or (bits shl done)
       done += taken
-      bitPosition += taken
+      cursor += taken
     }
     return result
   }

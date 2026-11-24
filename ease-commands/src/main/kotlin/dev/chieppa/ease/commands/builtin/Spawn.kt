@@ -5,7 +5,6 @@ import com.github.quillraven.fleks.Snapshot
 import com.github.quillraven.fleks.World
 import dev.chieppa.ease.annotations.Doc
 import dev.chieppa.ease.commands.Command
-import dev.chieppa.ease.commands.CommandRejected
 import dev.chieppa.ease.ecs.replication.networkIdOf
 import dev.chieppa.ease.ecs.replication.spawnEntity
 import kotlinx.serialization.SerialName
@@ -24,8 +23,10 @@ public class Spawn(
   /** Spawns an entity carrying [components] and no tags. */
   public constructor(components: List<Component<out Any>>) : this(Snapshot(components, emptyList()))
 
+  override fun validate(world: World): String? = snapshotRefusal(world, snapshot)
+
   override fun apply(world: World): Command {
-    snapshotRefusal(world, snapshot)?.let { throw CommandRejected(it) }
+    rejectIf(validate(world))
     val entity = world.spawnEntity { it += snapshot.components }
     return Destroy(world.networkIdOf(entity))
   }
