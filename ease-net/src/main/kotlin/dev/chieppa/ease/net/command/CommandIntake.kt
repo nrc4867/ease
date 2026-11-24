@@ -69,7 +69,7 @@ internal class CommandIntake(
   }
 
   private fun decode(bytes: ByteArray, length: Int): Command? {
-    val fits = length in 0..minOf(CommandFrames.MAX_BYTES, bytes.size)
+    val fits = length >= 0 && length <= CommandFrames.MAX_BYTES && length <= bytes.size
     val offset = if (fits) readHeader(bytes, length) else NO_HEADER
     if (offset == NO_HEADER) return malformed("A command message of $length bytes without a tick")
     return reader.read(bytes, offset, length - offset)
