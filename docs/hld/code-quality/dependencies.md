@@ -30,6 +30,8 @@ The `ease.licenses` convention plugin, applied to the root project, resolves eve
 | `org.jetbrains.kotlinx:kotlinx-serialization-cbor` | Apache-2.0 | The binary form of commands in `ease-commands`, for the command log and the network |
 | `org.jetbrains.kotlin:kotlin-stdlib` | Apache-2.0 | The Kotlin standard library |
 | `org.lwjgl:lwjgl`, `org.lwjgl:lwjgl-sdl` | BSD-3-Clause | SDL3 windows and native handles in `ease-platform`. Their natives jars bundle SDL3 (Zlib) |
+| `io.modelcontextprotocol:kotlin-sdk-server` | MIT | The MCP protocol and its streamable HTTP transport in `ease-agent`. Brings `kotlinx-coroutines`, `kotlinx-io`, `kotlinx-collections-immutable`, `kotlin-logging` and Ktor's server modules (all Apache-2.0) |
+| `io.ktor:ktor-server-cio` | Apache-2.0 | The HTTP server `ease-agent` serves MCP from. Brings `com.typesafe:config` (Apache-2.0); its `kotlin-reflect` is excluded, as nothing the host runs needs it |
 | `org.jetbrains:annotations` | Apache-2.0 | Nullability annotations, pulled in by the Kotlin standard library |
 
 Audio output is miniaudio (public domain or MIT-0) through Ease's own FFM bindings, not OpenAL Soft. Windows and input are SDL3 through LWJGL.

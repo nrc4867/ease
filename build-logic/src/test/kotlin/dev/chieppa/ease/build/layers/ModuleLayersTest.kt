@@ -18,6 +18,11 @@ class ModuleLayersTest {
   }
 
   @Test
+  fun `a module may take its own parts, such as its test fixtures`() {
+    assertNull(layerViolation("ease-agent", "ease-agent"))
+  }
+
+  @Test
   fun `a module's package follows its name`() {
     assertEquals("dev.chieppa.ease.math", modulePackage("ease-math"))
     assertEquals("dev.chieppa.ease.sample", modulePackage("sample"))

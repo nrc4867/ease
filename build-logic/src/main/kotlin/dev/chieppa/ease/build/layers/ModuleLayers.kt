@@ -15,6 +15,7 @@ val moduleLayers: Map<String, Layer> =
     "ease-render" to Layer.RENDER,
     "ease-runtime" to Layer.RUNTIME,
     "ease-player" to Layer.HOST,
+    "ease-agent" to Layer.HOST,
     "viewport-spike" to Layer.HOST,
     "sample" to Layer.GAME,
   )
@@ -30,9 +31,10 @@ fun layerOf(module: String): Layer =
 
 /**
  * Why [from] may not depend on [to], or null when it may: only a module in a strictly lower layer
- * is allowed.
+ * is allowed, or the module itself, as its tests take its own test fixtures.
  */
 fun layerViolation(from: String, to: String): String? {
+  if (from == to) return null
   val fromLayer = layerOf(from)
   val toLayer = layerOf(to)
   if (toLayer < fromLayer) return null
