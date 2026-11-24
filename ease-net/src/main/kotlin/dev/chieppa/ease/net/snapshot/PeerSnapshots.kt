@@ -7,16 +7,19 @@ import dev.chieppa.ease.ecs.replication.ReplicatedTypes
 import dev.chieppa.ease.ecs.replication.Replication
 import dev.chieppa.ease.ecs.replication.StatePacketWriter
 import dev.chieppa.ease.ecs.replication.StatePackets
+import dev.chieppa.ease.ecs.replication.WireBits
 
-private const val BYTE_BITS = 8
+private const val STATE_BITS = Snapshots.STATE_BYTES * WireBits.BYTE_BITS
 private const val MAX_ID_BYTES = 10
 private const val COUNT_BYTES = 2
 
 /**
  * Builds the snapshots one peer receives: each carries, for every entity the host holds, the fields
- * the peer may not hold yet. When a snapshot is full, the next one starts after the last entity it
- * carried, so every entity gets its turn. Acknowledgements clear what the peer is known to hold.
- * Nothing here allocates once its tables have grown to the world's size.
+ * the peer may not hold yet. Only components the peer knows are sent: those on the entities the
+ * host held when the peer connected. When a snapshot is full, the next one starts after the last
+ * entity it carried, so every entity gets its turn; an entity too large for any snapshot is left
+ * out, and a debug build throws. Acknowledgements clear what the peer is known to hold. Nothing
+ * here allocates once its tables have grown to the world's size.
  */
 internal class PeerSnapshots(
   private val replication: Replication,
@@ -35,8 +38,22 @@ internal class PeerSnapshots(
   private var full = false
   private var lastWritten = -1
 
-  override fun changed(slot: Int, networkId: Long, fields: Int, allFields: Int) {
-    slots.fold(slot, networkId, fields, allFields)
+  init {
+    tracker.entities.forEach { entity -> if (replication.hasAuthority(entity)) know(entity) }
+  }
+
+  override fun changed(slot: Int, networkId: Long, fields: Int) {
+    slots.fold(slot, networkId, fields)
+  }
+
+  /** Records that the peer holds [entity] with every replicated component it carries now. */
+  private fun know(entity: Entity) {
+    val networkId = replication.networkIdOf(entity).value
+    for (typeId in 0 until tracker.typeCount) {
+      if (!tracker.carries(entity, typeId)) continue
+      val fields = replication.types[typeId].serializer.fieldCount
+      slots.know(tracker.slotOf(entity, typeId), networkId, ReplicatedFields.allFields(fields))
+    }
   }
 
   /**
@@ -87,27 +104,23 @@ internal class PeerSnapshots(
   }
 
   private fun visit(entity: Entity, tick: Long) {
-    if (!replication.hasAuthority(entity) || !hasPending(entity)) return
+    val networkId = replication.networkIdOf(entity).value
+    if (!replication.hasAuthority(entity) || !hasPending(entity, networkId)) return
     if (packets.entityCount >= StatePackets.MAX_ENTITIES) {
       full = true
       return
     }
     val mark = record.count
-    val networkId = replication.networkIdOf(entity).value
     packets.entity(entity)
     for (typeId in 0 until tracker.typeCount) {
       val slot = tracker.slotOf(entity, typeId)
-      val fields = slots.pending(slot)
+      val fields = slots.pending(slot, networkId)
       if (fields == 0 || !tracker.carries(entity, typeId)) continue
       val type = replication.types[typeId].serializer.type
       if (packets.component(type, fields)) record.add(slot, networkId)
     }
     when {
-      packets.bitLength > Snapshots.STATE_BYTES * BYTE_BITS -> {
-        packets.dropEntity()
-        record.truncate(mark)
-        full = true
-      }
+      packets.bitLength > STATE_BITS -> overflow(mark, networkId)
       record.count == mark -> packets.dropEntity()
       else -> {
         for (index in mark until record.count) slots.carried(record.slotAt(index), tick)
@@ -116,9 +129,26 @@ internal class PeerSnapshots(
     }
   }
 
-  private fun hasPending(entity: Entity): Boolean {
+  /**
+   * Takes back the entity [networkId] that made the snapshot too long. When it was alone, it can
+   * never fit: it is left out, or a debug build throws; otherwise the snapshot is full.
+   */
+  private fun overflow(mark: Int, networkId: Long) {
+    val bits = packets.bitLength
+    packets.dropEntity()
+    record.truncate(mark)
+    if (packets.entityCount > 0) {
+      full = true
+      return
+    }
+    check(!replication.debugChecks) {
+      "Entity #$networkId needs $bits bits, more than the $STATE_BITS a snapshot holds"
+    }
+  }
+
+  private fun hasPending(entity: Entity, networkId: Long): Boolean {
     for (typeId in 0 until tracker.typeCount) {
-      if (slots.pending(tracker.slotOf(entity, typeId)) != 0) return true
+      if (slots.pending(tracker.slotOf(entity, typeId), networkId) != 0) return true
     }
     return false
   }
@@ -131,7 +161,7 @@ internal class PeerSnapshots(
         val fields = types[id].serializer.fieldCount
         bits += ReplicatedTypes.ID_BITS + ReplicatedFields.MAX_FIELDS * (fields + 1)
       }
-      return MAX_ID_BYTES + COUNT_BYTES + bits / BYTE_BITS + 1
+      return MAX_ID_BYTES + COUNT_BYTES + WireBits.bytesFor(bits)
     }
   }
 }

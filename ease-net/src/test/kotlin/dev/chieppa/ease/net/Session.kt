@@ -25,17 +25,22 @@ import dev.chieppa.ease.net.session.NetSettings
 
 /**
  * A host world and one client world over a [LocalLink], holding [entities] entities under the same
- * network ids: the host holds them all, the client owns the first [owned]. [clientEnd] may wrap the
- * client's end, to lose or reorder what it receives.
+ * network ids: the host holds them all, the client owns the first [owned], and after them come
+ * [bare] entities with no replicated component. The client connects once they all exist.
+ * [clientEnd] may wrap the client's end, to lose or reorder what it receives.
  */
 internal class Session(
   entities: Int,
   owned: Int = entities,
   val settings: NetSettings = NetSettings(),
   executor: CommandExecutor? = null,
+  bare: Int = 0,
   clientEnd: (Connection) -> Connection = { it },
 ) {
-  val codec = worldCodec { command(Push::class, Push.serializer()) }
+  val codec = worldCodec {
+    command(Push::class, Push.serializer())
+    command(Note::class, Note.serializer())
+  }
   val host: World = world(PeerId.HOST)
   val client: World = world(CLIENT)
   val refused = mutableListOf<Pair<CommandLayer, String>>()
@@ -47,8 +52,6 @@ internal class Session(
   val hostSession =
     if (executor == null) HostSession(host, codec, settings, refusals = refusals)
     else HostSession(host, codec, settings, executor, refusals)
-  val peer: HostPeer = hostSession.connect(link.hostEnd)
-  val clientSession = ClientSession(client, codec, clientEnd(link.clientEnd), settings)
   val held: List<Entity> =
     List(entities) { index ->
       val owner = if (index < owned) CLIENT else PeerId.HOST
@@ -65,6 +68,17 @@ internal class Session(
       it += NetworkIdentity(host.networkIdOf(entity))
     }
   }
+
+  /** Entities with no replicated component, on both sides under the same network ids. */
+  val bareHeld: List<Entity> = List(bare) { host.spawnEntity() }
+  val bareMirrored: List<Entity> = bareHeld.map { entity ->
+    client.entity {
+      it += Authority(PeerId.HOST, PeerId.HOST)
+      it += NetworkIdentity(host.networkIdOf(entity))
+    }
+  }
+  val peer: HostPeer = hostSession.connect(link.hostEnd)
+  val clientSession = ClientSession(client, codec, clientEnd(link.clientEnd), settings)
   val input = InputFrame(settings.input)
 
   /** The next tick [step] runs. */

@@ -4,10 +4,12 @@ import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.Snapshot
 import com.github.quillraven.fleks.World
 import dev.chieppa.ease.commands.builtin.registerBuiltins
+import dev.chieppa.ease.commands.wire.Wire
 import dev.chieppa.ease.commands.wire.WireDecoder
 import dev.chieppa.ease.commands.wire.WireEncoder
 import dev.chieppa.ease.commands.wire.WireTable
 import dev.chieppa.ease.ecs.replication.BitWriter
+import dev.chieppa.ease.ecs.replication.BitWriterFull
 import dev.chieppa.ease.ecs.replication.ReplicatedSerializer
 import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.SerializationException
@@ -58,11 +60,25 @@ public class WorldCodec internal constructor(registry: CommandRegistry) {
   public val commandTypeCount: Int
     get() = commandTable.size
 
-  /** A writer of commands in the binary form into reused buffers, for one sender. */
-  public fun commandWriter(): CommandWriter = CommandWriter(WireEncoder(module, tables))
+  /**
+   * A hash of every registered command, component and replicated type's serial name, in the order
+   * the binary forms number them: peers whose hashes differ would misread each other's bytes.
+   */
+  public val typesHash: Long = typesHash(registry)
+
+  /**
+   * A writer of commands in the binary form into reused buffers, for one sender, held to what a
+   * peer's [commandReader] accepts.
+   */
+  public fun commandWriter(): CommandWriter = commandWriter(Wire.PEER)
 
   /** A reader of commands in the binary form received from peers, for one receiver. */
-  public fun commandReader(): CommandReader = CommandReader(WireDecoder(module, tables))
+  public fun commandReader(): CommandReader = commandReader(Wire.PEER)
+
+  private fun commandWriter(limits: Wire) =
+    CommandWriter(WireEncoder(module, tables, limits), limits)
+
+  private fun commandReader(limits: Wire) = CommandReader(WireDecoder(module, tables, limits))
 
   /** [command]'s type as the binary form numbers it, or -1 when it is not registered. */
   public fun commandTypeId(command: Command): Int = commandTable.idOf(command)
@@ -71,24 +87,32 @@ public class WorldCodec internal constructor(registry: CommandRegistry) {
   public fun commandTypeId(serialName: String): Int =
     (0 until commandTable.size).firstOrNull { commandTable.nameAt(it) == serialName } ?: -1
 
-  /** [command] in the binary form. */
+  /**
+   * [command] in the binary form, for the command log and undo history: held to the log's limits,
+   * which are far larger than what a peer may send.
+   */
   public fun commandToBinary(command: Command): ByteArray {
-    val encoder = WireEncoder(module, tables)
+    val writer = commandWriter(Wire.LOG)
     var capacity = FIRST_BINARY_BYTES
     while (true) {
-      val writer = BitWriter(capacity)
-      // A command larger than the network allows may still be logged: grow until it fits.
-      val written = runCatching { encoder.write(commandSerializer, command, writer) }
-      val full = written.exceptionOrNull()
-      if (full == null) return writer.buffer.copyOf(writer.byteLength)
-      if (full !is IllegalStateException || capacity >= MAX_LOGGED_BYTES) throw full
-      capacity *= 2
+      val buffer = BitWriter(capacity)
+      try {
+        writer.write(command, buffer)
+        return buffer.buffer.copyOf(buffer.byteLength)
+      } catch (full: BitWriterFull) {
+        // A command larger than the network allows may still be logged: grow until it fits.
+        if (capacity >= Wire.LOG.maxBytes) throw full
+        capacity *= 2
+      }
     }
   }
 
-  /** The command [bytes] hold, which this codec wrote; throws when they hold none. */
+  /**
+   * The command [bytes] hold, which [commandToBinary] wrote, read under the log's limits; throws
+   * when they hold none.
+   */
   public fun commandFromBinary(bytes: ByteArray): Command {
-    val reader = commandReader()
+    val reader = commandReader(Wire.LOG)
     return reader.read(bytes, 0, bytes.size) ?: throw SerializationException(reader.detail)
   }
 
@@ -132,9 +156,6 @@ public class WorldCodec internal constructor(registry: CommandRegistry) {
      * The buffer a command is first written into for the log; it doubles until the command fits.
      */
     private const val FIRST_BINARY_BYTES = 256
-
-    /** The largest command the log holds, in the binary form. */
-    private const val MAX_LOGGED_BYTES = 64 * 1024 * 1024
 
     private const val TYPE_KEY = "type"
   }

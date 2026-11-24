@@ -17,7 +17,7 @@ public class StatePacketReader(private val replication: Replication) {
   /** Reads the [length] bytes of [bytes] from [offset] and applies them, or refuses them all. */
   public fun read(bytes: ByteArray, offset: Int, length: Int): DecodeStatus =
     when {
-      offset < 0 || length < 0 || offset + length > bytes.size -> DecodeStatus.TRUNCATED
+      offset < 0 || length < 0 || offset > bytes.size - length -> DecodeStatus.TRUNCATED
       length > StatePackets.MAX_BYTES -> DecodeStatus.TOO_LONG
       else -> checkThenApply(bytes, offset, length)
     }

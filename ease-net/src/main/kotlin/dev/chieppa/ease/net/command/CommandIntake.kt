@@ -7,8 +7,8 @@ import dev.chieppa.ease.commands.WorldCodec
 import dev.chieppa.ease.commands.permissionRefusal
 import dev.chieppa.ease.ecs.replication.BitReader
 import dev.chieppa.ease.ecs.replication.PeerId
+import dev.chieppa.ease.ecs.replication.WireBits
 
-private const val BYTE_BITS = 8
 private const val OVER_LIMIT = "Over the rate limit"
 private const val NO_HEADER = -1
 
@@ -33,7 +33,6 @@ internal class CommandIntake(
   private val byType = typeBuckets(codec, limits)
   private var strikes = 0L
   private var lastStrikeTick = 0L
-  private var sentTick = 0L
 
   /** Whether the connection must close: a malformed command or too many strikes. */
   var mustClose: Boolean = false
@@ -57,13 +56,13 @@ internal class CommandIntake(
     when {
       permission != null -> refusals.refused(peer, CommandLayer.PERMISSION, permission)
       rules != null -> refusals.refused(peer, CommandLayer.RULES, rules)
-      else -> execute(command)
+      else -> execute(command, hostTick)
     }
   }
 
-  private fun execute(command: Command) {
+  private fun execute(command: Command, hostTick: Long) {
     try {
-      executor.execute(command, peer, sentTick)
+      executor.execute(command, peer, hostTick)
     } catch (rejected: CommandRejected) {
       refusals.refused(peer, CommandLayer.RULES, rejected.message ?: rejected.toString())
     }
@@ -77,13 +76,15 @@ internal class CommandIntake(
       ?: malformed(reader.detail ?: reader.refusal.toString())
   }
 
-  /** Reads the sender's tick and returns where the command starts, or [NO_HEADER]. */
+  /**
+   * Reads the sender's tick, which must not be negative, and returns where the command starts, or
+   * [NO_HEADER]. The tick is not used: the command applies at the host's tick.
+   */
   private fun readHeader(bytes: ByteArray, length: Int): Int {
     header.reset(bytes, length)
     val tick = header.readVarLong()
     if (!header.ok || tick < 0) return NO_HEADER
-    sentTick = tick
-    return (header.bitPosition + BYTE_BITS - 1) / BYTE_BITS
+    return WireBits.bytesFor(header.bitPosition)
   }
 
   private fun malformed(reason: String): Command? {

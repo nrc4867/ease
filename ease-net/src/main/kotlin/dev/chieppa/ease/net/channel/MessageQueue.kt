@@ -1,7 +1,8 @@
 package dev.chieppa.ease.net.channel
 
+import dev.chieppa.ease.ecs.replication.WireBits
+
 private const val LENGTH_BYTES = 4
-private const val BYTE_BITS = 8
 private const val BYTE_VALUE = 0xFF
 
 /**
@@ -23,7 +24,7 @@ internal class MessageQueue(initialBytes: Int) {
     var lengthBits = length
     repeat(LENGTH_BYTES) {
       put((lengthBits and BYTE_VALUE).toByte())
-      lengthBits = lengthBits ushr BYTE_BITS
+      lengthBits = lengthBits ushr WireBits.BYTE_BITS
     }
     val tail = (head + used) % ring.size
     val first = minOf(length, ring.size - tail)
@@ -37,7 +38,7 @@ internal class MessageQueue(initialBytes: Int) {
     if (used == 0) return Channels.NO_MESSAGE
     var length = 0
     for (index in 0 until LENGTH_BYTES) {
-      length = length or ((take().toInt() and BYTE_VALUE) shl (index * BYTE_BITS))
+      length = length or ((take().toInt() and BYTE_VALUE) shl (index * WireBits.BYTE_BITS))
     }
     check(length <= target.size) { "A $length-byte message does not fit ${target.size} bytes" }
     val first = minOf(length, ring.size - head)

@@ -6,6 +6,7 @@ import dev.chieppa.ease.net.channel.Channels
 import dev.chieppa.ease.net.channel.LocalLink
 import dev.chieppa.ease.net.session.ClientSession
 import dev.chieppa.ease.net.session.CloseReason
+import dev.chieppa.ease.net.session.Hello
 import dev.chieppa.ease.net.session.HostSession
 import kotlin.random.Random
 import kotlin.test.Test
@@ -22,6 +23,11 @@ class HostileMessagesTest {
   private val random = Random(SEED)
   private val scratch = ByteArray(Channels.MAX_RELIABLE_BYTES)
 
+  init {
+    // Exchange hellos, so what follows on each channel is the messages under test.
+    session.step()
+  }
+
   /** The real messages the client sends on [kind], captured off the host's end. */
   private fun captured(kind: ChannelKind, send: () -> Unit): ByteArray {
     send()
@@ -36,6 +42,7 @@ class HostileMessagesTest {
     val link = LocalLink(clientPeer = Session.CLIENT)
     val host = HostSession(session.host, session.codec, session.settings)
     val peer = host.connect(link.hostEnd)
+    Hello.send(session.codec, link.clientEnd)
     link.clientEnd.send(kind, bytes, 0, bytes.size)
     host.receive(HOST_TICK)
     if (!peer.isOpen) {
@@ -47,6 +54,7 @@ class HostileMessagesTest {
   private fun feedClient(bytes: ByteArray): DecodeStatus {
     val link = LocalLink(clientPeer = Session.CLIENT)
     val client = ClientSession(session.client, session.codec, link.clientEnd, session.settings)
+    Hello.send(session.codec, link.hostEnd)
     link.hostEnd.send(ChannelKind.UNRELIABLE, bytes, 0, bytes.size)
     val status = client.receive()
     if (status != DecodeStatus.OK) assertEquals(CloseReason.MALFORMED_SNAPSHOT, client.closeReason)
@@ -101,6 +109,7 @@ class HostileMessagesTest {
       val link = LocalLink(clientPeer = Session.CLIENT)
       val host = HostSession(session.host, session.codec, session.settings)
       val peer = host.connect(link.hostEnd)
+      Hello.send(session.codec, link.clientEnd)
       link.clientEnd.send(ChannelKind.RELIABLE_ORDERED, real, 0, cut)
       host.receive(HOST_TICK)
       assertEquals(CloseReason.MALFORMED_COMMAND, peer.closeReason, "cut at $cut")

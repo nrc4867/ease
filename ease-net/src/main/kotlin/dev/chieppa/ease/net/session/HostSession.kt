@@ -29,10 +29,10 @@ public class HostSession(
   internal val tracker = ChangeTracker(world)
   private val connected = ArrayList<HostPeer>()
   private val buffer = ByteArray(Channels.MAX_RELIABLE_BYTES)
-  private val fold = ChangeSink { slot, networkId, fields, allFields ->
+  private val fold = ChangeSink { slot, networkId, fields ->
     for (index in connected.indices) {
       val peer = connected[index]
-      if (peer.isOpen) peer.snapshots.changed(slot, networkId, fields, allFields)
+      if (peer.isOpen) peer.snapshots.changed(slot, networkId, fields)
     }
   }
 
@@ -40,7 +40,11 @@ public class HostSession(
   public val peers: List<HostPeer>
     get() = connected
 
-  /** Adds the client at the far end of [connection]; its first snapshot carries every field. */
+  /**
+   * Adds the client at the far end of [connection] and sends it the host's hello. Once the client's
+   * own hello matches, it receives snapshots of the entities the host holds now, every field in the
+   * first; entities and components added later are left out until spawns are replicated.
+   */
   public fun connect(connection: Connection): HostPeer {
     val peer = HostPeer(connection, this)
     connected += peer
@@ -54,8 +58,8 @@ public class HostSession(
   public fun receive(tick: Long) {
     for (index in connected.indices) {
       val peer = connected[index]
-      receiveInputs(peer, tick)
       receiveCommands(peer, tick)
+      if (peer.greeted) receiveInputs(peer, tick)
     }
   }
 
@@ -64,7 +68,7 @@ public class HostSession(
     tracker.update(fold)
     for (index in connected.indices) {
       val peer = connected[index]
-      if (!peer.isOpen) continue
+      if (!peer.isOpen || !peer.greeted) continue
       val length = peer.snapshots.write(tick, peer.inputs.lastProcessedTick, buffer)
       peer.connection.send(ChannelKind.UNRELIABLE, buffer, 0, length)
     }
@@ -88,6 +92,10 @@ public class HostSession(
     while (peer.isOpen) {
       val length = peer.connection.receive(ChannelKind.RELIABLE_ORDERED, buffer)
       if (length == Channels.NO_MESSAGE) return
+      if (!peer.greeted) {
+        greet(peer, length)
+        continue
+      }
       peer.commands.receive(buffer, length, tick)
       if (peer.commands.mustClose) {
         val reason =
@@ -95,5 +103,11 @@ public class HostSession(
         peer.close(reason)
       }
     }
+  }
+
+  /** Takes the first message from [peer] as its hello, closing the connection when it differs. */
+  private fun greet(peer: HostPeer, length: Int) {
+    if (Hello.matches(codec, buffer, length)) peer.greeted = true
+    else peer.close(CloseReason.TYPES_MISMATCH)
   }
 }

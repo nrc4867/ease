@@ -34,8 +34,8 @@ public class BitReader {
 
   /** Reads the [length] bytes of [source] from [offset], which must lie inside it. */
   public fun reset(source: ByteArray, offset: Int, length: Int) {
-    require(offset >= 0 && length >= 0 && offset + length <= source.size) {
-      "Bytes $offset to ${offset + length} are outside a ${source.size}-byte array"
+    require(offset >= 0 && length >= 0 && offset <= source.size - length) {
+      "$length bytes from $offset are outside a ${source.size}-byte array"
     }
     bytes = source
     startBits = offset * WireBits.BYTE_BITS

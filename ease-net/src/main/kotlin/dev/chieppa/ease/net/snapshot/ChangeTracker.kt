@@ -48,7 +48,7 @@ internal class ChangeTracker(private val world: World) {
       if (!carries(entity, typeId)) continue
       val baseline = baselines[typeId]
       val fields = baseline.changed(world, entity, fresh)
-      sink.changed(slotOf(entity, typeId), networkId, fields, baseline.allFields)
+      sink.changed(slotOf(entity, typeId), networkId, fields)
     }
   }
 }

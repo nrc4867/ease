@@ -1,13 +1,15 @@
 package dev.chieppa.ease.commands
 
 import dev.chieppa.ease.commands.wire.WireDecoder
+import dev.chieppa.ease.ecs.replication.WireBits
 import kotlinx.serialization.PolymorphicSerializer
 
 /**
- * Reads commands received from a peer, treating every byte as hostile, allocating nothing but the
- * command it reads. Bytes past [WorldCodec.MAX_COMMAND_BYTES] are refused unread, only a registered
- * command type can be named, and malformed bytes give a refusal, never an exception. Each receiver
- * keeps its own, from [WorldCodec.commandReader]; one is not shared between threads.
+ * Reads commands in the binary form, treating every byte as hostile, allocating nothing but the
+ * command it reads. Bytes past its limit, [WorldCodec.MAX_COMMAND_BYTES] for a peer's commands, are
+ * refused unread, only a registered command type can be named, and malformed bytes give a refusal,
+ * never an exception. Each receiver keeps its own, from [WorldCodec.commandReader]; one is not
+ * shared between threads.
  */
 public class CommandReader internal constructor(private val decoder: WireDecoder) {
   private val serializer = PolymorphicSerializer(Command::class)
@@ -25,8 +27,8 @@ public class CommandReader internal constructor(private val decoder: WireDecoder
     refusal = null
     detail = null
     return when {
-      length > WorldCodec.MAX_COMMAND_BYTES -> refuse(CommandRefusal.TOO_LONG, "$length bytes")
-      offset < 0 || length < 0 || offset + length > bytes.size ->
+      length > decoder.limits.maxBytes -> refuse(CommandRefusal.TOO_LONG, "$length bytes")
+      offset < 0 || length < 0 || offset > bytes.size - length ->
         refuse(CommandRefusal.MALFORMED, "Bytes outside the array")
       else -> decode(bytes, offset, length)
     }
@@ -43,7 +45,7 @@ public class CommandReader internal constructor(private val decoder: WireDecoder
       } catch (malformed: RuntimeException) {
         refuse(CommandRefusal.MALFORMED, malformed.message ?: malformed.toString())
       }
-    val leftOver = command != null && decoder.reader.remainingBits >= Byte.SIZE_BITS
+    val leftOver = command != null && decoder.reader.remainingBits >= WireBits.BYTE_BITS
     return if (leftOver) refuse(CommandRefusal.MALFORMED, "Bytes left over after the command")
     else command
   }

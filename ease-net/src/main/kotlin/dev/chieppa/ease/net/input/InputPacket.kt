@@ -3,9 +3,8 @@ package dev.chieppa.ease.net.input
 import dev.chieppa.ease.ecs.replication.BitReader
 import dev.chieppa.ease.ecs.replication.BitWriter
 import dev.chieppa.ease.ecs.replication.DecodeStatus
+import dev.chieppa.ease.ecs.replication.WireBits
 import dev.chieppa.ease.net.channel.Channels
-
-private const val BYTE_BITS = 8
 
 /**
  * One input message from a client, decoded into reused frames. On the wire: the newest snapshot
@@ -65,7 +64,8 @@ internal class InputPacket(private val layout: InputLayout) {
     ackTick = ackPlusOne - 1
     var index = 0
     while (reader.ok && index < count) readFrame(frames[index++])
-    if (reader.ok && reader.remainingBits >= BYTE_BITS) reader.fail(DecodeStatus.TRAILING_DATA)
+    if (reader.ok && reader.remainingBits >= WireBits.BYTE_BITS)
+      reader.fail(DecodeStatus.TRAILING_DATA)
     return reader.status
   }
 

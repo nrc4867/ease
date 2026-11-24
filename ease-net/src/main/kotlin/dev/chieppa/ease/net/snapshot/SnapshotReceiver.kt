@@ -4,8 +4,7 @@ import dev.chieppa.ease.ecs.replication.BitReader
 import dev.chieppa.ease.ecs.replication.DecodeStatus
 import dev.chieppa.ease.ecs.replication.Replication
 import dev.chieppa.ease.ecs.replication.StatePacketReader
-
-private const val BYTE_BITS = 8
+import dev.chieppa.ease.ecs.replication.WireBits
 
 /**
  * Applies the snapshots a client receives, treating every byte as hostile. Only a snapshot newer
@@ -54,7 +53,7 @@ internal class SnapshotReceiver(replication: Replication) {
   }
 
   private fun applyState(bytes: ByteArray, length: Int): DecodeStatus {
-    val headerBytes = (header.bitPosition + BYTE_BITS - 1) / BYTE_BITS
+    val headerBytes = WireBits.bytesFor(header.bitPosition)
     val status = state.read(bytes, headerBytes, length - headerBytes)
     if (status == DecodeStatus.OK) {
       applied(tick)

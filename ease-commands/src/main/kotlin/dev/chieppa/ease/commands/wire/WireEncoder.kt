@@ -1,6 +1,7 @@
 package dev.chieppa.ease.commands.wire
 
 import dev.chieppa.ease.ecs.replication.BitWriter
+import dev.chieppa.ease.ecs.replication.WireBits
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.SerializationException
@@ -10,7 +11,6 @@ import kotlinx.serialization.encoding.AbstractEncoder
 import kotlinx.serialization.encoding.CompositeEncoder
 import kotlinx.serialization.modules.SerializersModule
 
-private const val BYTE_BITS = 8
 private const val SHORT_BITS = 16
 private const val CHAR_BITS = 16
 private const val HALF_BITS = 32
@@ -20,7 +20,9 @@ private const val HALF_BITS = 32
  * nothing itself: no field names, every field in declaration order, defaults included; integers as
  * zigzag variable-length numbers, floats and doubles as their bits, booleans and null marks as one
  * bit, strings as a length and their characters, collections as a size and their elements. A value
- * of a polymorphic base in [tables] is its subtype's wire id, then the value.
+ * of a polymorphic base in [tables] is its subtype's wire id, then the value. A value nesting
+ * deeper or holding a longer collection than [limits] allow throws, so nothing is written that a
+ * reader under the same limits would refuse.
  */
 // One override per kind of value kotlinx serialization asks a format for.
 @Suppress("TooManyFunctions")
@@ -28,12 +30,15 @@ private const val HALF_BITS = 32
 internal class WireEncoder(
   override val serializersModule: SerializersModule,
   private val tables: List<WireTable>,
+  private val limits: Wire,
 ) : AbstractEncoder() {
   private var target: BitWriter? = null
+  private var depth = 0
 
   /** Writes [value] with [serializer] into [writer], after what it already holds. */
   fun <T> write(serializer: SerializationStrategy<T>, value: T, writer: BitWriter) {
     target = writer
+    depth = 0
     try {
       encodeSerializableValue(serializer, value)
     } finally {
@@ -47,7 +52,7 @@ internal class WireEncoder(
 
   override fun encodeBoolean(value: Boolean) = out().writeBoolean(value)
 
-  override fun encodeByte(value: Byte) = out().writeBits(value.toInt(), BYTE_BITS)
+  override fun encodeByte(value: Byte) = out().writeBits(value.toInt(), WireBits.BYTE_BITS)
 
   override fun encodeShort(value: Short) = out().writeBits(value.toInt(), SHORT_BITS)
 
@@ -78,16 +83,29 @@ internal class WireEncoder(
 
   override fun encodeNotNullMark() = out().writeBoolean(true)
 
+  override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
+    depth++
+    require(depth <= limits.maxDepth) { "Values nest deeper than ${limits.maxDepth}" }
+    return this
+  }
+
+  override fun endStructure(descriptor: SerialDescriptor) {
+    depth--
+  }
+
   override fun beginCollection(
     descriptor: SerialDescriptor,
     collectionSize: Int,
   ): CompositeEncoder {
+    require(collectionSize <= limits.maxCollection) {
+      "A collection of $collectionSize elements is longer than ${limits.maxCollection}"
+    }
     out().writeUnsigned(collectionSize.toLong())
-    return this
+    return beginStructure(descriptor)
   }
 
   override fun <T> encodeSerializableValue(serializer: SerializationStrategy<T>, value: T) {
-    val table = if (serializer is PolymorphicSerializer<*>) tableOf(serializer) else null
+    val table = if (serializer is PolymorphicSerializer<*>) tables.tableFor(serializer) else null
     if (table == null || value == null) {
       serializer.serialize(this, value)
       return
@@ -99,11 +117,5 @@ internal class WireEncoder(
     out().writeUnsigned(id.toLong())
     @Suppress("UNCHECKED_CAST") // The table holds the serializer of value's own class.
     (table.serializerAt(id) as SerializationStrategy<T>).serialize(this, value)
-  }
-
-  private fun tableOf(serializer: PolymorphicSerializer<*>): WireTable? {
-    val base = serializer.baseClass.java
-    for (index in tables.indices) if (tables[index].base == base) return tables[index]
-    return null
   }
 }

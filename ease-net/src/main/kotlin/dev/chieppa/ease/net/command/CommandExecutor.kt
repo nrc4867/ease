@@ -8,6 +8,9 @@ import dev.chieppa.ease.ecs.replication.PeerId
  * logged. Throws `CommandRejected`, changing nothing, when the command cannot apply.
  */
 public fun interface CommandExecutor {
-  /** Applies [command], which [sender] sent stamped with its [tick]. */
+  /**
+   * Applies [command] from [sender] at the host's [tick]. The tick the sender stamped is never
+   * passed on: it is the sender's claim, and the log and history keep only the host's ticks.
+   */
   public fun execute(command: Command, sender: PeerId, tick: Long)
 }

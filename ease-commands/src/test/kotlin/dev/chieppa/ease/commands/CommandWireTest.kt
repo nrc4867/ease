@@ -6,6 +6,7 @@ import dev.chieppa.ease.testing.AllocationBudget
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -71,10 +72,10 @@ class CommandWireTest {
   }
 
   @Test
-  fun `values nested past the limit are refused`() {
+  fun `values nested past a peer's limit cannot be written`() {
     val command = sampler(depth = DEEP)
 
-    assertNull(roundTrip(command))
+    assertFailsWith<IllegalArgumentException> { roundTrip(command) }
   }
 
   @Test

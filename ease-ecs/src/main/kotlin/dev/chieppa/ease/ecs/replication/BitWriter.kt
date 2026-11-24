@@ -2,7 +2,8 @@ package dev.chieppa.ease.ecs.replication
 
 /**
  * Writes values bit by bit into [buffer], lowest bits first, without allocating. Writing past the
- * buffer's end throws: the engine sizes its own packets, so that is a bug, not hostile input.
+ * buffer's end throws [BitWriterFull]: the engine sizes its own packets, so that is a bug, not
+ * hostile input.
  */
 public class BitWriter(capacityBytes: Int) {
   /** The bytes written so far are its first [byteLength]. */
@@ -14,7 +15,7 @@ public class BitWriter(capacityBytes: Int) {
 
   /** How many bytes the bits written so far take, the last one padded with zeros. */
   public val byteLength: Int
-    get() = (bitPosition + WireBits.BYTE_MASK) ushr WireBits.BYTE_SHIFT
+    get() = WireBits.bytesFor(bitPosition)
 
   /** Starts again from an empty buffer. */
   public fun reset() {
@@ -24,8 +25,10 @@ public class BitWriter(capacityBytes: Int) {
   /** Writes the lowest [count] bits of [value], for [count] from 0 to 32. */
   public fun writeBits(value: Int, count: Int) {
     require(count in 0..WireBits.INT_BITS) { "Can write 0 to 32 bits at once, not $count" }
-    check(bitPosition + count <= buffer.size * WireBits.BYTE_BITS) {
-      "A ${buffer.size}-byte buffer has no room for $count more bits at bit $bitPosition"
+    if (bitPosition + count > buffer.size * WireBits.BYTE_BITS) {
+      throw BitWriterFull(
+        "A ${buffer.size}-byte buffer has no room for $count more bits at bit $bitPosition"
+      )
     }
     var remaining = count
     var bits = value

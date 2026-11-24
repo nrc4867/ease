@@ -2,6 +2,7 @@ package dev.chieppa.ease.commands.wire
 
 import kotlin.reflect.KClass
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.PolymorphicSerializer
 
 /**
  * The registered subtypes of one polymorphic base, such as every command, each with a wire id: its
@@ -42,4 +43,11 @@ internal class WireTable(
     /** The id of a class that is not registered. */
     const val NONE: Int = -1
   }
+}
+
+/** The table whose base [serializer] writes, or null when values of that base are not numbered. */
+internal fun List<WireTable>.tableFor(serializer: PolymorphicSerializer<*>): WireTable? {
+  val base = serializer.baseClass.java
+  for (index in indices) if (this[index].base == base) return this[index]
+  return null
 }

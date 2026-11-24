@@ -31,6 +31,10 @@ internal constructor(
   public val isOpen: Boolean
     get() = connection.isOpen
 
+  /** Whether the client's hello matched the host's types; until then nothing else is taken. */
+  public var greeted: Boolean = false
+    internal set
+
   internal val snapshots = PeerSnapshots(session.world.replication, session.tracker)
   internal val packet = InputPacket(session.settings.input)
   internal val commands =
@@ -42,6 +46,10 @@ internal constructor(
       session.executor,
       session.refusals,
     )
+
+  init {
+    Hello.send(session.codec, connection)
+  }
 
   internal fun close(reason: CloseReason) {
     if (closeReason == null && connection.isOpen) closeReason = reason

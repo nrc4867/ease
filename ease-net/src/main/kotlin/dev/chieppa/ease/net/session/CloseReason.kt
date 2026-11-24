@@ -16,4 +16,10 @@ public enum class CloseReason {
 
   /** The peer kept sending commands over its rate limits. */
   RATE_LIMITED,
+
+  /**
+   * The peers' codecs number different command, component or replicated types on the wire, so they
+   * would misread each other; they must register the same types.
+   */
+  TYPES_MISMATCH,
 }
