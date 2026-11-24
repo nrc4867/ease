@@ -20,11 +20,13 @@ private const val NANOS_PER_SECOND = 1_000_000_000f
  * One world a host runs: a Fleks world with [module]'s systems and the engine's [ExtractSystem],
  * the codec and command history every outside change goes through, the [snapshot] rendering reads,
  * and the current [tick]. Building it registers [module]'s types and lets it populate the world.
+ * With an [input] script, each [step] first sends the commands the script has due.
  */
 public class HostedWorld(
   module: GameModule,
   public val fixedStep: FixedStep,
   entityCapacity: Int = DEFAULT_ENTITY_CAPACITY,
+  private val input: InputScript? = null,
 ) {
   /** What the last tick's extract copied out for rendering. */
   public val snapshot: RenderSnapshot = RenderSnapshot(entityCapacity)
@@ -55,8 +57,12 @@ public class HostedWorld(
     module.populate(this)
   }
 
-  /** Runs one tick: every system, phase by phase, with one fixed step as the delta. */
+  /**
+   * Runs one tick: the input script's commands, then every system, phase by phase, with one fixed
+   * step as the delta.
+   */
   public fun step() {
+    input?.send(this)
     world.update(stepSeconds)
     tick++
   }

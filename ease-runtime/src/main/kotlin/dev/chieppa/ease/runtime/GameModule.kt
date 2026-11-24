@@ -25,6 +25,12 @@ public interface GameModule {
    */
   public fun populate(world: HostedWorld) {}
 
+  /**
+   * The game's scripted input, for demos and headless runs, or null when it has none. Hosts choose
+   * whether to attach it to a [HostedWorld].
+   */
+  public fun inputScript(): InputScript? = null
+
   /** The camera a host starts with. */
   public fun camera(): Camera2D = Camera2D()
 }
