@@ -22,4 +22,16 @@ class ModuleLayersTest {
     assertEquals("dev.chieppa.ease.math", modulePackage("ease-math"))
     assertEquals("dev.chieppa.ease.sample", modulePackage("sample"))
   }
+
+  @Test
+  fun `a test-support module may be taken only by test configurations`() {
+    assertNull(testSupportViolation("ease-math", "ease-testing", "testImplementation"))
+    assertNotNull(testSupportViolation("ease-math", "ease-testing", "implementation"))
+    assertNotNull(testSupportViolation("ease-ecs", "ease-testing", "api"))
+  }
+
+  @Test
+  fun `only a test-support module is subject to the test-only rule`() {
+    assertNull(testSupportViolation("ease-ecs", "ease-math", "api"))
+  }
 }

@@ -16,6 +16,8 @@ From the bottom:
 - Gradle fails the build as soon as a module declares a dependency on a module of its own rank or above.
 - The Konsist test in `architecture-tests` fails when code imports a package of a module of its own rank or above.
 
+Test-support modules such as `ease-testing` rank below everything, and Gradle lets a module take them only in a test configuration (`testImplementation` and the like), so they never reach main code.
+
 A new module gets its rank in `ModuleLayers.kt` before it can depend on anything.
 
 See `core.md`, `platform.md`, `gpu-and-rendering.md`, `physics-animation-audio.md` and `module-rules.md`.
