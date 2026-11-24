@@ -21,7 +21,7 @@ Then:
 ./gradlew check
 ```
 
-Builds resolve wgpu-native only for the machine they run on. Pass `-Pwebgpu.natives=<platform>` (`windows-x64`, `linux-x64`, `linux-arm64`, `macos-x64` or `macos-arm64`) to package for another.
+Builds resolve native libraries (wgpu-native, SDL3) only for the machine they run on. Pass `-Pnatives=<platform>` (`windows-x64`, `linux-x64`, `linux-arm64`, `macos-x64` or `macos-arm64`) to package for another.
 
 ## License
 

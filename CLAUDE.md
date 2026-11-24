@@ -28,7 +28,9 @@ Gradle needs JDK 25 as `JAVA_HOME`. Stretch is found as `../stretch` or through 
 
 While working, run only the tests for what changed (`./gradlew :<module>:test --tests '<TestClass>'`). CI runs the rest on the pull request.
 
-Only the webgpu-native-ffm natives jar for this machine is resolved, never all five. `-Pwebgpu.natives=<platform>` (`windows-x64`, `linux-x64`, `linux-arm64`, `macos-x64`, `macos-arm64`) picks another, for packaging. A library module takes the bindings with `implementation` and the natives only for its tests; hosts such as `ease-player` take the natives with `runtimeOnly` (see `WebgpuNatives` in `build-logic`).
+Native libraries (wgpu-native from webgpu-native-ffm, SDL3 from LWJGL) resolve only this machine's natives jar. `-Pnatives=<platform>` (`windows-x64`, `linux-x64`, `linux-arm64`, `macos-x64`, `macos-arm64`) picks another, for packaging. A library module takes the bindings with `implementation` and the natives only for its tests or smoke apps; hosts such as `ease-player` take the natives with `runtimeOnly` (see `NativePlatform`, `WebgpuNatives` and `LwjglNatives` in `build-logic`).
+
+Programs that open real windows are smoke apps, never tests: `./gradlew :ease-platform:windowSmoke` opens, resizes and closes a window. CI runs them; run one locally only when changing what it covers.
 
 ## Modules
 
