@@ -48,9 +48,13 @@ include(":ease-annotations")
 
 include(":ease-ecs")
 
+include(":ease-serialization")
+
 include(":ease-commands")
 
 include(":ease-platform")
+
+include(":ease-assets")
 
 include(":ease-gpu")
 

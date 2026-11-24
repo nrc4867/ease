@@ -45,8 +45,10 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | Host | `viewport-spike` | The Phase 1 editor viewport check (engine on Stretch's device); never ships |
 | Runtime | `ease-runtime` | Hosted worlds, ticking, game modules |
 | Render | `ease-render` | The extract snapshot, 2D cameras and the quad renderer |
+| Assets | `ease-assets` | Asset GUIDs and `.meta` sidecars, the asset database, loaders and reload commands, and the file association service |
 | GPU | `ease-gpu` | wgpu device, surfaces, pipelines |
-| Platform | `ease-platform` | Windows, input, audio output, files, clocks |
+| Platform | `ease-platform` | Windows, input, audio output, file watching, clocks |
+| Data | `ease-serialization` | Canonical YAML (sorted keys, shortest floats, stable bytes) and format-version migrations, for meta files and later scenes |
 | World | `ease-commands` | Commands, undo and redo, the command log, their JSON and binary formats |
 | Core | `ease-ecs` | Entities, components, systems, phases; network ids, authority, `@Replicated`, the bit codec, replicated serializers and state packets |
 | Foundation | `ease-annotations` | `@Doc`, `@Range` and `@SerializedAs`: the documentation, ranges and serializer hints that `ease-codegen` turns into `ease.d.ts` and JSON Schemas; every public serialized type and field carries `@Doc` |
