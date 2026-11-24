@@ -19,6 +19,7 @@ public class WindowSurface
 internal constructor(
   private val context: GpuContext,
   private val handle: MemorySegment,
+  private val adapter: MemorySegment,
 ) : AutoCloseable {
   /** The format frames are drawn in, the first one this surface supports that Ease renders into. */
   public val format: TextureFormat = supportedFormats().first()
@@ -93,7 +94,7 @@ internal constructor(
   private fun supportedFormats(): List<TextureFormat> =
     Arena.ofConfined().use { arena ->
       val capabilities = arena.allocate(WGPUSurfaceCapabilities.layout())
-      wgpu_h.wgpuSurfaceGetCapabilities(handle, context.adapter, capabilities)
+      wgpu_h.wgpuSurfaceGetCapabilities(handle, adapter, capabilities)
       val count = WGPUSurfaceCapabilities.formatCount(capabilities)
       val values = WGPUSurfaceCapabilities.formats(capabilities).reinterpret(count * Int.SIZE_BYTES)
       val formats =

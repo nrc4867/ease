@@ -19,23 +19,28 @@ import java.lang.foreign.MemorySegment
 public class GpuContext
 private constructor(
   internal val instance: MemorySegment,
-  internal val adapter: MemorySegment,
+  private val adapter: MemorySegment?,
   internal val device: MemorySegment,
+  /** The GPU's name and the API underneath, such as "Example GPU (Vulkan)". */
+  public val description: String,
   surfaceHandle: MemorySegment?,
-  private val callbacks: Arena?,
   private val errors: ErrorLog,
 ) : AutoCloseable {
   internal val queue: MemorySegment = wgpu_h.wgpuDeviceGetQueue(device)
 
   /** The surface of the window this context was opened for, or null when it has none. */
-  public val surface: WindowSurface? = surfaceHandle?.let { WindowSurface(this, it) }
-
-  /** The GPU's name and the API underneath, such as "Example GPU (Vulkan)". */
-  public val description: String = describe(adapter)
+  public val surface: WindowSurface? = surfaceHandle?.let {
+    WindowSurface(this, it, checkNotNull(adapter))
+  }
 
   /** Throws the first error wgpu reported for this device outside a call, if there was one. */
   public fun checkErrors() {
     errors.first?.let { throw GpuException(it) }
+  }
+
+  /** Blocks until the GPU has finished everything submitted on this device. */
+  public fun awaitIdle() {
+    poll(wait = true)
   }
 
   /** Runs wgpu's callbacks that are due; with [wait], first blocks until submitted work is done. */
@@ -48,9 +53,9 @@ private constructor(
     surface?.close()
     wgpu_h.wgpuQueueRelease(queue)
     wgpu_h.wgpuDeviceRelease(device)
-    wgpu_h.wgpuAdapterRelease(adapter)
+    adapter?.let(wgpu_h::wgpuAdapterRelease)
     wgpu_h.wgpuInstanceRelease(instance)
-    callbacks?.close()
+    errors.close()
   }
 
   public companion object {
@@ -63,24 +68,31 @@ private constructor(
       val instance = createInstance()
       val surface = window?.let { createSurface(instance, it) }
       val adapter = requestAdapter(instance, surface)
-      val callbacks = Arena.ofShared()
-      val errors = ErrorLog()
-      val device = requestDevice(instance, adapter, callbacks, errors::report)
-      return GpuContext(instance, adapter, device, surface, callbacks, errors)
+      val errors = ErrorLog(Arena.ofShared())
+      val device = requestDevice(instance, adapter, checkNotNull(errors.callbacks), errors::report)
+      return GpuContext(instance, adapter, device, describe(adapter), surface, errors)
     }
 
     /**
      * A context on a device someone else made, such as an editor's viewport, given as wgpu handle
-     * addresses. It holds its own references, so closing it leaves the owner's device working.
-     * Errors go to the owner's callbacks, so [checkErrors] never throws.
+     * addresses, with the owner's [description] of it. It holds its own references, so closing it
+     * leaves the owner's device working. It has no window surface, and errors go to the owner's
+     * callbacks, so [checkErrors] never throws.
      */
-    public fun shared(instance: Long, adapter: Long, device: Long): GpuContext {
+    public fun shared(instance: Long, device: Long, description: String): GpuContext {
       WgpuNative.load()
-      val handles = listOf(instance, adapter, device).map(MemorySegment::ofAddress)
-      wgpu_h.wgpuInstanceAddRef(handles[0])
-      wgpu_h.wgpuAdapterAddRef(handles[1])
-      wgpu_h.wgpuDeviceAddRef(handles[2])
-      return GpuContext(handles[0], handles[1], handles[2], null, null, ErrorLog())
+      val instanceHandle = MemorySegment.ofAddress(instance)
+      val deviceHandle = MemorySegment.ofAddress(device)
+      wgpu_h.wgpuInstanceAddRef(instanceHandle)
+      wgpu_h.wgpuDeviceAddRef(deviceHandle)
+      return GpuContext(
+        instanceHandle,
+        null,
+        deviceHandle,
+        description,
+        null,
+        ErrorLog(callbacks = null),
+      )
     }
 
     private fun describe(adapter: MemorySegment): String =
@@ -111,8 +123,11 @@ private constructor(
 /** An error wgpu reported for a device. */
 public class GpuException(message: String) : RuntimeException(message)
 
-/** Keeps the first error wgpu reports, from whichever thread it reports on. */
-private class ErrorLog {
+/**
+ * Keeps the first error wgpu reports, from whichever thread it reports on, and the [callbacks]
+ * arena the device's error callbacks live in, when this context made them.
+ */
+private class ErrorLog(val callbacks: Arena?) : AutoCloseable {
   @Volatile
   var first: String? = null
     private set
@@ -120,5 +135,9 @@ private class ErrorLog {
   @Synchronized
   fun report(message: String) {
     if (first == null) first = message
+  }
+
+  override fun close() {
+    callbacks?.close()
   }
 }

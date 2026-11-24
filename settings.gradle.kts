@@ -11,6 +11,8 @@ pluginManagement {
 dependencyResolutionManagement {
   repositories {
     mavenCentral()
+    // Compose Multiplatform's AndroidX dependencies, for the Stretch apps.
+    google { mavenContent { includeGroupAndSubgroups("androidx") } }
     // wgpu-native's bindings, from GitHub Packages: credentials from GitHubPackagesUsername and
     // GitHubPackagesPassword (a token with read:packages in ~/.gradle/gradle.properties; CI passes
     // its own).
@@ -51,5 +53,7 @@ include(":ease-runtime")
 include(":ease-player")
 
 include(":sample")
+
+include(":viewport-spike")
 
 include(":architecture-tests")

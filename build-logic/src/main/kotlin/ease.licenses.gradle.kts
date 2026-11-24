@@ -9,7 +9,7 @@ import dev.chieppa.ease.build.licenses.ShippedModules
 plugins { base }
 
 /** Modules whose code never ships. */
-val unshipped = setOf("architecture-tests")
+val unshipped = setOf("architecture-tests", "viewport-spike")
 
 val shippedScope = configurations.dependencyScope("shipped")
 
