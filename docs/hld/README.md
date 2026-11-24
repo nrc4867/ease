@@ -48,6 +48,7 @@ Ease is a game engine: a set of libraries, an editor built on them, and games th
 
 ## runtime/
 - `runtime/hosts.md`: hosts and the runtime building blocks.
+- `runtime/loop.md`: the fixed-step loop, ticks and the injected clock.
 - `runtime/player.md`: the generic player launcher.
 - `runtime/cooking-and-packaging.md`: collect, cook, pack, bundle.
 - `runtime/headless.md`: offscreen, simulation and replay modes.
