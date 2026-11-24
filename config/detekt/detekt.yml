@@ -1,4 +1,9 @@
 # Built on detekt's defaults (buildUponDefaultConfig); only the limits this repository sets differ.
+naming:
+  FunctionNaming:
+    active: true
+    ignoreAnnotated: ['Composable']
+
 style:
   MaxLineLength:
     active: true

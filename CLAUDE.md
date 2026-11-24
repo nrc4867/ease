@@ -40,6 +40,7 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | --- | --- | --- |
 | Game | `sample` | The sample game that keeps the engine free of any one game |
 | Host | `ease-player` | The generic launcher every game runs in |
+| Host | `viewport-spike` | The Phase 1 editor viewport check (engine on Stretch's device); never ships |
 | Runtime | `ease-runtime` | Worlds, ticking, views, game modules |
 | Render | `ease-render` | The render graph |
 | GPU | `ease-gpu` | wgpu device, surfaces, pipelines |

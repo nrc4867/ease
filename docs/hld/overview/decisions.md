@@ -5,6 +5,7 @@
 | Name | Ease | An animation principle, like Squash, Stretch and Arc |
 | Physics bindings | jolt-jni | Better maintained than writing and keeping our own |
 | ECS | Fleks | Kotlin-first and maintained; the engine adds phases and replication on top |
+| Editor viewport | Engine and Stretch share one wgpu device; Stretch reads each frame back for Compose | No public way to hand a wgpu texture to Compose on the GPU; the readback holds 60 fps (see `editor/viewport-and-play.md`) |
 | Windows and gamepads | SDL3 through LWJGL 3.4 | One native library for windows, their native handles (the Metal layer on macOS) and gamepads with rumble, gyro and a broad controller database |
 | Lighting path | Clustered forward+ first; deferred optional behind the same pipeline interface | Custom shading and transparency favor forward+; materials never know the path |
 | Networking | Network-ready from day one; single-player runs as a local host plus a local client over loopback | Authority and replication bugs surface immediately instead of being patched in later |
