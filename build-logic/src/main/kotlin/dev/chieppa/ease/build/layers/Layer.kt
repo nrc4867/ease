@@ -2,6 +2,9 @@ package dev.chieppa.ease.build.layers
 
 /** A layer of modules, lowest first. A module may depend only on modules in lower layers. */
 enum class Layer {
+  /** Helpers for tests, such as the allocation harness. Only test source sets may use them. */
+  TEST_SUPPORT,
+
   /** Plain value types every other module may use. */
   FOUNDATION,
 

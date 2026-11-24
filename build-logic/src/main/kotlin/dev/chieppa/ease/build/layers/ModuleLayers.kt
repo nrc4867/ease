@@ -6,6 +6,7 @@ package dev.chieppa.ease.build.layers
  */
 val moduleLayers: Map<String, Layer> =
   mapOf(
+    "ease-testing" to Layer.TEST_SUPPORT,
     "ease-math" to Layer.FOUNDATION,
     "ease-ecs" to Layer.CORE,
     "ease-platform" to Layer.PLATFORM,
@@ -37,6 +38,20 @@ fun layerViolation(from: String, to: String): String? {
   return "$from (${fromLayer.name}) may not depend on $to (${toLayer.name}): " +
     "a module depends only on modules in lower layers"
 }
+
+/**
+ * Why [from] may not take [to] in [configuration], or null when it may: a test-support module is
+ * only for the configurations of test source sets, whose names start with `test`.
+ */
+fun testSupportViolation(from: String, to: String, configuration: String): String? {
+  if (layerOf(to) != Layer.TEST_SUPPORT || configuration.startsWith("test")) return null
+  return "$from may take $to only in a test configuration, not $configuration: " +
+    "test-support modules never reach main code"
+}
+
+/** The test-support modules, comma-separated, for tests that check imports against them. */
+fun testSupportProperty(): String =
+  moduleLayers.filterValues { it == Layer.TEST_SUPPORT }.keys.joinToString(",")
 
 /**
  * The layers as `module:rank:package` triples, lowest rank first, for tests that check imports
