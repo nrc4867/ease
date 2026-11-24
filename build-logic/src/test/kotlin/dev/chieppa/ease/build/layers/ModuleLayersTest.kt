@@ -19,6 +19,21 @@ class ModuleLayersTest {
   }
 
   @Test
+  fun `assets sit above the platform and below the gpu`() {
+    assertNull(layerViolation("ease-assets", "ease-platform"))
+    assertNull(layerViolation("ease-assets", "ease-commands"))
+    assertNull(layerViolation("ease-gpu", "ease-assets"))
+    assertNotNull(layerViolation("ease-platform", "ease-assets"))
+  }
+
+  @Test
+  fun `the serialization module sits between the core and the world`() {
+    assertNull(layerViolation("ease-serialization", "ease-ecs"))
+    assertNull(layerViolation("ease-commands", "ease-serialization"))
+    assertNotNull(layerViolation("ease-ecs", "ease-serialization"))
+  }
+
+  @Test
   fun `a module may not depend on its own layer or above`() {
     assertNotNull(layerViolation("ease-gpu", "ease-render"))
     assertNotNull(layerViolation("ease-runtime", "sample"))

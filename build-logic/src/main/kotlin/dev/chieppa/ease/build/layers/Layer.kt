@@ -17,11 +17,19 @@ enum class Layer {
   /** The world model: entities, components, systems. */
   CORE,
 
+  /** Data formats every file the engine writes shares, such as canonical YAML. */
+  DATA,
+
   /** Changes to a world: commands, undo, the command log and their formats. */
   WORLD,
 
   /** Windows, input, audio output, files, clocks. */
   PLATFORM,
+
+  /**
+   * Asset identity, the asset database, loaders, file watching and the file association service.
+   */
+  ASSETS,
 
   /** WebGPU device, surfaces, pipelines. */
   GPU,
