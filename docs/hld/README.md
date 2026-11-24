@@ -8,6 +8,7 @@ Ease is a game engine: a set of libraries, an editor built on them, and games th
 - `overview/principles.md`: the rules the whole design follows.
 - `overview/dependency-rules.md`: module dependency direction and its build check.
 - `overview/open-questions.md`: unresolved design questions.
+- `overview/targets.md`: the floor machine and the frame, memory and load budgets.
 - `overview/decisions.md`: decisions and the reasons for them.
 
 ## engine/

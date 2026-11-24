@@ -10,3 +10,4 @@
 | Networking | Network-ready from day one; single-player runs as a local host plus a local client over loopback | Authority and replication bugs surface immediately instead of being patched in later |
 | P2P signaling | Deferred; client-server and direct connect first | The object model matters at the start, the matchmaking path does not |
 | In-game UI | Own engine UI, drawn by the renderer | Controller-first focus navigation and one look across HUD, menus and dialogue |
+| Target hardware | A Steam Deck class floor machine at 60 fps and 1280×800, with the budgets in `targets.md` | One concrete low-end machine turns performance into numbers every feature is held to |
