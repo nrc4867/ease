@@ -1,0 +1,28 @@
+package dev.chieppa.ease.build.layers
+
+/** A layer of modules, lowest first. A module may depend only on modules in lower layers. */
+enum class Layer {
+  /** Plain value types every other module may use. */
+  FOUNDATION,
+
+  /** The world model: entities, components, systems. */
+  CORE,
+
+  /** Windows, input, audio output, files, clocks. */
+  PLATFORM,
+
+  /** WebGPU device, surfaces, pipelines. */
+  GPU,
+
+  /** The render graph and everything drawn through it. */
+  RENDER,
+
+  /** Worlds, ticking, views and game modules, for every host. */
+  RUNTIME,
+
+  /** Programs that host the runtime: the player, later the editor. */
+  HOST,
+
+  /** Games built on the engine. Nothing in the engine depends on them. */
+  GAME,
+}

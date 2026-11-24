@@ -1,0 +1,31 @@
+# Built on detekt's defaults (buildUponDefaultConfig); only the limits this repository sets differ.
+style:
+  MaxLineLength:
+    active: true
+    maxLineLength: 100
+  MaxChainedCallsOnSameLine:
+    active: true
+    maxChainedCalls: 4
+  ForbiddenAnnotation:
+    active: true
+    annotations:
+      - reason: 'remove the old API and change every caller instead'
+        value: 'kotlin.Deprecated'
+      - reason: 'remove the old API and change every caller instead'
+        value: 'java.lang.Deprecated'
+      - reason: 'test public behavior, or extract the part into its own class'
+        value: 'androidx.annotation.VisibleForTesting'
+
+complexity:
+  NestedBlockDepth:
+    active: true
+    allowedDepth: 4
+  LongMethod:
+    active: true
+    allowedLines: 60
+  CyclomaticComplexMethod:
+    active: true
+    allowedComplexity: 15
+  LargeClass:
+    active: true
+    allowedLines: 400

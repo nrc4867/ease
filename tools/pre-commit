@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Installed by ./gradlew installGitHook. Runs spotlessCheck and checkSources on the staged files only.
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+cd "$root"
+staged="$(git diff --cached --name-only --diff-filter=ACMR)"
+[ -z "$staged" ] && exit 0
+
+# Spotless matches each file's absolute path against a regex; either separator, for Windows.
+bs='\'
+sep="[${bs}${bs}/]"
+paths=""
+patterns=""
+while IFS= read -r file; do
+  paths="${paths:+$paths,}$file"
+  case "$file" in
+    *.kt|*.kts|*.java)
+      escaped="${file//./"${bs}."}"
+      escaped="${escaped//\//"$sep"}"
+      patterns="${patterns:+$patterns,}.*$sep$escaped"
+      ;;
+  esac
+done <<< "$staged"
+
+tasks=(checkSources "-PstagedFiles=$paths")
+[ -n "$patterns" ] && tasks=(spotlessCheck "-PspotlessFiles=$patterns" "${tasks[@]}")
+./gradlew --quiet "${tasks[@]}"
