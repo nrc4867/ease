@@ -8,6 +8,7 @@ import dev.chieppa.ease.platform.Windowing
 import org.lwjgl.sdl.SDLEvents.SDL_EVENT_WINDOW_CLOSE_REQUESTED
 import org.lwjgl.sdl.SDLEvents.SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED
 import org.lwjgl.sdl.SDLEvents.SDL_PollEvent
+import org.lwjgl.sdl.SDLEvents.nSDL_WaitEvent
 import org.lwjgl.sdl.SDLInit.SDL_INIT_VIDEO
 import org.lwjgl.sdl.SDLInit.SDL_Init
 import org.lwjgl.sdl.SDLInit.SDL_QuitSubSystem
@@ -51,6 +52,11 @@ public class SdlWindowing : Windowing {
       }
     }
     return events
+  }
+
+  override fun awaitEvent() {
+    // A null event waits for the next one without taking it off the queue.
+    check(nSDL_WaitEvent(0L)) { "Waiting for window events failed: ${sdlError()}" }
   }
 
   override fun close() {

@@ -1,0 +1,104 @@
+package dev.chieppa.ease.gpu
+
+import dev.chieppa.ease.gpu.ffi.Flags
+import dev.chieppa.ease.gpu.ffi.beginColorPass
+import dev.chieppa.ease.gpu.ffi.createColorPipeline
+import dev.chieppa.ease.gpu.ffi.createShaderModule
+import dev.chieppa.webgpu.ffi.WGPUBindGroupDescriptor
+import dev.chieppa.webgpu.ffi.WGPUBindGroupEntry
+import dev.chieppa.webgpu.ffi.WGPUBufferDescriptor
+import dev.chieppa.webgpu.ffi.wgpu_h
+import java.lang.foreign.Arena
+import java.lang.foreign.MemorySegment
+import java.lang.foreign.ValueLayout
+
+/** The shader's uniform block: angle, aspect ratio and padding to 16 bytes. */
+private const val PARAMS_BYTES = 16L
+
+private const val ANGLE_OFFSET = 0L
+private const val ASPECT_OFFSET = 4L
+private const val VERTICES = 3
+
+/**
+ * Clears a target to [clear] and draws one colored triangle on it, turned by an angle. The first
+ * thing Ease draws, so a window, an offscreen texture and an editor viewport can all be checked
+ * against the same picture.
+ */
+public class TrianglePass(private val context: GpuContext, public val clear: Color = CLEAR) :
+  AutoCloseable {
+  private val shader =
+    createShaderModule(context.device, loadShader(), "triangle").also { context.checkErrors() }
+  private val params =
+    Arena.ofConfined().use { arena ->
+      val descriptor = arena.allocate(WGPUBufferDescriptor.layout())
+      WGPUBufferDescriptor.size(descriptor, PARAMS_BYTES)
+      WGPUBufferDescriptor.usage(
+        descriptor,
+        Flags.BUFFER_UNIFORM or Flags.BUFFER_COPY_DST,
+      )
+      wgpu_h.wgpuDeviceCreateBuffer(context.device, descriptor)
+    }
+  private val pipelines = mutableMapOf<TextureFormat, Pair<MemorySegment, MemorySegment>>()
+  private val staging = Arena.ofConfined().let { it to it.allocate(PARAMS_BYTES) }
+
+  /**
+   * Records the pass into [encoder]: [target] cleared and the triangle drawn turned by [angle]
+   * radians, undistorted at the target's aspect ratio.
+   */
+  public fun record(encoder: CommandEncoder, target: RenderTarget, angle: Float = 0f) {
+    val (pipeline, bindGroup) = pipelines.getOrPut(target.format) { pipelineFor(target.format) }
+    val bytes = staging.second
+    bytes.set(ValueLayout.JAVA_FLOAT, ANGLE_OFFSET, angle)
+    bytes.set(
+      ValueLayout.JAVA_FLOAT,
+      ASPECT_OFFSET,
+      target.size.width.toFloat() / target.size.height,
+    )
+    wgpu_h.wgpuQueueWriteBuffer(context.queue, params, 0, bytes, PARAMS_BYTES)
+    val pass = beginColorPass(encoder.handle, target.view, clear, "triangle")
+    wgpu_h.wgpuRenderPassEncoderSetPipeline(pass, pipeline)
+    wgpu_h.wgpuRenderPassEncoderSetBindGroup(pass, 0, bindGroup, 0, MemorySegment.NULL)
+    wgpu_h.wgpuRenderPassEncoderDraw(pass, VERTICES, 1, 0, 0)
+    wgpu_h.wgpuRenderPassEncoderEnd(pass)
+    wgpu_h.wgpuRenderPassEncoderRelease(pass)
+  }
+
+  override fun close() {
+    pipelines.values.forEach { (pipeline, bindGroup) ->
+      wgpu_h.wgpuBindGroupRelease(bindGroup)
+      wgpu_h.wgpuRenderPipelineRelease(pipeline)
+    }
+    wgpu_h.wgpuBufferRelease(params)
+    wgpu_h.wgpuShaderModuleRelease(shader)
+    staging.first.close()
+  }
+
+  private fun pipelineFor(format: TextureFormat): Pair<MemorySegment, MemorySegment> {
+    val pipeline = createColorPipeline(context.device, shader, format.native, "triangle")
+    val layout = wgpu_h.wgpuRenderPipelineGetBindGroupLayout(pipeline, 0)
+    val bindGroup =
+      Arena.ofConfined().use { arena ->
+        val entry = arena.allocate(WGPUBindGroupEntry.layout())
+        WGPUBindGroupEntry.binding(entry, 0)
+        WGPUBindGroupEntry.buffer(entry, params)
+        WGPUBindGroupEntry.size(entry, PARAMS_BYTES)
+        val descriptor = arena.allocate(WGPUBindGroupDescriptor.layout())
+        WGPUBindGroupDescriptor.layout(descriptor, layout)
+        WGPUBindGroupDescriptor.entryCount(descriptor, 1)
+        WGPUBindGroupDescriptor.entries(descriptor, entry)
+        wgpu_h.wgpuDeviceCreateBindGroup(context.device, descriptor)
+      }
+    wgpu_h.wgpuBindGroupLayoutRelease(layout)
+    context.checkErrors()
+    return pipeline to bindGroup
+  }
+
+  public companion object {
+    /** The color the pass clears to: a dark slate no triangle corner comes near. */
+    public val CLEAR: Color = Color(0.08f, 0.09f, 0.12f)
+
+    private fun loadShader(): String =
+      checkNotNull(TrianglePass::class.java.getResource("triangle.wgsl")) { "triangle.wgsl" }
+        .readText()
+  }
+}

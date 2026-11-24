@@ -11,4 +11,9 @@ public interface Windowing : AutoCloseable {
 
   /** The events since the last call, for every open window, oldest first. */
   public fun pollEvents(): List<Pair<Window, WindowEvent>>
+
+  /**
+   * Blocks until an event arrives, leaving it for [pollEvents]; for when there is nothing to draw.
+   */
+  public fun awaitEvent()
 }
