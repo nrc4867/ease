@@ -9,7 +9,7 @@ The core is the only layer every other module touches, so it stays small, alloca
 | `ease-assets` | Kotlin | Every asset has a GUID, kept in a `.meta` file beside its source. Importers (editor only) turn source files into cooked assets; loaders (runtime) read cooked assets. Both are plugins, so a game can add its own formats. |
 | `ease-jobs` | Kotlin | Fixed worker pool running a per-frame job graph; no blocking on the main thread. |
 | `ease-serialization` | Kotlin | Canonical YAML for scenes, prefabs and project data, so they diff and merge cleanly in git; binary formats for commands, the log and cooked output; format versions and migrations. |
-| `ease-scene` | Kotlin | Nodes, prefabs with overrides and sublevels, saved as one YAML file each (see `scene-files.md`). |
+| `ease-scene` | Kotlin | Nodes, prefabs with overrides and sublevels, saved as a folder of YAML files, one per node (see `scene-files.md`). |
 
 Simulation runs at a fixed step and rendering interpolates between steps. That keeps physics and gameplay deterministic enough for replays and headless tests.
 
