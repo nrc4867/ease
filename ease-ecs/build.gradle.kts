@@ -2,6 +2,7 @@ plugins {
   id("ease.kotlin-module")
   alias(libs.plugins.jmh)
   alias(libs.plugins.kotlinSerialization)
+  id("com.google.devtools.ksp")
 }
 
 dependencies {
@@ -9,6 +10,7 @@ dependencies {
   api(libs.fleks)
   api(libs.kotlinx.serialization.core)
   testImplementation(project(":ease-testing"))
+  kspTest(project(":ease-codegen"))
 }
 
 // Benchmarks are run on demand (`./gradlew :ease-ecs:jmh`), never by `check`.

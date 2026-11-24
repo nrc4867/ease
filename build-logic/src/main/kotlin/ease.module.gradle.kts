@@ -1,6 +1,7 @@
 // What every engine and game module shares, whatever its language: the layer rule on its
 // dependencies, how its tests run, and the pre-commit hook.
 import dev.chieppa.ease.build.catalogLibrary
+import dev.chieppa.ease.build.layers.buildToolViolation
 import dev.chieppa.ease.build.layers.layerViolation
 import dev.chieppa.ease.build.layers.testSupportViolation
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
@@ -9,8 +10,9 @@ plugins { id("com.diffplug.spotless") }
 
 val moduleName = name
 
-// A module depends only on modules in lower layers, and on test-support modules only from its
-// tests; a dependency that breaks this fails the build as soon as it is declared.
+// A module depends only on modules in lower layers, on test-support modules only from its tests,
+// and on build tools only from its ksp configurations; a dependency that breaks this fails the
+// build as soon as it is declared.
 configurations.configureEach {
   val configurationName = name
   dependencies.withType<ProjectDependency>().configureEach {
@@ -18,6 +20,7 @@ configurations.configureEach {
     val violation =
       layerViolation(moduleName, target)
         ?: testSupportViolation(moduleName, target, configurationName)
+        ?: buildToolViolation(moduleName, target, configurationName)
     violation?.let { throw GradleException(it) }
   }
 }

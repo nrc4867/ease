@@ -16,6 +16,8 @@ kotlinx-serialization = "1.13.0"
 jmh = "0.7.4"
 mcp-sdk = "0.16.0"
 ktor = "3.5.2"
+# KSP 2.3.x versions are independent of the Kotlin version.
+ksp = "2.3.14"
 
 [libraries]
 webgpu-native-ffm = { module = "dev.chieppa:webgpu-native-ffm", version.ref = "webgpu-native-ffm" }
@@ -32,12 +34,14 @@ ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+ksp-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
 konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 # The build logic's own plugins, put on its classpath so the convention plugins can apply them.
 kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 spotless-gradle-plugin = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotless" }
 compose-gradle-plugin = { module = "org.jetbrains.compose:compose-gradle-plugin", version.ref = "compose" }
 compose-compiler-gradle-plugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
+ksp-gradle-plugin = { module = "com.google.devtools.ksp:symbol-processing-gradle-plugin", version.ref = "ksp" }
 detekt-gradle-plugin = { module = "dev.detekt:detekt-gradle-plugin", version.ref = "detekt" }
 
 [plugins]
