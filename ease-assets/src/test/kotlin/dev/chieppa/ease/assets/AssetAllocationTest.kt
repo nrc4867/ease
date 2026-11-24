@@ -10,7 +10,8 @@ import dev.chieppa.ease.testing.AllocationBudget
 import java.nio.file.Path
 import kotlin.reflect.KClass
 import kotlin.test.Test
-import kotlin.test.assertNotNull
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.io.TempDir
 
 class AssetAllocationTest {
@@ -31,10 +32,14 @@ class AssetAllocationTest {
     val database = AssetDatabase.load(folder, watcher)
     val path = Path.of("a.txt")
 
+    var found = 0
     AllocationBudget.assertNoAllocation {
-      assertNotNull(database[guid])
-      assertNotNull(database.at(path))
+      if (database[guid] != null) found++
+      if (database.at(path) != null) found++
     }
+
+    assertEquals(0, found % 2)
+    assertTrue(found > 0)
   }
 
   @Test
