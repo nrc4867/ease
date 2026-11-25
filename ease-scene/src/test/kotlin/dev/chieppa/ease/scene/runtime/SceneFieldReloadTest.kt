@@ -1,27 +1,35 @@
 package dev.chieppa.ease.scene.runtime
 
+import com.github.quillraven.fleks.wildcardSnapshotOf
 import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.assets.meta.AssetMeta
 import dev.chieppa.ease.assets.meta.MetaFiles
+import dev.chieppa.ease.commands.CommandOrigin
 import dev.chieppa.ease.ecs.LocalTransform
+import dev.chieppa.ease.ecs.replication.Authority
+import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.platform.files.FileChangeKind
 import dev.chieppa.ease.scene.Beacon
+import dev.chieppa.ease.scene.Panel
 import dev.chieppa.ease.scene.Scenes
 import dev.chieppa.ease.scene.Scenes.document
 import dev.chieppa.ease.scene.Scenes.fields
 import dev.chieppa.ease.scene.Scenes.id
 import dev.chieppa.ease.scene.Scenes.node
+import dev.chieppa.ease.scene.commands.SpawnNode
 import dev.chieppa.ease.scene.document.Instance
 import dev.chieppa.ease.scene.document.OverridePath
 import dev.chieppa.ease.scene.document.SceneDocument
 import dev.chieppa.ease.scene.files.SceneFolder
 import dev.chieppa.ease.scene.node.LocalId
 import dev.chieppa.ease.scene.node.NodeKey
+import dev.chieppa.ease.scene.node.NodeName
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.io.TempDir
 
@@ -65,6 +73,10 @@ class SceneFieldReloadTest {
       x?.let { transform.x = it }
       y?.let { transform.y = it }
     }
+  }
+
+  private fun ScenePeer.setRight(key: NodeKey, value: Float) {
+    with(world) { node(key)[Panel].margin.right = value }
   }
 
   private fun ScenePeer.y(key: NodeKey): Float = with(world) { node(key)[LocalTransform].y }
@@ -141,6 +153,65 @@ class SceneFieldReloadTest {
     host.reload(cave, edit(scene, 2, "x", 4f), 2)
 
     assertEquals(4f, host.x(key(2)))
+    assertEquals(9f, host.y(key(2)))
+  }
+
+  @Test
+  fun `a component that failed to decode and is then deleted from the file is removed`() {
+    val node = node(2, "A", parent = 1, x = 1f)
+    val withBeacon =
+      node.copy(components = node.components + (Scenes.BEACON to fields("strength" to 3)))
+    val scene = cave(withBeacon)
+    val host = placed(scene)
+    val bad = withBeacon.withField(Scenes.BEACON, "strength", JsonPrimitive("far"))
+
+    host.reload(cave, scene.with(bad), 1)
+    assertEquals(3f, with(host.world) { host.node(key(2))[Beacon].strength })
+    host.reload(cave, scene.with(node), 2)
+
+    with(host.world) { assertNull(host.node(key(2)).getOrNull(Beacon)) }
+  }
+
+  @Test
+  fun `a change the world rejected is tried again on the next reload`() {
+    val scene = cave(node(2, "A", parent = 1, x = 1f), node(3, "B", parent = 1, x = 5f))
+    val host = placed(scene)
+    val foreign = PeerId(7)
+    with(host.world) { host.node(key(2))[Authority].holder = foreign }
+
+    host.reload(cave, edit(scene, 2, "x", 6f), 1)
+    assertEquals(1f, host.x(key(2)))
+    with(host.world) { host.node(key(2))[Authority].holder = PeerId.HOST }
+    host.reload(cave, edit(edit(scene, 2, "x", 6f), 3, "x", 7f), 2)
+
+    assertEquals(6f, host.x(key(2)))
+    assertEquals(7f, host.x(key(3)))
+  }
+
+  @Test
+  fun `a live node the last version lacked loses scene components its file lacks`() {
+    val scene = cave(node(2, "A", parent = 1, x = 1f))
+    val host = placed(scene)
+    val extra = key(9)
+    host.history.execute(
+      SpawnNode(
+        wildcardSnapshotOf(
+          listOf(
+            extra,
+            NodeName("Extra"),
+            Beacon(strength = 4f),
+            LocalTransform().apply { x = 3f },
+          ),
+          emptyList(),
+        )
+      ),
+      0,
+      CommandOrigin.GAME,
+    )
+    host.reload(cave, scene.with(node(9, "Extra", parent = 1, x = 8f)), 1)
+
+    assertEquals(8f, host.x(extra))
+    with(host.world) { assertNull(host.node(extra).getOrNull(Beacon)) }
   }
 
   @Test
@@ -165,5 +236,35 @@ class SceneFieldReloadTest {
     assertEquals(3f, host.y(key(4, 10)))
     assertEquals(8f, host.x(key(5, 10)))
     assertNotNull(host.scenes.placementOf(key(5, 10)))
+  }
+
+  @Test
+  fun `a nested field changes alone, its siblings keeping their live values`() {
+    val node = node(2, "A", parent = 1)
+    val margin = JsonObject(mapOf("left" to JsonPrimitive(1f), "right" to JsonPrimitive(2f)))
+    val panel =
+      node.copy(
+        components = node.components + (Scenes.PANEL to JsonObject(mapOf("margin" to margin)))
+      )
+    val scene = cave(panel)
+    val host = placed(scene)
+    host.setRight(key(2), 9f)
+
+    val moved = JsonObject(mapOf("left" to JsonPrimitive(4f), "right" to JsonPrimitive(2f)))
+    host.reload(
+      cave,
+      scene.with(
+        panel.copy(
+          components = panel.components + (Scenes.PANEL to JsonObject(mapOf("margin" to moved)))
+        )
+      ),
+      1,
+    )
+
+    with(host.world) {
+      val live = host.node(key(2))[Panel].margin
+      assertEquals(4f, live.left)
+      assertEquals(9f, live.right)
+    }
   }
 }

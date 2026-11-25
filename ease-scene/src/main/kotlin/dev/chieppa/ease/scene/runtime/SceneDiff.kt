@@ -8,31 +8,36 @@ import dev.chieppa.ease.commands.Command
 import dev.chieppa.ease.scene.commands.DestroyNode
 import dev.chieppa.ease.scene.commands.SpawnNode
 import dev.chieppa.ease.scene.commands.UpdateNode
+import dev.chieppa.ease.scene.node.NodeKey
 import dev.chieppa.ease.scene.resolve.ResolvedNode
 import dev.chieppa.ease.scene.resolve.ResolvedScene
 import kotlinx.serialization.json.JsonObject
+
+/** A [command] that changes the node [key]. */
+internal class NodeChange(val key: NodeKey, val command: Command)
 
 /**
  * The commands that bring a world's live nodes in line with the files, matched by key and compared
  * with [previous], the version of the scene last applied, not with the live nodes: a node the scene
  * has and the world lacks spawns; on a live node, a component whose file value changed since
- * [previous] is written field by field, only the fields that changed, so the rest keep their live
- * values; a component the file gained is set whole and one it lost is removed; a node [previous]
- * had and this version lacks is destroyed. Fields and components the files did not change are left
- * as running systems made them. Only the component types in [SceneNodes.types] are compared;
- * components of other types, and those that failed to load this time, are left as they are. Spawns
- * and updates come parents first, then removals children first.
+ * [previous] is written field by field, at any depth, so every field the files did not change keeps
+ * its live value; a component the file gained is set whole and one it lost is removed; a node
+ * [previous] had and this version lacks is destroyed. A live node [previous] did not have is
+ * compared with its live components instead: wanted ones that differ are set whole and the others
+ * removed. Only the component types in [SceneNodes.types] are compared; components of other types,
+ * and those that failed to load this time, are left as they are. Spawns and updates come parents
+ * first, then removals children first.
  */
 internal class SceneDiff(private val world: World, private val nodes: SceneNodes) {
-  fun commands(scene: ResolvedScene, previous: ResolvedScene?): List<Command> {
-    val spawns = mutableListOf<Command>()
-    val updates = mutableListOf<Command>()
+  fun commands(scene: ResolvedScene, previous: ResolvedScene?): List<NodeChange> {
+    val spawns = mutableListOf<NodeChange>()
+    val updates = mutableListOf<NodeChange>()
     for (node in scene.nodes) {
       val entity = nodes.index[node.key]
       if (entity == Entity.NONE) {
-        spawns += spawn(node)
+        spawns += NodeChange(node.key, spawn(node))
       } else {
-        update(node, previous?.get(node.key), entity)?.let(updates::add)
+        update(node, previous?.get(node.key), entity)?.let { updates += NodeChange(node.key, it) }
       }
     }
     val gone =
@@ -44,8 +49,7 @@ internal class SceneDiff(private val world: World, private val nodes: SceneNodes
         .filter {
           scene[it] == null && it in nodes.index
         }
-    val removals = gone.map { DestroyNode(it) }
-    return spawns + updates + removals
+    return spawns + updates + gone.map { NodeChange(it, DestroyNode(it)) }
   }
 
   private fun spawn(node: ResolvedNode): Command {
@@ -64,7 +68,7 @@ internal class SceneDiff(private val world: World, private val nodes: SceneNodes
       val was = before?.components?.get(type.serialName)
       val live = type.of(world, entity)?.let { type.encode(it) }
       when {
-        wanted == was -> Unit
+        before != null && wanted == was -> Unit
         wanted == null -> if (live != null) remove += type.serialName
         else -> merge(live, was, wanted).takeIf { it != live }?.let { set += type.decode(it) }
       }
@@ -79,7 +83,16 @@ internal class SceneDiff(private val world: World, private val nodes: SceneNodes
   private fun merge(live: JsonObject?, was: JsonObject?, wanted: JsonObject): JsonObject {
     if (live == null || was == null) return wanted
     val fields = LinkedHashMap(live)
-    for ((name, value) in wanted) if (was[name] != value) fields[name] = value
+    for ((name, value) in wanted) {
+      val old = was[name]
+      val current = live[name]
+      when {
+        old == value -> Unit
+        old is JsonObject && current is JsonObject && value is JsonObject ->
+          fields[name] = merge(current, old, value)
+        else -> fields[name] = value
+      }
+    }
     for (name in was.keys) if (name !in wanted) fields.remove(name)
     return JsonObject(fields)
   }

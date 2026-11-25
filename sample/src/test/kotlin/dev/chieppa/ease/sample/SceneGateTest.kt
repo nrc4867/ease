@@ -123,11 +123,17 @@ class SceneGateTest {
       val step = abs(field(node, "sample.Velocity", "x")) * seconds
       val at = hostAt(reload, id)
       when (node.name) {
-        "Coral square" ->
+        "Coral square" -> {
+          val was = hostAt(reload - 1, id)
+          val velocity = velocityAt(reload, id)
+          assertEquals(velocityAt(reload - 1, id).x, velocity.x, "Coral square keeps its velocity")
+          assertEquals(velocityAt(reload - 1, id).y, velocity.y, "Coral square keeps its velocity")
           assertTrue(
-            abs(at.x - MOVED_X) <= step + TOLERANCE,
-            "Coral square gets only its edited field",
+            abs(at.x - MOVED_X) <= abs(velocity.x) * seconds + TOLERANCE,
+            "Coral x is the edit",
           )
+          assertEquals(was.y + velocity.y * seconds, at.y, TOLERANCE, "Coral square keeps its y")
+        }
         "Ivory square" ->
           assertTrue(
             near(
@@ -190,6 +196,11 @@ class SceneGateTest {
   private fun hostAt(tick: Long, id: Long): LocalTransform {
     val entity = checkNotNull(run.hostAt(tick)[id]) { "#$id is not on the host at tick $tick" }
     return entity.components.getValue("ease.LocalTransform") as LocalTransform
+  }
+
+  private fun velocityAt(tick: Long, id: Long): Velocity {
+    val entity = checkNotNull(run.hostAt(tick)[id]) { "#$id is not on the host at tick $tick" }
+    return entity.components.getValue("sample.Velocity") as Velocity
   }
 
   private fun near(at: LocalTransform, x: Float, y: Float?): Boolean =

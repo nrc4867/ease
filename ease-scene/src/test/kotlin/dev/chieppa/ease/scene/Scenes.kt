@@ -12,10 +12,14 @@ import kotlinx.serialization.json.JsonPrimitive
 /** Helpers that build scenes in code for tests. */
 object Scenes {
   /** The scene types tests use: the built-ins and [Beacon]. */
-  val types: SceneTypes = SceneTypes.build { component(Beacon, Beacon.serializer()) }
+  val types: SceneTypes = SceneTypes.build {
+    component(Beacon, Beacon.serializer())
+    component(Panel, Panel.serializer())
+  }
 
   const val TRANSFORM = "ease.LocalTransform"
   const val BEACON = "test.Beacon"
+  const val PANEL = "test.Panel"
 
   /** The local id [n], easy to read in failures. */
   fun id(n: Long): LocalId = LocalId(n)

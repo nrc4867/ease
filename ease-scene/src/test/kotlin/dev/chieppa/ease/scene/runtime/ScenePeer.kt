@@ -17,6 +17,7 @@ import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.ecs.replication.ReplicationSettings
 import dev.chieppa.ease.platform.files.ManualFileWatcher
 import dev.chieppa.ease.scene.Beacon
+import dev.chieppa.ease.scene.Panel
 import dev.chieppa.ease.scene.Scenes
 import dev.chieppa.ease.scene.assets.registerScenes
 import dev.chieppa.ease.scene.commands.registerSceneCommands
@@ -37,6 +38,7 @@ class ScenePeer(root: Path, peer: PeerId = PeerId.HOST) {
     registerAssetCommands()
     registerSceneCommands()
     component(Beacon::class, Beacon.serializer())
+    component(Panel::class, Panel.serializer())
   }
   val world: World =
     phasedWorld(
