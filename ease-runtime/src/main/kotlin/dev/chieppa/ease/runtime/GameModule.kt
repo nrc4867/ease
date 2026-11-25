@@ -18,15 +18,26 @@ public interface GameModule {
    * Adds the systems every world runs, the host's and each client's, each in its phase: systems
    * that read replicated state or keep state of their own that never replicates, such as
    * presentation and effects. A client holds replicas it may not write, so a system that changes
-   * replicated state goes in [hostSystems]. Systems are constructed here, where the world being
-   * built is current.
+   * replicated state goes in [predictedSystems] or [hostSystems]. Systems are constructed here,
+   * where the world being built is current.
    */
   public fun systems(systems: PhasedSystems) {}
 
   /**
-   * Adds the systems only the host's world runs, after [systems] in each phase: the simulation,
-   * which writes replicated state and spawns entities. Clients receive what it does as spawns and
-   * snapshots, so these systems never check authority on a client's behalf.
+   * Adds the systems that move what a peer controls from its input, such as a character controller,
+   * after [systems] in each phase. They run in every world: the host's runs them for every peer's
+   * entities, and each client runs them ahead of the host for the entities it owns, from its own
+   * input, then again from the host's state when the host disagrees. They read input from
+   * `World.peerInputs`, which on a client holds only its own, and check `Replication.mayWrite`
+   * before writing an entity, so the same code runs everywhere and writes only what this world may:
+   * on a client, only its own entities.
+   */
+  public fun predictedSystems(systems: PhasedSystems) {}
+
+  /**
+   * Adds the systems only the host's world runs, after [predictedSystems] in each phase: the
+   * simulation, which writes replicated state and spawns entities. Clients receive what it does as
+   * spawns and snapshots, so these systems never check authority on a client's behalf.
    */
   public fun hostSystems(systems: PhasedSystems) {}
 

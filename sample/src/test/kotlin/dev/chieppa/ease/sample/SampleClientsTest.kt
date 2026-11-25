@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 
 /**
  * Two clients in one process, each with the courier script: each peer gets a courier of its own,
- * and each script steers only the courier its client owns, so both trace the loop.
+ * and each client's input moves only the courier it owns, so both trace the loop.
  */
 class SampleClientsTest {
   private val local = LocalHost(SampleGame(), FixedStep.perSecond(), input = CourierScript())
@@ -32,7 +32,7 @@ class SampleClientsTest {
     val corners = listOf(2f to 0f, 2f to 2f, 0f to 2f, 0f to 0f)
 
     corners.forEach { (x, y) ->
-      repeat(CourierScript.STEER_EVERY.toInt()) { local.step() }
+      repeat(CourierScript.TURN_EVERY.toInt()) { local.step() }
       for (owner in listOf(LocalHost.LOCAL_PEER, SECOND)) {
         val (atX, atY) = courierOf(local.host, owner)
         assertEquals(x, atX, TOLERANCE, "$owner's courier x at tick ${local.tick}")

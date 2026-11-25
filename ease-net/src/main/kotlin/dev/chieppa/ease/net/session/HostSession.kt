@@ -81,7 +81,8 @@ public class HostSession(
       if (!peer.isOpen || !peer.greeted) continue
       peer.viewer.follow(world)
       peer.view.update(tick, peer.connection)
-      val length = peer.snapshots.write(tick, peer.inputs.lastProcessedTick, peer.view, buffer)
+      val inputTick = peer.inputs.lastProcessedTick
+      val length = peer.snapshots.write(tick, inputTick, peer.slack, peer.view, buffer)
       peer.connection.send(ChannelKind.UNRELIABLE, buffer, 0, length)
     }
   }
@@ -94,6 +95,7 @@ public class HostSession(
         peer.close(CloseReason.MALFORMED_INPUT)
         return
       }
+      peer.slack.observe(peer.packet.newestTick, tick)
       if (peer.inputs.offer(peer.packet, tick)) {
         peer.snapshots.acknowledge(peer.packet.ackTick, peer.packet.ackEarlier)
       }

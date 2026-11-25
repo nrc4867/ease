@@ -61,4 +61,10 @@ public interface ReplicatedSerializer<T : Component<T>> {
 
   /** Copies every field of [from] into [to]. */
   public fun copy(from: T, to: T)
+
+  /**
+   * Sets [into] to [amount] of the way from [from] to [to]: each field in [interpolatedFields]
+   * blended linearly, every other field as [from] holds it. [amount] runs from 0 to 1.
+   */
+  public fun interpolate(from: T, to: T, amount: Float, into: T)
 }

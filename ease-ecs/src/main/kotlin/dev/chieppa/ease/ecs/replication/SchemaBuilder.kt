@@ -25,6 +25,19 @@ public class SchemaBuilder internal constructor() {
     add(SchemaField(name, SchemaFieldKind.QUANTIZED_FLOAT, interpolated, audience, quantization))
   }
 
+  /**
+   * A rotation group: the four float fields [names] of one unit quaternion, interpolated as one
+   * (see `Interpolated.rotation`), in full precision or, with [bits], quantized over -1 to 1.
+   */
+  public fun rotation(group: String, names: List<String>, bits: Int? = null) {
+    require(names.size == RotationBlend.COMPONENTS) {
+      "Rotation group $group needs ${RotationBlend.COMPONENTS} fields, not ${names.size}"
+    }
+    val quantization = bits?.let { Quantization(it, -1f, 1f) }
+    val kind = if (bits == null) SchemaFieldKind.FLOAT else SchemaFieldKind.QUANTIZED_FLOAT
+    names.forEach { add(SchemaField(it, kind, true, Audience.EVERYONE, quantization, group)) }
+  }
+
   /** A 32-bit int. */
   public fun int(name: String, audience: Audience = Audience.EVERYONE) {
     add(SchemaField(name, SchemaFieldKind.INT, interpolated = false, audience = audience))
@@ -43,5 +56,13 @@ public class SchemaBuilder internal constructor() {
     fields += field
   }
 
-  internal fun build(): List<SchemaField> = fields.toList()
+  internal fun build(): List<SchemaField> {
+    val groups = fields.filter { it.rotation.isNotEmpty() }.groupBy { it.rotation }
+    groups.forEach { (group, members) ->
+      require(members.size == RotationBlend.COMPONENTS) {
+        "Rotation group $group is declared twice"
+      }
+    }
+    return fields.toList()
+  }
 }

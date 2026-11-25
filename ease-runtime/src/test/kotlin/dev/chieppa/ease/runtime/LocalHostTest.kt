@@ -4,6 +4,7 @@ import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.ecs.replication.PeerId
+import dev.chieppa.ease.net.prediction.ClockSettings
 import dev.chieppa.ease.net.transport.LinkConditions
 import dev.chieppa.ease.runtime.loop.FixedStep
 import dev.chieppa.ease.testing.AllocationBudget
@@ -13,7 +14,8 @@ import kotlin.test.assertTrue
 
 /**
  * A game as the player runs it: a host world and a local client world joined over the loopback
- * transport. The host makes everything, the client receives it, and input flows back.
+ * transport. The host makes everything, the client receives it and draws it a few ticks in the
+ * past, and input flows back ahead of the host's tick.
  */
 class LocalHostTest {
   private val joins = mutableListOf<PeerId>()
@@ -40,7 +42,9 @@ class LocalHostTest {
     val clientLog = client.history.log
     assertTrue(clientLog.all.isEmpty())
     assertEquals(STEPS.toFloat(), x(local.host))
-    assertEquals(x(local.host), x(local.client.world))
+    val shown = local.client.interpolationTime.toFloat() + 1f
+    assertEquals(shown, x(local.client.world), TOLERANCE)
+    assertTrue(x(local.client.world) < x(local.host), "the client draws the host's past")
   }
 
   @Test
@@ -51,21 +55,24 @@ class LocalHostTest {
   }
 
   @Test
-  fun `the client's input reaches the host every tick, with no delay by default`() {
+  fun `the client's input reaches the host every tick, ahead of it by the clock's buffer`() {
     repeat(STEPS) { local.step() }
 
     val peer = local.session.peers.single()
     assertEquals(STEPS - 1L, peer.inputs.lastProcessedTick)
-    assertEquals(STEPS - 1L, local.client.session.lastProcessedInputTick)
+    assertEquals(STEPS - 2L, local.client.session.lastProcessedInputTick)
+    assertEquals(STEPS + ClockSettings.DEFAULT_BUFFER_TICKS.toLong(), local.client.tick)
   }
 
   @Test
-  fun `under simulated latency the client sees the host's state one latency late`() {
+  fun `under simulated latency the client leads the host by the latency and its buffer`() {
     local.link.conditions = LinkConditions(latencyTicks = LATENCY)
-    repeat(STEPS) { local.step() }
+    repeat(STEPS * STEPS) { local.step() }
 
-    assertEquals(STEPS.toFloat(), x(local.host))
-    assertEquals(STEPS - LATENCY.toFloat(), x(local.client.world))
+    val lead = local.client.tick - local.host.tick
+    assertEquals(LATENCY + ClockSettings.DEFAULT_BUFFER_TICKS.toLong(), lead)
+    val peer = local.session.peers.single()
+    assertEquals(local.host.tick - 1, peer.inputs.lastProcessedTick)
   }
 
   @Test
@@ -91,7 +98,7 @@ class LocalHostTest {
       ticks,
     )
     assertEquals(STEPS.toFloat(), x(pair.host))
-    assertEquals(STEPS.toFloat(), x(second.world))
+    assertEquals(second.interpolationTime.toFloat() + 1f, x(second.world), TOLERANCE)
   }
 
   @Test
@@ -102,6 +109,7 @@ class LocalHostTest {
   private companion object {
     const val STEPS = 10
     const val LATENCY = 2
+    const val TOLERANCE = 1e-3f
     const val WARMUP = 5_000
     const val MEASURED = 1_000
   }

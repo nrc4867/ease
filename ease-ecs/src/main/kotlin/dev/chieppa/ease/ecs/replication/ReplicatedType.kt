@@ -29,6 +29,9 @@ internal constructor(public val id: Int, public val serializer: ReplicatedSerial
     serializer.write(writer, component, fields)
   }
 
+  /** Copies of this type's components, which prediction and interpolation keep. */
+  internal val copies: TypeCopies<T> = TypeCopies(serializer)
+
   /** Reads one component's state into the scratch component, so nothing in a world changes. */
   internal fun check(reader: BitReader) {
     serializer.read(reader, scratch)

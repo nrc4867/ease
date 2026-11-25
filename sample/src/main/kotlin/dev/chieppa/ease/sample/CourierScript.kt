@@ -1,54 +1,38 @@
 package dev.chieppa.ease.sample
 
-import com.github.quillraven.fleks.Family
-import com.github.quillraven.fleks.World.Companion.family
-import dev.chieppa.ease.ecs.replication.Authority
-import dev.chieppa.ease.ecs.replication.NetworkId
-import dev.chieppa.ease.ecs.replication.networkIdOf
+import dev.chieppa.ease.net.input.InputFrame
 import dev.chieppa.ease.runtime.ClientWorld
 import dev.chieppa.ease.runtime.InputScript
 
 /**
- * The sample's scripted input, run on a client: every [STEER_EVERY] ticks it sends the host a
- * command steering the client's courier a quarter turn, so the courier traces a square loop moved
- * only by commands. It steers the courier the client owns, the one the game gave it when it joined
- * (see [SampleGame.peerJoined]), among every peer's; until its spawn arrives, the script waits.
+ * The sample's scripted input, run on a client: it holds the stick in one direction and turns it a
+ * quarter left every [TURN_EVERY] ticks, so the client's courier (see [SampleGame.peerJoined])
+ * traces a square loop, moved only by the client's input and predicted on the client.
  */
 public class CourierScript : InputScript {
-  private var couriers: Family? = null
-
   override fun send(client: ClientWorld) {
-    val tick = client.tick
-    if (tick == 0L || tick % STEER_EVERY != 0L) return
-    val courier = courier(client) ?: return
-    val turn = (tick / STEER_EVERY % TURNS).toInt()
-    client.send(Steer(courier, DIRECTION_X[turn] * SPEED, DIRECTION_Y[turn] * SPEED))
-  }
-
-  /** The courier [client] owns, or null until its spawn arrives. */
-  private fun courier(client: ClientWorld): NetworkId? {
-    val world = client.world.world
-    val family = couriers ?: world.family { all(Courier, Authority) }.also { couriers = it }
-    val owner = client.world.peer
-    val owned = family.firstOrNull { with(world) { it[Authority].owner == owner } }
-    return owned?.let { world.networkIdOf(it) }
+    steer(client.inputFrame, client.tick)
   }
 
   public companion object {
-    /** Ticks between two steers: half a second at the default rate. */
-    public const val STEER_EVERY: Long = 30
-
-    /** How fast the courier moves, in world units a second. */
-    public const val SPEED: Float = 4f
+    /** Ticks between two turns: half a second at the default rate. */
+    public const val TURN_EVERY: Long = 30
 
     private const val TURNS = 4
 
-    /** Right, up, left, down: the courier turns left a quarter at each steer. */
+    /** Right, up, left, down: the stick turns left a quarter at each turn. */
     private val DIRECTION_X = floatArrayOf(1f, 0f, -1f, 0f)
     private val DIRECTION_Y = floatArrayOf(0f, 1f, 0f, -1f)
 
-    /** The courier as it spawns: white, at the center, moving right. */
+    /** Sets [frame] to the script's input for [tick]. */
+    public fun steer(frame: InputFrame, tick: Long) {
+      val turn = (tick / TURN_EVERY % TURNS).toInt()
+      frame.setAxis(CourierSystem.AXIS_X, DIRECTION_X[turn])
+      frame.setAxis(CourierSystem.AXIS_Y, DIRECTION_Y[turn])
+    }
+
+    /** The courier as it spawns: white, at the center, standing still. */
     public val COURIER: Square =
-      Square(x = 0f, y = 0f, speedX = SPEED, speedY = 0f, size = 0.7f, rgb = 0xF2F2F2)
+      Square(x = 0f, y = 0f, speedX = 0f, speedY = 0f, size = 0.7f, rgb = 0xF2F2F2)
   }
 }

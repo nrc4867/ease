@@ -79,6 +79,23 @@ class SchemaSerializerTest {
   }
 
   @Test
+  fun `a schema interpolates its interpolated fields as the generated serializer does`() {
+    val into = schema.component()
+
+    schema.serializer.interpolate(
+      component(0.2f, 1f, 3, true),
+      component(0.6f, 5f, 4, false),
+      0.25f,
+      into,
+    )
+
+    assertEquals(0.3f, into.getFloat(brightness), 1e-6f)
+    assertEquals(1f, into.getFloat(fuel))
+    assertEquals(3, into.getInt(charges))
+    assertTrue(into.getBoolean(lit))
+  }
+
+  @Test
   fun `a schema refuses what the processor refuses`() {
     assertFailsWith<IllegalArgumentException> { Quantization(bits = 31, min = 0f, max = 1f) }
     assertFailsWith<IllegalArgumentException> { Quantization(bits = 8, min = 1f, max = 1f) }

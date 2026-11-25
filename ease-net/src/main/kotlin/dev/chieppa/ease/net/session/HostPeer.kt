@@ -6,6 +6,7 @@ import dev.chieppa.ease.net.channel.Connection
 import dev.chieppa.ease.net.command.CommandIntake
 import dev.chieppa.ease.net.input.InputBuffer
 import dev.chieppa.ease.net.input.InputPacket
+import dev.chieppa.ease.net.input.InputSlack
 import dev.chieppa.ease.net.relevancy.Viewer
 import dev.chieppa.ease.net.snapshot.PeerPriority
 import dev.chieppa.ease.net.snapshot.PeerSnapshots
@@ -61,6 +62,7 @@ internal constructor(
       session.spawns,
     )
   internal val packet = InputPacket(session.settings.input)
+  internal val slack = InputSlack()
   internal val commands =
     CommandIntake(
       session.world,

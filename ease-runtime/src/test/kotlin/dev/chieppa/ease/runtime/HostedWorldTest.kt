@@ -3,6 +3,7 @@ package dev.chieppa.ease.runtime
 import dev.chieppa.ease.commands.CommandOrigin
 import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.ecs.LocalTransform
+import dev.chieppa.ease.net.prediction.ClockSettings
 import dev.chieppa.ease.platform.time.ManualClock
 import dev.chieppa.ease.runtime.loop.FixedStep
 import kotlin.test.Test
@@ -60,7 +61,7 @@ class HostedWorldTest {
 
     assertEquals(2, steps)
     assertEquals(2, local.host.tick)
-    assertEquals(2, local.client.tick)
+    assertEquals(2 + ClockSettings.DEFAULT_BUFFER_TICKS.toLong(), local.client.tick)
     assertEquals(0.5f, runner.alpha, ALPHA_TOLERANCE)
   }
 

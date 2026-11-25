@@ -18,6 +18,7 @@ import kotlinx.serialization.json.jsonObject
 class SampleTypesTest {
   private val agent = SampleAgent()
   private val maxSpeed = Velocity.MAX_SPEED.toInt()
+  private val maxPace = Courier.MAX_PACE.toInt()
 
   @AfterTest
   fun close() {
@@ -63,11 +64,11 @@ class SampleTypesTest {
 
   @Test
   fun `a doc and a range of a sample command reach ease dot d dot ts`() {
-    val steer = declaration("sample.Steer")
+    val setPace = declaration("sample.SetPace")
 
-    assertTrue("The entity to steer." in steer, steer)
-    assertTrue("@minimum -$maxSpeed" in steer, steer)
-    assertTrue("@maximum $maxSpeed" in steer, steer)
+    assertTrue("The new pace, in world units a second." in setPace, setPace)
+    assertTrue("@minimum 0" in setPace, setPace)
+    assertTrue("@maximum $maxPace" in setPace, setPace)
   }
 
   @Test
@@ -93,11 +94,11 @@ class SampleTypesTest {
 
   @Test
   fun `a doc and a range of a sample command reach its JSON Schema`() {
-    val steer = schema("commands", "sample.Steer")
+    val setPace = schema("commands", "sample.SetPace")
 
-    val y = property(steer, "y")
-    assertEquals("Speed along y, in world units a second.", y.text("description"))
-    assertEquals(-maxSpeed, y.text("minimum").toInt())
-    assertEquals(maxSpeed, y.text("maximum").toInt())
+    val pace = property(setPace, "pace")
+    assertEquals("The new pace, in world units a second.", pace.text("description"))
+    assertEquals(0, pace.text("minimum").toInt())
+    assertEquals(maxPace, pace.text("maximum").toInt())
   }
 }

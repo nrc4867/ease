@@ -5,6 +5,7 @@ import dev.chieppa.ease.ecs.replication.DecodeStatus
 import dev.chieppa.ease.ecs.replication.Replication
 import dev.chieppa.ease.ecs.replication.StatePacketReader
 import dev.chieppa.ease.ecs.replication.WireBits
+import dev.chieppa.ease.net.session.SnapshotListener
 
 /**
  * Applies the snapshots a client receives, treating every byte as hostile. Only a snapshot newer
@@ -15,7 +16,11 @@ import dev.chieppa.ease.ecs.replication.WireBits
  * what the client acknowledges: the newest applied tick and which of the 32 before it were applied
  * too.
  */
-internal class SnapshotReceiver(replication: Replication, private val history: ViewHistory) {
+internal class SnapshotReceiver(
+  replication: Replication,
+  private val history: ViewHistory,
+  private val listener: SnapshotListener = SnapshotListener.NONE,
+) {
   private val header = BitReader()
   private val state = StatePacketReader(replication, history)
 
@@ -23,6 +28,8 @@ internal class SnapshotReceiver(replication: Replication, private val history: V
   private var tick = 0L
   private var inputPlusOne = 0L
   private var needs = 0L
+  private var slackTickPlusOne = 0L
+  private var slackRead = 0L
 
   /** The tick of the newest applied snapshot, or [Snapshots.NO_TICK]. */
   var latestTick: Long = Snapshots.NO_TICK
@@ -34,6 +41,20 @@ internal class SnapshotReceiver(replication: Replication, private val history: V
 
   /** The last input tick the host had processed for this client, or [Snapshots.NO_TICK]. */
   var lastInputTick: Long = Snapshots.NO_TICK
+    private set
+
+  /**
+   * The input tick the host last reported the client's slack on, or [Snapshots.NO_TICK]: see
+   * [inputSlack].
+   */
+  var inputSlackTick: Long = Snapshots.NO_TICK
+    private set
+
+  /**
+   * How many ticks before the host needed it the client's input of [inputSlackTick] arrived, as the
+   * newest applied snapshot to report one said; negative when it came late.
+   */
+  var inputSlack: Long = 0L
     private set
 
   /** Reads the first [length] bytes of [bytes]: applies them, skips them, or refuses. */
@@ -49,10 +70,13 @@ internal class SnapshotReceiver(replication: Replication, private val history: V
     tick = header.readVarLong()
     inputPlusOne = header.readVarLong()
     needs = header.readVarLong()
+    slackTickPlusOne = header.readVarLong()
+    slackRead = Snapshots.unzigzag(header.readVarLong())
     return when {
       !header.ok -> header.status
-      tick < 0 || inputPlusOne < 0 || needs < 0 -> DecodeStatus.MALFORMED
+      tick < 0 || inputPlusOne < 0 || needs < 0 || slackTickPlusOne < 0 -> DecodeStatus.MALFORMED
       inputPlusOne - 1 > tick -> DecodeStatus.BAD_VALUE
+      slackRead !in -Snapshots.MAX_SLACK..Snapshots.MAX_SLACK -> DecodeStatus.BAD_VALUE
       else -> DecodeStatus.OK
     }
   }
@@ -64,7 +88,12 @@ internal class SnapshotReceiver(replication: Replication, private val history: V
     if (status == DecodeStatus.OK) {
       applied(tick)
       lastInputTick = inputPlusOne - 1
+      if (slackTickPlusOne > 0) {
+        inputSlackTick = slackTickPlusOne - 1
+        inputSlack = slackRead
+      }
       history.appliedThrough(needs)
+      listener.applied(tick)
     }
     return status
   }

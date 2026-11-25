@@ -2,7 +2,10 @@ package dev.chieppa.ease.codegen.rules
 
 import dev.chieppa.ease.codegen.model.ClassVisibility
 import dev.chieppa.ease.codegen.model.ComponentModel
+import dev.chieppa.ease.codegen.model.FieldKind
 import dev.chieppa.ease.codegen.model.FieldModel
+
+private val QUANTIZED = FieldKind.QUANTIZED_FLOAT
 
 /**
  * What makes a [ComponentModel] impossible to replicate, each problem naming its field when it has
@@ -11,6 +14,9 @@ import dev.chieppa.ease.codegen.model.FieldModel
 internal object ModelRules {
   /** The most fields a component may replicate: its change mask is one `Int`. */
   const val MAX_FIELDS = 32
+
+  /** The fields of one interpolated rotation group: a quaternion's four components. */
+  const val ROTATION_COMPONENTS = 4
 
   /** The bits a quantized float may take. */
   val QUANTIZED_BITS = 1..30
@@ -37,12 +43,25 @@ internal object ModelRules {
   }
 
   private fun fieldProblems(model: ComponentModel): List<Problem> =
-    model.fields.flatMap { field -> problems(field) }
+    model.fields.flatMap { field -> problems(field) } + rotationProblems(model)
+
+  private fun rotationProblems(model: ComponentModel): List<Problem> =
+    model.fields
+      .filter { it.rotation.isNotEmpty() }
+      .groupBy { it.rotation }
+      .filterValues { it.size != ROTATION_COMPONENTS }
+      .map { (group, members) ->
+        val message = "rotation group $group has ${members.size} fields, not $ROTATION_COMPONENTS"
+        Problem(members.first().name, message)
+      }
 
   private fun problems(field: FieldModel): List<Problem> = buildList {
     if (field.kind == null) add(Problem(field.name, unsupported(field)))
     if (!field.settable) {
       add(Problem(field.name, "a replicated field needs a public or internal setter"))
+    }
+    if (field.interpolated && field.kind != FieldKind.FLOAT && field.kind != QUANTIZED) {
+      add(Problem(field.name, "@Interpolated goes on a Float, not ${field.typeName}"))
     }
     val bits = field.quantizedBits ?: return@buildList
     if (bits !in QUANTIZED_BITS) {

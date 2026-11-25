@@ -2,7 +2,8 @@ package dev.chieppa.ease.ecs.replication
 
 /**
  * One field of a [ReplicatedSchema], with the options a `@Replicated` class's property takes:
- * [quantization] (for [SchemaFieldKind.QUANTIZED_FLOAT] only), [interpolated] and [audience].
+ * [quantization] (for [SchemaFieldKind.QUANTIZED_FLOAT] only), [interpolated] with its [rotation]
+ * group (empty for none), and [audience].
  */
 public class SchemaField
 internal constructor(
@@ -11,4 +12,5 @@ internal constructor(
   public val interpolated: Boolean,
   public val audience: Audience,
   public val quantization: Quantization? = null,
+  public val rotation: String = "",
 )

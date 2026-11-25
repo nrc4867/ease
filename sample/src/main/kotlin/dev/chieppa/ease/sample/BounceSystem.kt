@@ -8,11 +8,17 @@ import dev.chieppa.ease.ecs.replication.Replication
 import dev.chieppa.ease.ecs.replication.replication
 
 /**
- * Moves every entity with a [Velocity] by it each tick, and turns it back along an axis once its
- * center passes the [Playfield] on that axis. It writes only entities this world holds authority
- * over, through [Replication.write].
+ * Moves every entity with a [Velocity] but couriers (see [CourierSystem]) by it each tick, and
+ * turns it back along an axis once its center passes the [Playfield] on that axis. It writes only
+ * entities this world holds authority over, through [Replication.write].
  */
-public class BounceSystem : IteratingSystem(family { all(LocalTransform, Velocity) }) {
+public class BounceSystem :
+  IteratingSystem(
+    family {
+      all(LocalTransform, Velocity)
+      none(Courier)
+    }
+  ) {
   private val replication: Replication = world.replication
 
   override fun onTickEntity(entity: Entity) {

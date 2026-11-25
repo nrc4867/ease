@@ -86,7 +86,20 @@ class GeneratedSerializerTest {
     assertEquals(DecodeStatus.BAD_VALUE, reader.status)
   }
 
+  @Test
+  fun `interpolating blends only the interpolated fields, taking the rest from the start`() {
+    val into = Lantern()
+
+    serializer.interpolate(lantern(0.2f, 1f, 3, true), lantern(0.6f, 5f, 4, false), 0.25f, into)
+
+    assertEquals(0.3f, into.brightness, BLEND_TOLERANCE)
+    assertEquals(1f, into.fuel)
+    assertEquals(3, into.charges)
+    assertEquals(true, into.lit)
+  }
+
   private companion object {
+    const val BLEND_TOLERANCE = 1e-6f
     const val CAPACITY = 64
     const val ALL = 0b1111
   }
