@@ -2,7 +2,7 @@
 // for the files outside any module.
 import dev.chieppa.ease.build.InstallGitHook
 import dev.chieppa.ease.build.catalogVersion
-import dev.chieppa.ease.build.sources.CheckSources
+import dev.chieppa.ease.build.registerCheckSources
 
 plugins {
   id("ease.licenses")
@@ -23,29 +23,9 @@ spotless {
 }
 
 // The build logic's own tests hold examples of what the rules catch, so the rules skip them.
-val checkSources =
-  tasks.register<CheckSources>("checkSources") {
-    group = "verification"
-    description = "Checks every source and Markdown file against the rules no linter covers."
-    sources.from(
-      fileTree(rootDir) {
-        include("**/*.kt", "**/*.kts", "**/*.java", "**/*.md")
-        exclude("**/build/**", "**/.gradle/**", "**/.kotlin/**", "build-logic/src/test/**")
-      }
-    )
-    root = layout.projectDirectory
-    only =
-      providers
-        .gradleProperty("stagedFiles")
-        .map { it.split(',').filter(String::isNotBlank) }
-        .orElse(emptyList())
-    report = layout.buildDirectory.file("checkSources.txt")
-  }
+registerCheckSources(listOf("build-logic/src/test/**"))
 
-tasks.named("check") {
-  dependsOn(checkSources)
-  dependsOn(gradle.includedBuild("build-logic").task(":test"))
-}
+tasks.named("check") { dependsOn(gradle.includedBuild("build-logic").task(":test")) }
 
 // The hooks folder git uses for this checkout, which a worktree shares with its main checkout.
 val hooksDir =

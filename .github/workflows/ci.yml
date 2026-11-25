@@ -158,19 +158,44 @@ jobs:
         working-directory: ease
         shell: bash
 
+  # A game generated from every project template (and one of every generator added to it), built
+  # against this checkout as a composite build, with its formatting, rules and first tests.
+  templates:
+    name: Project templates
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: ease
+      - uses: actions/checkout@v7
+        with:
+          repository: nrc4867/stretch
+          ref: ${{ env.STRETCH_REF }}
+          path: stretch
+      - uses: actions/setup-java@v6
+        with:
+          distribution: corretto
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v5
+      - run: bash tools/check-templates.sh "$RUNNER_TEMP/templates"
+        working-directory: ease
+
   # The one check main's ruleset requires: green when the changed files were read and every code job
   # passed, or was skipped for a Markdown-only change.
   ci:
     name: CI
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [changes, check, gpu, platforms]
+    needs: [changes, check, gpu, platforms, templates]
     if: always()
     steps:
       - env:
           CODE: ${{ needs.changes.outputs.code }}
           CHANGES: ${{ needs.changes.result }}
-          RESULTS: ${{ needs.check.result }} ${{ needs.gpu.result }} ${{ needs.platforms.result }}
+          RESULTS: ${{ needs.check.result }} ${{ needs.gpu.result }} ${{ needs.platforms.result }} ${{ needs.templates.result }}
         run: |
           echo "changes $CHANGES, code '$CODE', jobs $RESULTS"
           test "$CHANGES" = success

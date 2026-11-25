@@ -1,5 +1,6 @@
 // A Kotlin module: JDK 25, ktfmt in Google style and detekt with the repository's config.
 import dev.chieppa.ease.build.catalogVersion
+import dev.chieppa.ease.build.configureDetektChecks
 
 plugins {
   id("org.jetbrains.kotlin.jvm")
@@ -27,13 +28,6 @@ detekt {
   config.setFrom(rootDir.resolve("config/detekt/detekt.yml"))
 }
 
-tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
-  val generated = layout.buildDirectory.get().asFile
-  setSource(source.filter { !it.startsWith(generated) })
-}
-
 dependencies { "testImplementation"(kotlin("test")) }
 
-// Rules such as the forbidden annotations need type resolution, which only the per-source-set
-// tasks have.
-tasks.named("check") { dependsOn("detektMain", "detektTest") }
+configureDetektChecks()

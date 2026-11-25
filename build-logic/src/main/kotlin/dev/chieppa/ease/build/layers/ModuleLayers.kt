@@ -22,6 +22,7 @@ val moduleLayers: Map<String, Layer> =
     "ease-runtime" to Layer.RUNTIME,
     "ease-player" to Layer.HOST,
     "ease-agent" to Layer.HOST,
+    "ease-cli" to Layer.HOST,
     "viewport-spike" to Layer.HOST,
     "sample" to Layer.GAME,
   )

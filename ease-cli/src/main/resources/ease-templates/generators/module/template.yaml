@@ -1,0 +1,6 @@
+description: A module of the game, in its own folder
+formatVersion: 1
+insertions:
+  - file: settings.gradle.kts
+    marker: "// ease:modules"
+    text: "include(\":{{nameId}}\")\n\n"
