@@ -15,6 +15,9 @@ configurations.named("smokeImplementation") { extendsFrom(configurations["implem
 configurations.named("smokeRuntimeOnly") { extendsFrom(configurations["runtimeOnly"]) }
 
 dependencies {
+  // Canonical YAML for the players' binding files.
+  api(project(":ease-serialization"))
+  testImplementation(project(":ease-testing"))
   // SDL3 for windows, their native handles and gamepads. Only this module imports LWJGL.
   implementation(libs.lwjgl.asProvider())
   implementation(libs.lwjgl.sdl)
@@ -30,5 +33,15 @@ tasks.register<JavaExec>("windowSmoke") {
   description = "Opens a window, resizes it, and closes it; fails when any step does."
   classpath = smoke.runtimeClasspath
   mainClass = "dev.chieppa.ease.platform.smoke.WindowSmokeKt"
+  desktopApp(this)
+}
+
+tasks.register<JavaExec>("inputSmoke") {
+  group = "verification"
+  description =
+    "Opens a window; keyboard (WASD, arrows) and gamepad (left stick, d-pad) move a camera whose " +
+      "position and active device print as it moves. Escape, gamepad start or closing the window ends it."
+  classpath = smoke.runtimeClasspath
+  mainClass = "dev.chieppa.ease.platform.smoke.InputSmokeKt"
   desktopApp(this)
 }
