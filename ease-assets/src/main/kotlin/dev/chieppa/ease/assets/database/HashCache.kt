@@ -15,8 +15,6 @@ internal const val CACHE_FOLDER = ".ease/cache"
 
 private const val HASHES_FILE = "asset-hashes.yaml"
 private const val HASHES_KEY = "hashes"
-private const val IGNORE_FILE = ".gitignore"
-private const val IGNORE_ALL = "*\n"
 private const val SEPARATOR = "/"
 
 /**
@@ -26,7 +24,7 @@ private const val SEPARATOR = "/"
  * recorded for its path to find the file it was moved or renamed to. A missing or unreadable cache,
  * as in a fresh clone, is empty, and nothing is matched.
  */
-internal class HashCache(root: Path) {
+internal class HashCache(private val root: Path) {
   private val folder = root.resolve(CACHE_FOLDER)
   private val file = folder.resolve(HASHES_FILE)
   private val hashes = HashMap<String, String>()
@@ -61,8 +59,7 @@ internal class HashCache(root: Path) {
   fun save() {
     if (!dirty) return
     try {
-      Files.createDirectories(folder)
-      Files.writeString(folder.resolve(IGNORE_FILE), IGNORE_ALL)
+      CacheFolder.ensure(root)
       val tree =
         JsonObject(mapOf(HASHES_KEY to JsonObject(hashes.mapValues { JsonPrimitive(it.value) })))
       Files.writeString(file, CanonicalYaml.write(tree))

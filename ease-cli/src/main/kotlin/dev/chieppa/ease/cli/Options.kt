@@ -23,6 +23,9 @@ public object Options {
   /** `--staged`: let `ease check` look at what git's index holds. */
   public const val STAGED: String = "staged"
 
+  /** `--adopt`: let `ease import` give new sources a meta file first. */
+  public const val ADOPT: String = "adopt"
+
   /** The options that take no value; naming one switches it on. */
-  public val FLAGS: Set<String> = setOf(NO_GIT, FIX, STAGED)
+  public val FLAGS: Set<String> = setOf(NO_GIT, FIX, STAGED, ADOPT)
 }

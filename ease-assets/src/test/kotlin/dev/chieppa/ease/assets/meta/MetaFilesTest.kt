@@ -8,6 +8,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.io.TempDir
 
 class MetaFilesTest {
@@ -26,10 +28,41 @@ class MetaFilesTest {
   }
 
   @Test
-  fun `a meta file holds only its format version and GUID, as canonical YAML`() {
+  fun `a meta file without import choices holds only its format version and GUID`() {
     val text = MetaFiles.encode(meta)
 
-    assertEquals("formatVersion: 1\nguid: \"3f2b8c1e-5d4a-4e7b-9a60-1c2d3e4f5a6b\"\n", text)
+    assertEquals("formatVersion: 2\nguid: \"3f2b8c1e-5d4a-4e7b-9a60-1c2d3e4f5a6b\"\n", text)
+  }
+
+  @Test
+  fun `import choices are written when set and read back`() {
+    val chosen =
+      AssetMeta(
+        guid = meta.guid,
+        importer = "palette",
+        settings = JsonObject(mapOf("sorted" to JsonPrimitive(true))),
+      )
+    val file = folder.resolve("a.meta")
+    MetaFiles.write(file, chosen)
+
+    val read = MetaFiles.read(file)
+
+    assertEquals("palette", read.importer)
+    assertEquals(chosen.settings, read.settings)
+    assertEquals(MetaFiles.encode(chosen), Files.readString(file))
+  }
+
+  @Test
+  fun `a version 1 meta file reads as the current format and is left as it is`() {
+    val file = folder.resolve("old.meta")
+    val text = "formatVersion: 1\nguid: \"${meta.guid}\"\n"
+    Files.writeString(file, text)
+
+    val read = MetaFiles.read(file)
+
+    assertEquals(meta.guid, read.guid)
+    assertEquals(null, read.importer)
+    assertEquals(text, Files.readString(file))
   }
 
   @Test

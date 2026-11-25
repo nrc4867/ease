@@ -1,5 +1,6 @@
 package dev.chieppa.ease.project.check
 
+import dev.chieppa.ease.platform.files.FileTrees
 import dev.chieppa.ease.project.git.BinaryAssets
 import dev.chieppa.ease.project.git.Git
 import java.io.File
@@ -14,7 +15,7 @@ import java.nio.file.Path
  */
 internal class StagedTree private constructor(val root: Path) : AutoCloseable {
   override fun close() {
-    Files.walk(root).use { walk -> walk.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
+    FileTrees.deleteRecursively(root)
   }
 
   companion object {
