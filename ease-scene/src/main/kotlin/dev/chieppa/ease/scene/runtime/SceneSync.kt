@@ -14,10 +14,12 @@ import dev.chieppa.ease.scene.resolve.SceneProblem
  * holding authority. [place] spawns a scene or prefab; at each tick boundary, after the asset
  * reloads, [beforeTick] looks at the files every placed scene was built from (the scene, and every
  * prefab and sublevel in it), and at those it needed but could not load. When one has reloaded,
- * appeared or changed, it resolves the scene again and applies the difference from the live nodes
- * as `SpawnNode`, `UpdateNode` and `DestroyNode` commands with the engine's origin. The commands go
- * through the history, so they are logged; clients receive the nodes as spawns naming the placed
- * asset and each node's key (see [placementOf]). A tick where no file changed allocates nothing.
+ * appeared or changed, it resolves the scene again and applies the difference from the version it
+ * last applied (not from the live nodes, so nodes and fields the files did not change keep their
+ * running state) as `SpawnNode`, `UpdateNode` and `DestroyNode` commands with the engine's origin.
+ * The commands go through the history, so they are logged; clients receive the nodes as spawns
+ * naming the placed asset and each node's key (see [placementOf]). A tick where no file changed
+ * allocates nothing.
  */
 public class SceneSync(
   world: World,
@@ -62,15 +64,19 @@ public class SceneSync(
     val source = TrackingSource(store)
     val resolved = source.resolver(nodes.types).resolve(scene.asset, scene.placement)
     val problems = resolved.problems.toMutableList()
-    for (command in diff.commands(resolved, scene.keys)) {
+    val rejected = mutableSetOf<NodeKey>()
+    for (change in diff.commands(resolved, scene.applied)) {
       try {
-        history.execute(command, tick, CommandOrigin.GAME)
-      } catch (rejected: CommandRejected) {
-        problems += SceneProblem.Rejected(rejected.message.orEmpty())
+        history.execute(change.command, tick, CommandOrigin.GAME)
+      } catch (rejection: CommandRejected) {
+        rejected += change.key
+        problems += SceneProblem.Rejected(rejection.message.orEmpty())
       }
     }
+    val applied = resolved.appliedAfter(scene.applied, rejected)
     scene.keys.forEach { byKey.remove(it, scene) }
-    scene.keys = resolved.nodes.map { it.key }
+    scene.applied = applied
+    scene.keys = applied.nodes.map { it.key }
     scene.keys.forEach { byKey[it] = scene }
     scene.problems = problems
     source.trackIn(scene)

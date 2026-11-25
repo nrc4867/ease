@@ -5,6 +5,7 @@ import dev.chieppa.ease.assets.database.AssetDatabase
 import dev.chieppa.ease.assets.loading.AssetHandle
 import dev.chieppa.ease.scene.document.SceneDocument
 import dev.chieppa.ease.scene.node.NodeKey
+import dev.chieppa.ease.scene.resolve.ResolvedScene
 import dev.chieppa.ease.scene.resolve.SceneProblem
 
 /**
@@ -26,6 +27,9 @@ internal constructor(
   /** What the last applied version could not honor. */
   public var problems: List<SceneProblem> = emptyList()
     internal set
+
+  /** The resolved scene the last applied version was built from; null before the first. */
+  internal var applied: ResolvedScene? = null
 
   private var handles: Array<AssetHandle<SceneDocument>> = emptyArray()
   private var versions: IntArray = IntArray(0)
