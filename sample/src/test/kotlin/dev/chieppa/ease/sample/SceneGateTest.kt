@@ -124,18 +124,18 @@ class SceneGateTest {
       val step = abs(field(node, "sample.Velocity", "x")) * seconds
       val at = hostAt(reload, id)
       when (node.name) {
-        "Coral square" -> {
+        "Coral cube" -> {
           val was = hostAt(reload - 1, id)
           val velocity = velocityAt(reload, id)
-          assertEquals(velocityAt(reload - 1, id).x, velocity.x, "Coral square keeps its velocity")
-          assertEquals(velocityAt(reload - 1, id).y, velocity.y, "Coral square keeps its velocity")
+          assertEquals(velocityAt(reload - 1, id).x, velocity.x, "Coral cube keeps its velocity")
+          assertEquals(velocityAt(reload - 1, id).y, velocity.y, "Coral cube keeps its velocity")
           assertTrue(
             abs(at.x - MOVED_X) <= abs(velocity.x) * seconds + TOLERANCE,
             "Coral x is the edit",
           )
-          assertEquals(was.y + velocity.y * seconds, at.y, TOLERANCE, "Coral square keeps its y")
+          assertEquals(was.y + velocity.y * seconds, at.y, TOLERANCE, "Coral cube keeps its y")
         }
-        "Ivory square" ->
+        "Ivory cube" ->
           assertTrue(
             near(
               at,
@@ -143,7 +143,7 @@ class SceneGateTest {
                 field(node, "sample.Velocity", "x") * seconds,
               null,
             ),
-            "Ivory square starts from its file",
+            "Ivory cube starts from its file",
           )
         else ->
           assertTrue(
