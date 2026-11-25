@@ -43,6 +43,15 @@ internal object FieldSource {
       null -> error("${field.name} cannot replicate")
     }
 
+  /**
+   * The field `amount` of the way from `from` to `to`: blended when it is interpolated, otherwise
+   * as `from` holds it.
+   */
+  fun blend(field: FieldModel): String {
+    val from = "from.${field.name}"
+    return if (field.interpolated) "$from + (to.${field.name} - $from) * amount" else from
+  }
+
   private fun differs(field: FieldModel, a: String, b: String): String =
     when (field.kind) {
       FieldKind.FLOAT,

@@ -8,6 +8,7 @@ import dev.chieppa.ease.ecs.replication.Replication
 import dev.chieppa.ease.ecs.replication.StatePacketWriter
 import dev.chieppa.ease.ecs.replication.StatePackets
 import dev.chieppa.ease.ecs.replication.WireBits
+import dev.chieppa.ease.net.input.InputSlack
 
 private const val STATE_BITS = Snapshots.STATE_BYTES * WireBits.BYTE_BITS
 private const val MAX_ID_BYTES = 10
@@ -77,9 +78,16 @@ internal class PeerSnapshots(
 
   /**
    * Writes the snapshot of [tick] for the entities in [view] into [message], with [lastInputTick]
-   * as the last input processed for this peer, and returns its length. Ticks must rise.
+   * as the last input processed for this peer and its input's [slack], and returns its length.
+   * Ticks must rise.
    */
-  fun write(tick: Long, lastInputTick: Long, view: ViewMembers, message: ByteArray): Int {
+  fun write(
+    tick: Long,
+    lastInputTick: Long,
+    slack: InputSlack,
+    view: ViewMembers,
+    message: ByteArray,
+  ): Int {
     require(tick > lastTick) { "Snapshot ticks rise: $tick follows $lastTick" }
     lastTick = tick
     record = sent[(tick % Snapshots.SENT_RING).toInt()]
@@ -98,7 +106,10 @@ internal class PeerSnapshots(
     header.writeVarLong(tick)
     header.writeVarLong(lastInputTick + 1)
     header.writeVarLong(needs)
+    header.writeVarLong(slack.inputTick + 1)
+    header.writeVarLong(Snapshots.zigzag(slack.slack))
     header.padToByte()
+    slack.reported()
     val stateBytes = packets.end()
     System.arraycopy(header.buffer, 0, message, 0, header.byteLength)
     System.arraycopy(packet.buffer, 0, message, header.byteLength, stateBytes)

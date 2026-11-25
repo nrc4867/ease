@@ -2,7 +2,10 @@ package dev.chieppa.ease.codegen.rules
 
 import dev.chieppa.ease.codegen.model.ClassVisibility
 import dev.chieppa.ease.codegen.model.ComponentModel
+import dev.chieppa.ease.codegen.model.FieldKind
 import dev.chieppa.ease.codegen.model.FieldModel
+
+private val QUANTIZED = FieldKind.QUANTIZED_FLOAT
 
 /**
  * What makes a [ComponentModel] impossible to replicate, each problem naming its field when it has
@@ -43,6 +46,9 @@ internal object ModelRules {
     if (field.kind == null) add(Problem(field.name, unsupported(field)))
     if (!field.settable) {
       add(Problem(field.name, "a replicated field needs a public or internal setter"))
+    }
+    if (field.interpolated && field.kind != FieldKind.FLOAT && field.kind != QUANTIZED) {
+      add(Problem(field.name, "@Interpolated goes on a Float, not ${field.typeName}"))
     }
     val bits = field.quantizedBits ?: return@buildList
     if (bits !in QUANTIZED_BITS) {

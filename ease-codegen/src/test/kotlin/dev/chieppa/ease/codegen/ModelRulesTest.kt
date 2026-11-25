@@ -29,10 +29,22 @@ class ModelRulesTest {
       model(
         float("level", bits = 8, range = unit),
         FieldModel("count", FieldModel.INT, audience = FieldAudience.OWNER_ONLY),
-        FieldModel("on", FieldModel.BOOLEAN, interpolated = true),
+        FieldModel("on", FieldModel.BOOLEAN),
+        FieldModel("glow", FieldModel.FLOAT, interpolated = true),
       )
 
     assertEquals(emptyList(), ModelRules.problems(model))
+  }
+
+  @Test
+  fun `only floats interpolate`() {
+    val model =
+      model(
+        FieldModel("on", FieldModel.BOOLEAN, interpolated = true),
+        FieldModel("count", FieldModel.INT, interpolated = true),
+      )
+
+    assertEquals(listOf("on", "count"), ModelRules.problems(model).map { it.field })
   }
 
   @Test

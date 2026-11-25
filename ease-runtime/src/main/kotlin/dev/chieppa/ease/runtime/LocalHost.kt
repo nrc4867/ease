@@ -3,9 +3,11 @@ package dev.chieppa.ease.runtime
 import dev.chieppa.ease.assets.loading.AssetStore
 import dev.chieppa.ease.commands.CommandOrigin
 import dev.chieppa.ease.ecs.DEFAULT_ENTITY_CAPACITY
+import dev.chieppa.ease.ecs.prediction.CorrectionOffsets
 import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.net.command.CommandExecutor
 import dev.chieppa.ease.net.join.ContentManifest
+import dev.chieppa.ease.net.prediction.PredictionSettings
 import dev.chieppa.ease.net.session.HostPeer
 import dev.chieppa.ease.net.session.HostSession
 import dev.chieppa.ease.net.session.NetSettings
@@ -19,8 +21,10 @@ import dev.chieppa.ease.runtime.loop.FixedStep
 /**
  * A game as the player runs it, single-player included: the host's world, which holds authority,
  * and a local client's world joined to it over the [transport], as any other client would join.
- * Each [step] is one tick of both: the client's input goes to the host through the session, the
- * host ticks, and its changes come back as spawns and snapshots. Rendering shows the [client].
+ * Each [step] is one tick of the host: each client takes what the host sent and runs its own tick
+ * (none or two while its clock adjusts), predicting from its input, which goes to the host through
+ * the session; then the host ticks and sends its changes as spawns and snapshots. Clients predict
+ * and interpolate as [prediction] says. Rendering shows the [client].
  *
  * The join handshake compares the content both build from: with [assets], every asset in its
  * database, the content a game ships; enabled mods join it once mods exist. Both worlds read the
@@ -32,6 +36,7 @@ public class LocalHost(
   input: InputScript? = null,
   private val assets: AssetStore? = null,
   private val entityCapacity: Int = DEFAULT_ENTITY_CAPACITY,
+  private val prediction: PredictionSettings = PredictionSettings(),
 ) {
   /** The in-process transport between the host and the local client. */
   public val transport: LoopbackTransport = LoopbackTransport()
@@ -76,21 +81,21 @@ public class LocalHost(
     get() = host.tick
 
   /**
-   * One tick: the transport moves on and the host takes new connections; each client sends its
-   * commands and input; the host takes them, welcomes peers whose join it accepted, takes each
-   * peer's input for the tick, ticks and sends what changed; then each client takes it and ticks.
+   * One tick: the transport moves on and the host takes new connections; each client takes what the
+   * host sent and runs its ticks, sending its commands and input; the host takes them, welcomes
+   * peers whose join it accepted, takes each peer's input for the tick, ticks and sends what
+   * changed.
    */
   public fun step() {
     transport.update()
     while (true) session.connect(transport.accept() ?: break)
-    for (index in joinedClients.indices) joinedClients[index].beforeHost()
+    for (index in joinedClients.indices) joinedClients[index].step()
     val hostTick = host.tick
     session.receive(hostTick)
     welcomeJoined()
     takeInputs(hostTick)
     host.step()
     session.send(hostTick)
-    for (index in joinedClients.indices) joinedClients[index].afterHost()
   }
 
   /**
@@ -119,14 +124,15 @@ public class LocalHost(
     val peers = session.peers
     for (index in peers.indices) {
       val peer = peers[index]
-      if (peer.greeted && peer.isOpen) peer.inputs.take(hostTick)
+      if (peer.greeted && peer.isOpen) host.inputs[peer.peer] = peer.inputs.take(hostTick)
     }
   }
 
   private fun clientOver(peer: PeerId, link: LoopbackLink, input: InputScript?): ClientWorld {
-    val world = HostedWorld(module, fixedStep, entityCapacity, peer)
+    val corrections = CorrectionOffsets(prediction.smoothingKeep, prediction.snapDistance)
+    val world = HostedWorld(module, fixedStep, entityCapacity, peer, corrections = corrections)
     val content = assets?.let { SceneReplicas(world.world, it) } ?: ReplicaContent.NONE
-    val client = ClientWorld(world, link.clientEnd, settings, content, input)
+    val client = ClientWorld(world, link.clientEnd, settings, content, input, prediction)
     joinedClients += client
     return client
   }

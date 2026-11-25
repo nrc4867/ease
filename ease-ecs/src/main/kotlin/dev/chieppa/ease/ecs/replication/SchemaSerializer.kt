@@ -75,6 +75,20 @@ internal class SchemaSerializer(private val schema: ReplicatedSchema) :
     }
   }
 
+  override fun interpolate(
+    from: SchemaComponent,
+    to: SchemaComponent,
+    amount: Float,
+    into: SchemaComponent,
+  ) {
+    copy(from, into)
+    for (index in fields.indices) {
+      if (!fields[index].interpolated) continue
+      val start = from.getFloat(index)
+      into.setFloat(index, start + (to.getFloat(index) - start) * amount)
+    }
+  }
+
   private inline fun maskOf(selected: (SchemaField) -> Boolean): Int {
     var mask = 0
     fields.forEachIndexed { index, field -> if (selected(field)) mask = mask or (1 shl index) }

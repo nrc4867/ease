@@ -19,7 +19,7 @@ private const val CONTENT_AT = TYPES_AT + Long.SIZE_BYTES
  */
 internal object JoinHello {
   /** The version of the session protocol this build speaks. */
-  const val PROTOCOL_VERSION: Int = 1
+  const val PROTOCOL_VERSION: Int = 2
 
   /** The message's length in bytes. */
   const val BYTES: Int = CONTENT_AT + ContentManifest.DIGEST_BYTES

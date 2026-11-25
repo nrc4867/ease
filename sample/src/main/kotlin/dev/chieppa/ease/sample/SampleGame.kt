@@ -13,7 +13,7 @@ import dev.chieppa.ease.runtime.InputScript
 
 /**
  * The sample game: a few colored squares bouncing around the [Playfield], and for each peer that
- * joins a courier square it owns, which its input script steers by commands.
+ * joins a courier square it owns, which its input moves, predicted on its own client.
  */
 public class SampleGame : GameModule {
   override fun registerTypes(registry: CommandRegistry) {
@@ -24,6 +24,10 @@ public class SampleGame : GameModule {
     registry.command(Steer::class, Steer.serializer())
   }
 
+  override fun predictedSystems(systems: PhasedSystems) {
+    systems.add(Phase.SIMULATION, CourierSystem())
+  }
+
   override fun hostSystems(systems: PhasedSystems) {
     systems.add(Phase.SIMULATION, BounceSystem())
   }
@@ -32,7 +36,7 @@ public class SampleGame : GameModule {
     SQUARES.forEach { world.execute(Spawn(it.components())) }
   }
 
-  /** Gives [peer] a courier it owns, at the center, moving right. */
+  /** Gives [peer] a courier it owns, at the center, standing still until its input moves it. */
   override fun peerJoined(world: HostedWorld, peer: PeerId) {
     val courier = CourierScript.COURIER.components() + Courier() + Authority(PeerId.HOST, peer)
     world.execute(Spawn(courier))

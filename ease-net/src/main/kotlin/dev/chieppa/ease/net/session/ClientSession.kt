@@ -24,9 +24,10 @@ import dev.chieppa.ease.net.view.ViewRefusal
  * the world under the host's network ids, held by the host, scene nodes built from the client's own
  * files through [content]; its despawns remove them, and its snapshots change them. The client
  * sends its input every tick on the unreliable channel with the last few ticks repeated, and
- * commands on the reliable ordered one. Both ends first exchange a join hello (protocol version,
- * types hash and content digest); nothing else is taken until the host's matches. Sending input and
- * commands and applying snapshots and despawns allocate nothing.
+ * commands on the reliable ordered one; [listener] hears of each snapshot as it applies. Both ends
+ * first exchange a join hello (protocol version, types hash and content digest); nothing else is
+ * taken until the host's matches. Sending input and commands and applying snapshots and despawns
+ * allocate nothing.
  */
 public class ClientSession(
   world: World,
@@ -34,10 +35,11 @@ public class ClientSession(
   private val connection: Connection,
   private val settings: NetSettings = NetSettings(),
   content: ReplicaContent = ReplicaContent.NONE,
+  listener: SnapshotListener = SnapshotListener.NONE,
 ) {
   private val record = ViewRecord()
   private val views = ViewReceiver(world, connection.remote, content, record)
-  private val snapshots = SnapshotReceiver(world.replication, record)
+  private val snapshots = SnapshotReceiver(world.replication, record, listener)
   private val history = InputHistory(settings.input)
   private val packet = InputPacket(settings.input)
   private val commands = codec.commandWriter()
@@ -78,6 +80,19 @@ public class ClientSession(
    */
   public val lastProcessedInputTick: Long
     get() = snapshots.lastInputTick
+
+  /**
+   * The input tick the host last reported this client's input slack on, or -1 before any report.
+   */
+  public val inputSlackTick: Long
+    get() = snapshots.inputSlackTick
+
+  /**
+   * How many ticks before the host needed it the input of [inputSlackTick] arrived, negative when
+   * it came late: what a client's clock steers by.
+   */
+  public val inputSlack: Long
+    get() = snapshots.inputSlack
 
   /**
    * Takes the host's join hello, then applies every waiting spawn and despawn, then every waiting

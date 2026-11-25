@@ -36,6 +36,7 @@ internal object SerializerSource {
     appendWrite(model)
     appendRead(model)
     appendCopy(model)
+    appendInterpolate(model)
     appendLine("}")
   }
 
@@ -118,6 +119,14 @@ internal object SerializerSource {
     appendLine()
     appendLine("  override fun copy(from: ${model.className}, to: ${model.className}) {")
     model.fields.forEach { appendLine("    to.${it.name} = from.${it.name}") }
+    appendLine("  }")
+  }
+
+  private fun StringBuilder.appendInterpolate(model: ComponentModel) {
+    val type = model.className
+    appendLine()
+    appendLine("  override fun interpolate(from: $type, to: $type, amount: Float, into: $type) {")
+    model.fields.forEach { appendLine("    into.${it.name} = ${FieldSource.blend(it)}") }
     appendLine("  }")
   }
 

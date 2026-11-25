@@ -3,6 +3,7 @@ package dev.chieppa.ease.ecs.replication
 import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType
 import com.github.quillraven.fleks.Entity
+import com.github.quillraven.fleks.IntervalSystem
 import com.github.quillraven.fleks.World
 
 /** The name a world's [Replication] is injected under. */
@@ -14,8 +15,9 @@ public val World.replication: Replication
 
 /**
  * One world's part in replication: the peer it runs as, the network ids of its entities, its
- * replicated types, and which replicated components changed since [clearDirty]. Systems take it
- * once when they are built; commands read it through [World.replication].
+ * replicated types, which replicated components changed since [clearDirty], and whether predicted
+ * systems are running. Systems take it once when they are built; commands read it through
+ * [World.replication].
  */
 public class Replication internal constructor(settings: ReplicationSettings) {
   /** The peer this world runs as. */
@@ -31,6 +33,16 @@ public class Replication internal constructor(settings: ReplicationSettings) {
   public val types: ReplicatedTypes = ReplicatedTypes(settings.serializers)
 
   private val dirty = Array(types.size) { EntityBits() }
+
+  /** What [stepPredicted] runs, in order: the predicted systems, their gates, the write check. */
+  internal var predictedSystems: Array<IntervalSystem> = emptyArray()
+
+  /**
+   * Whether the world's predicted systems are running now, which lets them write the entities it
+   * [predicts]: see [mayWrite].
+   */
+  public var predicting: Boolean = false
+    internal set
 
   @PublishedApi internal lateinit var world: World
 
@@ -50,8 +62,8 @@ public class Replication internal constructor(settings: ReplicationSettings) {
 
   /**
    * Changes [entity]'s component of [type] in [change] and, when [type] replicates, marks it
-   * changed for the next snapshot. Without authority over the entity, a debug build throws
-   * [AuthorityViolation]; otherwise the change is skipped and this returns false.
+   * changed for the next snapshot. When the code may not write the entity (see [mayWrite]), a debug
+   * build throws [AuthorityViolation]; otherwise the change is skipped and this returns false.
    */
   public inline fun <reified T : Component<T>> write(
     entity: Entity,
@@ -59,7 +71,7 @@ public class Replication internal constructor(settings: ReplicationSettings) {
     change: T.() -> Unit,
   ): Boolean {
     val id = types.idOf(type)
-    if (!hasAuthority(entity)) {
+    if (!mayWrite(entity)) {
       refuseWrite(entity, id)
       return false
     }
@@ -93,8 +105,9 @@ public class Replication internal constructor(settings: ReplicationSettings) {
   internal fun refuseWrite(entity: Entity, typeId: Int) {
     if (!debugChecks) return
     val name = if (typeId >= 0) types[typeId].serializer.name else "a component"
+    val outside = if (predicts(entity)) " outside a predicted system" else ""
     throw AuthorityViolation(
-      "${describe(entity)} was written without authority to $name: " +
+      "${describe(entity)} was written without authority$outside to $name: " +
         "${holderOf(entity)} holds it and this world is $localPeer"
     )
   }
