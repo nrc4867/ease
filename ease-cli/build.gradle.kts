@@ -11,6 +11,8 @@ plugins {
 dependencies {
   implementation(project(":ease-annotations"))
   implementation(project(":ease-serialization"))
+  implementation(project(":ease-project"))
+  testImplementation(testFixtures(project(":ease-project")))
 }
 
 application {

@@ -13,4 +13,13 @@ public object Options {
 
   /** `--ease-version`: the Ease version a new game pins. */
   public const val EASE_VERSION: String = "ease-version"
+
+  /** `--no-git`: leave a new project without a git repository. */
+  public const val NO_GIT: String = "no-git"
+
+  /** `--fix`: let `ease check` make the mechanical fixes. */
+  public const val FIX: String = "fix"
+
+  /** The options that take no value; naming one switches it on. */
+  public val FLAGS: Set<String> = setOf(NO_GIT, FIX)
 }

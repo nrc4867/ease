@@ -13,6 +13,9 @@ private constructor(
   /** The value of `--[name]`, or null when it was not given. */
   public fun option(name: String): String? = options[name]
 
+  /** Whether the flag `--[name]` was given. */
+  public fun flag(name: String): Boolean = options[name] == FLAG_ON
+
   /** Fails when an option other than [allowed] was given. */
   public fun requireOnly(allowed: Set<String>) {
     val unknown = options.keys - allowed
@@ -30,9 +33,10 @@ private constructor(
   /** Reading the words of a command line. */
   public companion object {
     private const val PREFIX = "--"
+    private const val FLAG_ON = "true"
 
-    /** Splits [words] into positional arguments and options. */
-    public fun parse(words: List<String>): Arguments {
+    /** Splits [words] into positional arguments and options; the names in [flags] take no value. */
+    public fun parse(words: List<String>, flags: Set<String> = Options.FLAGS): Arguments {
       val positional = mutableListOf<String>()
       val options = mutableMapOf<String, String>()
       var index = 0
@@ -44,6 +48,10 @@ private constructor(
           continue
         }
         val body = word.removePrefix(PREFIX)
+        if (body in flags) {
+          options[body] = FLAG_ON
+          continue
+        }
         val equals = body.indexOf('=')
         if (equals >= 0) {
           options[body.substring(0, equals)] = body.substring(equals + 1)

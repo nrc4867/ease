@@ -9,4 +9,6 @@ public class GeneratedProject(
   public val directory: Path,
   /** The contents of its project file. */
   public val file: ProjectFile,
+  /** Whether the project is to be in version control; false when `--no-git` was given. */
+  public val versionControl: Boolean = true,
 )

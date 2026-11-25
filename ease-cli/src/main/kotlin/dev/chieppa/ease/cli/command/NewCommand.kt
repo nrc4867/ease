@@ -32,7 +32,8 @@ public class NewCommand(
 ) : CliCommand {
   override val name: String = "new"
   override val usage: String =
-    "<template> --name <name> [--package <package>] [--dir <folder>] [--ease-version <version>]"
+    "<template> --name <name> [--package <package>] [--dir <folder>] [--ease-version <version>] " +
+      "[--no-git]"
   override val summary: String = "Create a game from a project template"
 
   override fun run(arguments: Arguments, output: CliOutput): Int {
@@ -43,7 +44,8 @@ public class NewCommand(
     val directory = target(arguments.option(Options.DIR), project)
     GenerationPlan.of(template, Placeholders(project.placeholders()), directory).apply()
     ProjectFile.write(directory, project)
-    hooks.forEach { it.run(GeneratedProject(directory, project)) }
+    val versionControl = !arguments.flag(Options.NO_GIT)
+    hooks.forEach { it.run(GeneratedProject(directory, project, versionControl)) }
     output.out.println("Created ${project.name} in $directory from the $id template")
     return ExitCodes.OK
   }
@@ -86,6 +88,7 @@ public class NewCommand(
 
   private companion object {
     const val DEFAULT_PACKAGE_ROOT = "example"
-    val OPTIONS = setOf(Options.NAME, Options.PACKAGE, Options.DIR, Options.EASE_VERSION)
+    val OPTIONS =
+      setOf(Options.NAME, Options.PACKAGE, Options.DIR, Options.EASE_VERSION, Options.NO_GIT)
   }
 }

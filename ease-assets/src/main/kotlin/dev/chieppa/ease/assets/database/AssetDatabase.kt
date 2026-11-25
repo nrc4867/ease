@@ -152,7 +152,6 @@ private constructor(
     settle(orphans.match(problemsByPath), mutableListOf())
     cache.retain { Files.exists(MetaFiles.metaOf(root.resolve(it))) }
     cache.save()
-    if (problemsByPath.isNotEmpty()) throw AssetDatabaseRejected(problems)
   }
 
   public companion object {
@@ -162,6 +161,22 @@ private constructor(
      * is used twice, a meta file has no source or a source has no meta file.
      */
     public fun load(
+      root: Path,
+      watcher: FileWatcher,
+      guids: GuidSource = GuidSource.random,
+      associations: FileAssociations = FileAssociationRegistry(),
+    ): AssetDatabase {
+      val database = open(root, watcher, guids, associations)
+      if (database.problems.isNotEmpty()) throw AssetDatabaseRejected(database.problems)
+      return database
+    }
+
+    /**
+     * Reads every asset under [root] like [load], but keeps a project with problems: the database
+     * holds every asset that is sound and lists the rest in [problems]. Checks use it to see all
+     * that is wrong at once.
+     */
+    public fun open(
       root: Path,
       watcher: FileWatcher,
       guids: GuidSource = GuidSource.random,

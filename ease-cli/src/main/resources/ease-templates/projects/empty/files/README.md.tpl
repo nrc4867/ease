@@ -10,3 +10,19 @@ in `gradle.properties`.
 ```
 
 The game's code is in `game/`. `ease generate component|system|module <Name>` adds to it.
+
+## Version control
+
+`ease new` made this folder a git repository: `.gitignore` for build output and per-user state,
+`.gitattributes` with binary assets in Git LFS (lockable) and Ease's merge driver for scenes and
+prefabs, and a pre-commit hook that runs `ease check`. The merge driver and the hook are in this
+clone's `.git` folder, so another clone registers the driver itself with
+`git config merge.ease.driver "ease merge-driver %O %A %B %P"` and installs Git LFS.
+
+```
+ease check          # sidecars, GUIDs, references, nodes, conflict markers, LFS coverage
+ease check --fix    # the safe repairs: respace order keys, settle an add/add GUID, restore deleted assets
+```
+
+Run `ease check` in CI as a step of the job that builds the game; it ends with status 1 when it finds
+an error, and needs only git (and Git LFS for the coverage warning) beside the `ease` command.
