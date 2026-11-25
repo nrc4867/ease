@@ -14,9 +14,9 @@ import dev.chieppa.ease.ecs.replication.networkIdOf
 import dev.chieppa.ease.ecs.replication.replicatedSchema
 import dev.chieppa.ease.ecs.replication.replication
 import dev.chieppa.ease.ecs.replication.spawnEntity
-import dev.chieppa.ease.net.channel.LocalLink
 import dev.chieppa.ease.net.session.ClientSession
 import dev.chieppa.ease.net.session.HostSession
+import dev.chieppa.ease.net.transport.LoopbackTransport
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -47,7 +47,7 @@ class OversizedEntityTest {
     val wide: Entity = host.spawnEntity { entity -> schemas.forEach { entity += wideOf(it) } }
     val small: Entity = host.spawnEntity { it += LocalTransform() }
 
-    val link = LocalLink(clientPeer = Session.CLIENT)
+    val link = LoopbackTransport().connect(Session.CLIENT)
     val hostSession = HostSession(host, codec)
     val peer = hostSession.connect(link.hostEnd)
     val clientSession = ClientSession(client, codec, link.clientEnd)

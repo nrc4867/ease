@@ -27,15 +27,21 @@ internal constructor(
   /** The client's input, by tick. */
   public val inputs: InputBuffer = InputBuffer(session.settings.input, session.settings.window)
 
-  /** Why the host closed this peer's connection, or null while it is open or closed by the peer. */
-  public var closeReason: CloseReason? = null
-    private set
+  /**
+   * Why the connection closed, whichever end closed it, or null while it is open: the host's own
+   * reason, or the one the client sent with its close.
+   */
+  public val closeReason: CloseReason?
+    get() = if (connection.isOpen) null else CloseReason.of(connection.closeCode)
 
   /** Whether the connection is open. */
   public val isOpen: Boolean
     get() = connection.isOpen
 
-  /** Whether the client's hello matched the host's types; until then nothing else is taken. */
+  /**
+   * Whether the client's join hello matched the host's protocol, types and content; until then
+   * nothing else is taken.
+   */
   public var greeted: Boolean = false
     internal set
 
@@ -66,11 +72,10 @@ internal constructor(
     )
 
   init {
-    Hello.send(session.codec, connection)
+    JoinHello.send(connection, session.codec.typesHash, session.settings.content)
   }
 
   internal fun close(reason: CloseReason) {
-    if (closeReason == null && connection.isOpen) closeReason = reason
-    connection.close()
+    connection.close(reason.code)
   }
 }

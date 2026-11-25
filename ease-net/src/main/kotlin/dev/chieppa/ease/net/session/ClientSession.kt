@@ -24,9 +24,9 @@ import dev.chieppa.ease.net.view.ViewRefusal
  * the world under the host's network ids, held by the host, scene nodes built from the client's own
  * files through [content]; its despawns remove them, and its snapshots change them. The client
  * sends its input every tick on the unreliable channel with the last few ticks repeated, and
- * commands on the reliable ordered one. Both ends first exchange a hello with the hash of their
- * types; nothing else is taken until the host's matches. Sending input and commands and applying
- * snapshots and despawns allocate nothing.
+ * commands on the reliable ordered one. Both ends first exchange a join hello (protocol version,
+ * types hash and content digest); nothing else is taken until the host's matches. Sending input and
+ * commands and applying snapshots and despawns allocate nothing.
  */
 public class ClientSession(
   world: World,
@@ -46,12 +46,15 @@ public class ClientSession(
   private var greeted = false
 
   init {
-    Hello.send(codec, connection)
+    JoinHello.send(connection, codec.typesHash, settings.content)
   }
 
-  /** Why the client closed the connection, or null while it is open or closed by the host. */
-  public var closeReason: CloseReason? = null
-    private set
+  /**
+   * Why the connection closed, whichever end closed it, or null while it is open: the client's own
+   * reason, or the one the host sent with its close, such as a join refused for its content.
+   */
+  public val closeReason: CloseReason?
+    get() = if (connection.isOpen) null else CloseReason.of(connection.closeCode)
 
   /** Why the client refused the spawn or despawn that closed the connection, or null. */
   public var viewRefusal: ViewRefusal? = null
@@ -77,12 +80,12 @@ public class ClientSession(
     get() = snapshots.lastInputTick
 
   /**
-   * Takes the host's hello, then applies every waiting spawn and despawn, then every waiting
+   * Takes the host's join hello, then applies every waiting spawn and despawn, then every waiting
    * snapshot newer than the last applied, and returns whether the connection is still open. A hello
-   * that differs closes it with [CloseReason.TYPES_MISMATCH]; a refused spawn or despawn with
-   * [CloseReason.CONTENT_MISMATCH] or [CloseReason.MALFORMED_SPAWN] and [viewRefusal]; a refused
-   * snapshot with [CloseReason.MALFORMED_SNAPSHOT] and [snapshotRefusal]. Before the hello,
-   * snapshots are dropped.
+   * that differs closes it with the reason, such as [CloseReason.CONTENT_MISMATCH]; a refused spawn
+   * or despawn with [CloseReason.CONTENT_MISMATCH] or [CloseReason.MALFORMED_SPAWN] and
+   * [viewRefusal]; a refused snapshot with [CloseReason.MALFORMED_SNAPSHOT] and [snapshotRefusal].
+   * Before the hello, snapshots are dropped.
    */
   public fun receive(): Boolean {
     receiveReliable()
@@ -141,14 +144,14 @@ public class ClientSession(
     )
   }
 
-  /** Takes the host's hello, closing the connection when it differs. */
+  /** Takes the host's join hello, closing the connection with the reason when it differs. */
   private fun greet(length: Int) {
-    greeted = Hello.matches(codec, incoming, length)
-    if (!greeted) close(CloseReason.TYPES_MISMATCH)
+    val refusal = JoinHello.refusal(incoming, length, codec.typesHash, settings.content)
+    greeted = refusal == null
+    if (refusal != null) close(refusal)
   }
 
   private fun close(reason: CloseReason) {
-    closeReason = reason
-    connection.close()
+    connection.close(reason.code)
   }
 }

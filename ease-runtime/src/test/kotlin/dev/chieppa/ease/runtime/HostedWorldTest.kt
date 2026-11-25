@@ -49,16 +49,18 @@ class HostedWorldTest {
   }
 
   @Test
-  fun `the runner ticks the world as the clock moves and leaves the rest as alpha`() {
+  fun `the runner ticks host and client as the clock moves and leaves the rest as alpha`() {
     val clock = ManualClock()
-    val runner = WorldRunner(hosted, clock)
+    val local = LocalHost(DriftModule(), fixedStep)
+    val runner = WorldRunner(local, clock)
     runner.frame()
 
     clock.advance(fixedStep.stepNanos * 2 + fixedStep.stepNanos / 2)
     val steps = runner.frame()
 
     assertEquals(2, steps)
-    assertEquals(2, hosted.tick)
+    assertEquals(2, local.host.tick)
+    assertEquals(2, local.client.tick)
     assertEquals(0.5f, runner.alpha, ALPHA_TOLERANCE)
   }
 

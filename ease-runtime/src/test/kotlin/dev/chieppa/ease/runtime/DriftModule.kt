@@ -11,9 +11,9 @@ import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.ecs.replication.replication
 import dev.chieppa.ease.render.Quad
 
-/** A game whose one quad drifts one unit along x every tick. */
+/** A game whose one quad drifts one unit along x every tick, moved by a host system. */
 internal class DriftModule : GameModule {
-  override fun systems(systems: PhasedSystems) {
+  override fun hostSystems(systems: PhasedSystems) {
     systems.add(Phase.SIMULATION, DriftSystem())
   }
 

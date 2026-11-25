@@ -9,10 +9,11 @@ import dev.chieppa.ease.ecs.replication.networkIdOf
 import dev.chieppa.ease.ecs.replication.spawnEntity
 import dev.chieppa.ease.net.channel.ChannelKind
 import dev.chieppa.ease.net.channel.Channels
-import dev.chieppa.ease.net.channel.LocalLink
+import dev.chieppa.ease.net.join.ContentManifest
 import dev.chieppa.ease.net.session.ClientSession
 import dev.chieppa.ease.net.session.CloseReason
-import dev.chieppa.ease.net.session.Hello
+import dev.chieppa.ease.net.session.JoinHello
+import dev.chieppa.ease.net.transport.LoopbackTransport
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -80,9 +81,9 @@ class LaggingChannelsTest {
     val scratch = ByteArray(Channels.MAX_RELIABLE_BYTES)
     val real = scratch.copyOf(channels.receive(ChannelKind.UNRELIABLE, scratch))
     real[SEQUENCE_BYTE] = 0
-    val link = LocalLink(clientPeer = PeerId(2))
+    val link = LoopbackTransport().connect(PeerId(2))
     val client = ClientSession(session.lateClient(PeerId(2)).first, session.codec, link.clientEnd)
-    Hello.send(session.codec, link.hostEnd)
+    JoinHello.send(link.hostEnd, session.codec.typesHash, ContentManifest.EMPTY)
     link.hostEnd.send(ChannelKind.UNRELIABLE, real, 0, real.size)
 
     client.receive()

@@ -5,11 +5,12 @@ import dev.chieppa.ease.runtime.loop.FixedStepLoop
 import dev.chieppa.ease.runtime.loop.Simulation
 
 /**
- * Runs [world] on the standard fixed-step loop from [clock]. A host calls [frame] once per frame,
- * then renders [world]'s snapshot blended by [alpha]. Nothing here allocates per frame.
+ * Runs [local], host and client, on the standard fixed-step loop from [clock]. A host calls [frame]
+ * once per frame, then renders the client's snapshot blended by [alpha]. Nothing here allocates per
+ * frame.
  */
-public class WorldRunner(public val world: HostedWorld, clock: Clock) {
-  private val loop = FixedStepLoop(clock, world.fixedStep, Simulation { world.step() })
+public class WorldRunner(public val local: LocalHost, clock: Clock) {
+  private val loop = FixedStepLoop(clock, local.host.fixedStep, Simulation { local.step() })
 
   /** How far the clock is between the last tick and the next, from 0 inclusive to 1 exclusive. */
   public val alpha: Float

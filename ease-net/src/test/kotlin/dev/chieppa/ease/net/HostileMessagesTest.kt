@@ -2,11 +2,12 @@ package dev.chieppa.ease.net
 
 import dev.chieppa.ease.net.channel.ChannelKind
 import dev.chieppa.ease.net.channel.Channels
-import dev.chieppa.ease.net.channel.LocalLink
+import dev.chieppa.ease.net.join.ContentManifest
 import dev.chieppa.ease.net.session.ClientSession
 import dev.chieppa.ease.net.session.CloseReason
-import dev.chieppa.ease.net.session.Hello
 import dev.chieppa.ease.net.session.HostSession
+import dev.chieppa.ease.net.session.JoinHello
+import dev.chieppa.ease.net.transport.LoopbackTransport
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -38,10 +39,10 @@ class HostileMessagesTest {
    * Feeds [bytes] to a fresh connection of the session's host on [kind]; the host's world stays.
    */
   private fun feedHost(kind: ChannelKind, bytes: ByteArray) {
-    val link = LocalLink(clientPeer = Session.CLIENT)
+    val link = LoopbackTransport().connect(Session.CLIENT)
     val host = HostSession(session.host, session.codec, session.settings)
     val peer = host.connect(link.hostEnd)
-    Hello.send(session.codec, link.clientEnd)
+    JoinHello.send(link.clientEnd, session.codec.typesHash, ContentManifest.EMPTY)
     link.clientEnd.send(kind, bytes, 0, bytes.size)
     host.receive(HOST_TICK)
     if (!peer.isOpen) {
@@ -54,9 +55,9 @@ class HostileMessagesTest {
    * session's client applied, and returns whether it took them.
    */
   private fun feedClient(bytes: ByteArray): Boolean {
-    val link = LocalLink(clientPeer = Session.CLIENT)
+    val link = LoopbackTransport().connect(Session.CLIENT)
     val client = ClientSession(session.client, session.codec, link.clientEnd, session.settings)
-    Hello.send(session.codec, link.hostEnd)
+    JoinHello.send(link.hostEnd, session.codec.typesHash, ContentManifest.EMPTY)
     link.hostEnd.send(ChannelKind.UNRELIABLE, bytes, 0, bytes.size)
     val open = client.receive()
     if (!open) assertEquals(CloseReason.MALFORMED_SNAPSHOT, client.closeReason)
@@ -108,10 +109,10 @@ class HostileMessagesTest {
     val before = session.states()
 
     for (cut in 0 until real.size) {
-      val link = LocalLink(clientPeer = Session.CLIENT)
+      val link = LoopbackTransport().connect(Session.CLIENT)
       val host = HostSession(session.host, session.codec, session.settings)
       val peer = host.connect(link.hostEnd)
-      Hello.send(session.codec, link.clientEnd)
+      JoinHello.send(link.clientEnd, session.codec.typesHash, ContentManifest.EMPTY)
       link.clientEnd.send(ChannelKind.RELIABLE_ORDERED, real, 0, cut)
       host.receive(HOST_TICK)
       assertEquals(CloseReason.MALFORMED_COMMAND, peer.closeReason, "cut at $cut")

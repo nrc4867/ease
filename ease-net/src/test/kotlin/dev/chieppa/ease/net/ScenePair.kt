@@ -19,11 +19,11 @@ import dev.chieppa.ease.ecs.phasedWorld
 import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.ecs.replication.ReplicationSettings
 import dev.chieppa.ease.net.channel.Connection
-import dev.chieppa.ease.net.channel.LocalLink
 import dev.chieppa.ease.net.input.InputFrame
 import dev.chieppa.ease.net.session.ClientSession
 import dev.chieppa.ease.net.session.HostSession
 import dev.chieppa.ease.net.session.NetSettings
+import dev.chieppa.ease.net.transport.LoopbackTransport
 import dev.chieppa.ease.net.view.SceneNaming
 import dev.chieppa.ease.net.view.SceneReplicas
 import dev.chieppa.ease.net.view.ViewSettings
@@ -40,8 +40,9 @@ import java.nio.file.Path
 
 /**
  * A host over the project folder [root] and a client over [clientRoot], each with its own asset
- * database, store and scene nodes, joined by a [LocalLink]: the host places scenes with [SceneSync]
- * and names its nodes by asset and key, and the client builds them from its own copy of the files.
+ * database, store and scene nodes, joined by a [LoopbackTransport]: the host places scenes with
+ * [SceneSync] and names its nodes by asset and key, and the client builds them from its own copy of
+ * the files.
  */
 internal class ScenePair(
   root: Path,
@@ -56,7 +57,7 @@ internal class ScenePair(
   val host = Peer(PeerId.HOST, root)
   val client = Peer(CLIENT, clientRoot)
   val scenes = SceneSync(host.world, host.store, host.history)
-  val link = LocalLink(clientPeer = CLIENT)
+  val link = LoopbackTransport().connect(CLIENT)
   val hostSession =
     HostSession(host.world, codec, net, viewSettings = ViewSettings(naming = SceneNaming(scenes)))
   val peer = hostSession.connect(link.hostEnd)
