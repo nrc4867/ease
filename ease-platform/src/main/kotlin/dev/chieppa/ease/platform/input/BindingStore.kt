@@ -67,7 +67,7 @@ public class BindingStore(private val file: Path) {
       requireNotNull(entry["action"]?.jsonPrimitive?.contentOrNull) { "A binding has no action" }
     val control =
       requireNotNull(entry["control"]?.jsonPrimitive?.contentOrNull) { "A binding has no control" }
-    require(DeviceKind.of(control) != null) { "Unknown control $control" }
+    requireNotNull(DeviceKind.of(control)) { "Unknown control $control" }
     Binding(action, control, entry["scale"]?.jsonPrimitive?.floatOrNull ?: 1f)
   }
 }

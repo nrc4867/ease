@@ -143,10 +143,8 @@ class ActionInputTest {
   fun `rebinding replaces the binding on that device only`() {
     gameplay.rebind("jump", "key.w")
 
-    assertEquals(
-      listOf("gamepad.south", "key.w"),
-      gameplay.bindings.filter { it.action == "jump" }.map { it.control }.sorted(),
-    )
+    val jumpControls = gameplay.bindings.filter { it.action == "jump" }.map { it.control }
+    assertEquals(listOf("gamepad.south", "key.w"), jumpControls.sorted())
     keyboard.set("key.w")
     input.update()
     assertTrue(input.pressed(jump))
