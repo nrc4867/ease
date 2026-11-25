@@ -1,3 +1,4 @@
+import dev.chieppa.ease.build.JoltNatives
 import dev.chieppa.ease.build.LwjglNatives
 import dev.chieppa.ease.build.WebgpuNatives
 
@@ -13,6 +14,7 @@ dependencies {
       classifier(WebgpuNatives.classifier(providers))
     }
   )
+  runtimeOnly(JoltNatives.natives(providers, libs.versions.jolt.jni.get()))
   for (library in listOf(libs.lwjgl.asProvider(), libs.lwjgl.sdl)) {
     runtimeOnly(
       project.dependencies.variantOf(library) { classifier(LwjglNatives.classifier(providers)) }

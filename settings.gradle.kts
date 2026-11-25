@@ -60,6 +60,8 @@ include(":ease-assets")
 
 include(":ease-scene")
 
+include(":ease-physics")
+
 include(":ease-project")
 
 include(":ease-net")
