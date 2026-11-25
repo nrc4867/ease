@@ -16,9 +16,10 @@ class WaitRuleTest {
         "composeRule.waitUntil { done }",
         "latch.await(5, TimeUnit.SECONDS)",
         "Awaitility.await().until { done }",
+        "LockSupport.parkNanos(1000)",
       )
 
-    assertEquals(listOf(1, 2, 3, 4, 5, 6), rule.check(file).map { it.line }.distinct())
+    assertEquals(listOf(1, 2, 3, 4, 5, 6, 7), rule.check(file).map { it.line }.distinct())
   }
 
   @Test

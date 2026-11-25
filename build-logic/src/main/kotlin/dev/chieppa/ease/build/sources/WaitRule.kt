@@ -21,6 +21,7 @@ class WaitRule : SourceRule {
         Regex("""\bwaitUntil\w*\s*[({]""") to "polls against the clock; wait for an event",
         Regex("""\bawait\w*\([^)]*,\s*\w*TimeUnit""") to "a timed await; wait for the event",
         Regex("""\bAwaitility\b""") to "polls against the clock; wait for an event",
+        Regex("""\bLockSupport\.park\w*\(""") to "waits on the clock; $ADVANCE",
       )
   }
 }
