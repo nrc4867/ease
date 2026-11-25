@@ -34,6 +34,9 @@ enum class Layer {
   /** Nodes, scenes, prefabs and sublevels, their merge-safe files and their reloads. */
   SCENE,
 
+  /** Whole projects as git holds them: checks over every file, fixes, the merge driver. */
+  PROJECT,
+
   /** Sessions between peers: channels, snapshots, inputs and the authority's command checks. */
   NET,
 

@@ -152,14 +152,14 @@ private constructor(
     settle(orphans.match(problemsByPath), mutableListOf())
     cache.retain { Files.exists(MetaFiles.metaOf(root.resolve(it))) }
     cache.save()
-    if (problemsByPath.isNotEmpty()) throw AssetDatabaseRejected(problems)
   }
 
   public companion object {
     /**
      * Reads every asset under [root] and watches it with [watcher]; [associations] names the
-     * folders that are single assets. Throws [AssetDatabaseRejected], naming each file, when a GUID
-     * is used twice, a meta file has no source or a source has no meta file.
+     * folders that are single assets. Watches only a project it accepts. Throws
+     * [AssetDatabaseRejected], naming each file, when a GUID is used twice, a meta file has no
+     * source or a source has no meta file.
      */
     public fun load(
       root: Path,
@@ -167,9 +167,37 @@ private constructor(
       guids: GuidSource = GuidSource.random,
       associations: FileAssociations = FileAssociationRegistry(),
     ): AssetDatabase {
+      val database = read(root, watcher, guids, associations)
+      if (database.problems.isNotEmpty()) throw AssetDatabaseRejected(database.problems)
+      watcher.watch(database.root)
+      return database
+    }
+
+    /**
+     * Reads every asset under [root] like [load], but keeps a project with problems: the database
+     * holds every asset that is sound and lists the rest in [problems]. Checks use it to see all
+     * that is wrong at once.
+     */
+    public fun open(
+      root: Path,
+      watcher: FileWatcher,
+      guids: GuidSource = GuidSource.random,
+      associations: FileAssociations = FileAssociationRegistry(),
+    ): AssetDatabase {
+      val database = read(root, watcher, guids, associations)
+      watcher.watch(database.root)
+      return database
+    }
+
+    /** The database of [root] after its first full look, not yet watched. */
+    private fun read(
+      root: Path,
+      watcher: FileWatcher,
+      guids: GuidSource,
+      associations: FileAssociations,
+    ): AssetDatabase {
       val database = AssetDatabase(root.toAbsolutePath().normalize(), watcher, guids, associations)
       database.scan()
-      watcher.watch(database.root)
       return database
     }
   }

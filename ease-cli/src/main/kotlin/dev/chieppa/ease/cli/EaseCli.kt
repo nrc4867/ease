@@ -1,8 +1,11 @@
 package dev.chieppa.ease.cli
 
+import dev.chieppa.ease.cli.command.CheckCommand
 import dev.chieppa.ease.cli.command.GenerateCommand
+import dev.chieppa.ease.cli.command.MergeDriverCommand
 import dev.chieppa.ease.cli.command.NewCommand
 import dev.chieppa.ease.cli.command.TemplatesCommand
+import dev.chieppa.ease.cli.hook.GitInitHook
 import dev.chieppa.ease.cli.hook.PostGenerateHook
 import dev.chieppa.ease.cli.template.TemplateSource
 
@@ -39,18 +42,21 @@ public class EaseCli(
 
     /**
      * The command line with its commands: templates from [templates] (the ones shipped in the
-     * distribution by default), and [hooks] run after a project is generated.
+     * distribution by default), and [hooks] run after a project is generated (by default, putting
+     * it in git).
      */
     public fun standard(
       templates: TemplateSource = TemplateSource.shipped(),
-      hooks: List<PostGenerateHook> = emptyList(),
       output: CliOutput = CliOutput(System.out, System.err),
+      hooks: List<PostGenerateHook> = listOf(GitInitHook(output, EaseLauncher.command())),
     ): EaseCli =
       EaseCli(
         listOf(
           NewCommand(templates, hooks),
           GenerateCommand(templates),
           TemplatesCommand(templates),
+          CheckCommand(),
+          MergeDriverCommand(),
         ),
         output,
       )

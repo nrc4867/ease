@@ -58,6 +58,8 @@ include(":ease-assets")
 
 include(":ease-scene")
 
+include(":ease-project")
+
 include(":ease-net")
 
 include(":ease-gpu")

@@ -48,6 +48,19 @@ class AssetDatabaseLoadTest {
   }
 
   @Test
+  fun `a rejected load watches nothing and an opened one watches the folder`() {
+    project.asset("gone.txt", "bye")
+    Files.delete(project.path("gone.txt"))
+
+    assertFailsWith<AssetDatabaseRejected> { load() }
+    assertEquals(emptyList(), watcher.watched)
+
+    val opened = AssetDatabase.open(folder, watcher, project.guids)
+    assertEquals(listOf(opened.root), watcher.watched)
+    assertEquals(1, opened.problems.size)
+  }
+
+  @Test
   fun `a meta file without a source rejects the load, naming it`() {
     project.asset("gone.txt", "bye")
     Files.delete(project.path("gone.txt"))
