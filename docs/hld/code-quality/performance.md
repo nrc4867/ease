@@ -1,8 +1,0 @@
-# Performance
-
-Performance is a top concern, so it is measured continuously, in the form that shared CI machines can measure reliably. The budgets it is measured against are in `overview/targets.md`.
-
-- **Allocation budgets gate CI.** Hot paths (ECS iteration, the frame loop over a benchmark scene, math, serialization, replication) have tests that count allocations per frame or per operation. Allocation counts are stable on any machine, so these fail a build when they regress. Tests take `AllocationBudget` from `ease-testing` (`testImplementation` only): it warms the action up, then counts the bytes the calling thread allocates with `ThreadMXBean.getCurrentThreadAllocatedBytes`, over several rounds of many calls, keeping the round that allocated least so a one-off JVM allocation mid-round does not fail a budget. Hot paths aim for a budget of 0, which holds by construction rather than by the JIT removing temporary objects.
-- **Timing is tracked, not gated.** JMH benchmarks for hot paths and a headless benchmark scene run in CI and record results as artifacts. Shared runners are too noisy to fail builds on time; trends are reviewed and big regressions investigated. Benchmarks live in a module's `src/jmh` and run with `./gradlew :ease-ecs:jmh`, writing JSON under `build/results/jmh`; `check` never runs them, and the `Bench` workflow runs them on `main` and nightly.
-- **Profiling** uses JFR for the CPU and RenderDoc for the GPU, both reachable from the editor.
-- **Design rules** that keep it fast: hot data in ECS components or off-heap buffers; no allocation in per-frame code; no reflection or `kotlin-reflect` at runtime; prefer primitive arrays to boxed collections on hot paths.
