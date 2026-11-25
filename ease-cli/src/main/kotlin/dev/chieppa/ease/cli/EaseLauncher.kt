@@ -16,12 +16,14 @@ public object EaseLauncher {
    * the running code was loaded from, written with `/`; plain `ease` when it runs from anywhere
    * else, such as Gradle.
    */
-  public fun command(): String {
-    val location = EaseLauncher::class.java.protectionDomain?.codeSource?.location ?: return NAME
-    val jar = Path.of(location.toURI())
-    val library = jar.parent
-    if (library?.fileName?.toString() != LIBRARY_FOLDER) return NAME
-    val script = library.resolveSibling(PROGRAM_FOLDER).resolve(NAME)
-    return if (Files.isRegularFile(script)) script.toString().replace(BACKSLASH, SLASH) else NAME
+  public fun command(): String = script()?.toString()?.replace(BACKSLASH, SLASH) ?: NAME
+
+  private fun script(): Path? {
+    val domain = EaseLauncher::class.java.protectionDomain
+    val location = domain?.codeSource?.location
+    val jar = location?.let { Path.of(it.toURI()) }
+    val library = jar?.parent?.takeIf { it.fileName?.toString() == LIBRARY_FOLDER }
+    val program = library?.resolveSibling(PROGRAM_FOLDER)
+    return program?.resolve(NAME)?.takeIf { Files.isRegularFile(it) }
   }
 }

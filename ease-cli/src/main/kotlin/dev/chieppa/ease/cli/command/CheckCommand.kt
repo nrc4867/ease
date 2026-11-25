@@ -29,8 +29,7 @@ public class CheckCommand(private val workingDirectory: Path = Path.of("").toAbs
   override fun run(arguments: Arguments, output: CliOutput): Int {
     arguments.requireOnly(setOf(Options.DIR, Options.FIX))
     arguments.positional(0, "no arguments")
-    val project = workingDirectory.resolve(arguments.option(Options.DIR) ?: ".").normalize()
-    if (!Files.isDirectory(project)) throw CliFailure("$project is not a folder")
+    val project = projectFolder(arguments.option(Options.DIR))
     return try {
       if (arguments.flag(Options.FIX)) fix(project, output)
       val report = ProjectChecker(project).check()
@@ -42,6 +41,11 @@ public class CheckCommand(private val workingDirectory: Path = Path.of("").toAbs
     } catch (failure: IOException) {
       throw CliFailure("${failure.javaClass.simpleName}: ${failure.message}", failure)
     }
+  }
+
+  private fun projectFolder(option: String?): Path {
+    val project = workingDirectory.resolve(option ?: ".").normalize()
+    return project.takeIf { Files.isDirectory(it) } ?: throw CliFailure("$project is not a folder")
   }
 
   private fun fix(project: Path, output: CliOutput) {
