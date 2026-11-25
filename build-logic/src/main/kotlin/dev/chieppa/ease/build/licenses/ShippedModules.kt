@@ -1,5 +1,6 @@
 package dev.chieppa.ease.build.licenses
 
+import dev.chieppa.ease.build.JoltNatives
 import org.gradle.api.Project
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedComponentResult
@@ -10,7 +11,10 @@ object ShippedModules {
   /** How far up a chain of parent POMs to look for a license. */
   private const val MAX_PARENTS = 5
 
-  /** Every external module in the graph under [root], as `group:name:version`. */
+  /**
+   * Every external module in the graph under [root], as `group:name:version`, with jolt-jni's
+   * per-platform artifacts named as one (see [JoltNatives.portable]).
+   */
   fun coordinates(root: ResolvedComponentResult): List<String> {
     val seen = mutableSetOf<ResolvedComponentResult>()
     val pending = ArrayDeque(listOf(root))
@@ -25,7 +29,8 @@ object ShippedModules {
     return seen
       .map { it.id }
       .filterIsInstance<ModuleComponentIdentifier>()
-      .map { "${it.group}:${it.module}:${it.version}" }
+      .map { JoltNatives.portable("${it.group}:${it.module}:${it.version}") }
+      .distinct()
       .sorted()
   }
 

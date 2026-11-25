@@ -34,6 +34,9 @@ enum class Layer {
   /** Nodes, scenes, prefabs and sublevels, their merge-safe files and their reloads. */
   SCENE,
 
+  /** Jolt bodies, collision layers, surfaces, queries, volumes and the character controller. */
+  PHYSICS,
+
   /** Whole projects as git holds them: checks over every file, fixes, the merge driver. */
   PROJECT,
 

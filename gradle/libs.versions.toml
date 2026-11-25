@@ -17,6 +17,8 @@ jmh = "0.7.4"
 mcp-sdk = "0.16.0"
 ktor = "3.5.2"
 snakeyaml-engine = "2.9"
+# jolt-jni publishes an artifact per platform; build-logic's JoltNatives names it.
+jolt-jni = "7.0.0"
 # KSP 2.3.x versions are independent of the Kotlin version.
 ksp = "2.3.14"
 

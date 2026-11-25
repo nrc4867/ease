@@ -1,3 +1,4 @@
+import dev.chieppa.ease.build.JoltNatives
 import dev.chieppa.ease.build.WebgpuNatives
 
 // The headless agent host: a game's world served to agents over MCP on 127.0.0.1. It runs whichever
@@ -23,6 +24,8 @@ dependencies {
     exclude(group = "org.jetbrains.kotlin", module = "kotlin-reflect")
   }
   implementation(libs.kotlinx.coroutines.core)
+  // Jolt's native library, for games with physics, on the platform this host is built for.
+  runtimeOnly(JoltNatives.natives(providers, libs.versions.jolt.jni.get()))
   // The native library for capture on the platform this host is built for.
   runtimeOnly(
     project.dependencies.variantOf(libs.webgpu.native.ffm) {
