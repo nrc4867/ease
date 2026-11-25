@@ -23,12 +23,18 @@ public interface GpuLayout {
 
 /**
  * The WGSL declarations of [layouts] and every struct they nest, each once, a nested struct before
- * the structs holding it, for a shader to start with.
+ * the structs holding it, for a shader to start with. Two different layouts with one WGSL name
+ * throw, naming both, since a shader can declare only one.
  */
 public fun wgslDeclarations(layouts: List<GpuLayout>): String {
   val ordered = LinkedHashMap<String, GpuLayout>()
   fun visit(layout: GpuLayout) {
-    if (layout.wgslName in ordered) return
+    val seen = ordered[layout.wgslName]
+    if (seen === layout) return
+    require(seen == null) {
+      "${seen?.javaClass?.name} and ${layout.javaClass.name} both declare WGSL struct " +
+        "${layout.wgslName}; rename one"
+    }
     layout.nested.forEach(::visit)
     ordered[layout.wgslName] = layout
   }

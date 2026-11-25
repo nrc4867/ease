@@ -21,6 +21,9 @@ public const val ROTATION_AT: Int = 3
 /** Where the scale starts within a transform's floats. */
 public const val SCALE_AT: Int = 7
 
+/** Where a quaternion's w sits among its x, y, z and w. */
+public const val QUAT_W: Int = 3
+
 /**
  * The read-only view of a world that rendering works from, written once per tick by
  * [ExtractSystem]. For every entity with a transform and a mesh, camera or light it holds the

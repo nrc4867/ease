@@ -15,6 +15,9 @@ internal object GpuStructRules {
     if (model.visibility == ClassVisibility.HIDDEN) {
       add(Problem(null, "a GPU struct and every class around it must be public or internal"))
     }
+    if (WgslWords.refuses(model.wgslName)) {
+      add(Problem(null, "a GPU struct may not be named ${model.wgslName}, a word WGSL reserves"))
+    }
     model.fields.forEach { field ->
       val type = field.type
       if (type is GpuFieldType.Unsupported) {
@@ -28,6 +31,9 @@ internal object GpuStructRules {
       }
       if (GpuWriterSource.constantName(field.name) in GpuWriterSource.RESERVED_CONSTANTS) {
         add(Problem(field.name, "a GPU struct field may not be named ${field.name}"))
+      }
+      if (WgslWords.refuses(field.name)) {
+        add(Problem(field.name, "a GPU struct field may not be named ${field.name}, a WGSL word"))
       }
       if (type is GpuFieldType.Struct) addAll(nestedProblems(field.name, type.model))
     }

@@ -11,8 +11,6 @@ import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout
 
-private const val ACQUIRE_SITE = "WindowSurface.acquire"
-
 /** No texture: the null address. */
 private const val NONE = 0L
 
@@ -33,6 +31,10 @@ internal constructor(
   private var size = PixelSize(0, 0)
   private var current = NONE
   private var currentView = NONE
+
+  /** Where [acquire] asks wgpu for each frame's texture, made once. */
+  private val memory = Arena.ofShared()
+  private val surfaceTexture = memory.allocate(WGPUSurfaceTexture.layout())
 
   /** The one target [acquire] hands out, pointed at each frame's texture in turn. */
   private val target = RenderTarget(NONE, size, format)
@@ -64,7 +66,7 @@ internal constructor(
   public fun acquire(): RenderTarget? {
     check(current == NONE) { "The last frame was not presented" }
     if (size.isEmpty) return null
-    val frame = context.frames.take(WGPUSurfaceTexture.layout().byteSize(), ACQUIRE_SITE).segment
+    val frame = surfaceTexture
     wgpu_h.wgpuSurfaceGetCurrentTexture(handle, frame)
     val texture = frame.get(ValueLayout.JAVA_LONG, WGPUSurfaceTexture.`texture$offset`())
     return when (WGPUSurfaceTexture.status(frame)) {
@@ -98,6 +100,7 @@ internal constructor(
   override fun close() {
     if (current != NONE) present()
     wgpu_h.wgpuSurfaceRelease(handle)
+    memory.close()
   }
 
   private fun supportedFormats(): List<TextureFormat> =

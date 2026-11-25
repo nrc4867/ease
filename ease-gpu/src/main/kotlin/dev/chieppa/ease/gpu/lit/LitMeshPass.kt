@@ -48,7 +48,8 @@ private val MESH_VERTICES =
  * struct writers into the context's frame arena and handed to the queue from there; meshes upload
  * from their own native memory when they change. Its buffers, pass descriptor and depth texture are
  * made once (the depth texture again when the target's size changes), so recording a steady frame
- * allocates nothing on the heap.
+ * allocates nothing on the heap. Its host calls [GpuContext.beginFrame] before each frame it
+ * records, and opens the context with room in its frame arena for [capacity] draws.
  */
 public class LitMeshPass(
   private val context: GpuContext,
@@ -57,6 +58,12 @@ public class LitMeshPass(
 ) : AutoCloseable {
   init {
     require(capacity > 0) { "Needs room for at least 1 draw, got $capacity" }
+    val needed = FrameUploads.bytesPerFrame(capacity)
+    val held = context.frames.bytesPerFrame
+    require(needed <= held) {
+      "A lit pass for $capacity draws writes $needed bytes a frame, more than the $held the " +
+        "context's frame arena holds: open the context with bytesPerFrame of at least $needed"
+    }
   }
 
   private val arena = Arena.ofConfined()

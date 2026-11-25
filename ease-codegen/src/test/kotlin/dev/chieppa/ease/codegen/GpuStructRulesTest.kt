@@ -58,4 +58,18 @@ class GpuStructRulesTest {
     assertEquals(listOf("inner"), problems.map { it.field })
     assertTrue("nested Inner" in problems.single().message)
   }
+
+  @Test
+  fun `WGSL keywords and reserved words name neither a struct nor a field`() {
+    val model =
+      GpuStructModel(
+        "test",
+        "Self",
+        listOf("target", "loop", "fine").map { GpuFieldModel(it, f32) },
+      )
+
+    val problems = GpuStructRules.problems(model)
+
+    assertEquals(listOf(null, "target", "loop"), problems.map { it.field })
+  }
 }

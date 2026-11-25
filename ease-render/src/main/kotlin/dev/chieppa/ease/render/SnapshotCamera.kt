@@ -26,4 +26,8 @@ public class SnapshotCamera internal constructor() {
   /** The farthest distance drawn. */
   public var far: Float = Camera.DEFAULT_FAR
     internal set
+
+  /** What is wrong with the lens, or null when it can be drawn through. */
+  public var problem: LensProblem? = null
+    internal set
 }

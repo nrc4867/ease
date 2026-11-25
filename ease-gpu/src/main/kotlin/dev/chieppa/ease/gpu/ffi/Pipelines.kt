@@ -62,15 +62,6 @@ internal fun createColorPipeline(
   }
 
 /**
- * A vertex buffer's layout: [stride] bytes a vertex, each of [attributes] a float vector of its
- * component count at its byte offset, bound at the shader location numbered by its position.
- */
-internal class VertexLayout(val stride: Long, val attributes: List<VertexAttribute>)
-
-/** One float vector of [components] (2 to 4) at [offset] bytes into a vertex. */
-internal class VertexAttribute(val components: Int, val offset: Long)
-
-/**
  * A render pipeline drawing triangles with [shader]'s `vertex_main` and `fragment_main` from one
  * vertex buffer of [vertices] into one color target of [format] and a depth buffer, nearer
  * fragments winning; counter-clockwise faces are the front and back faces are culled. Its layout is

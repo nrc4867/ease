@@ -64,7 +64,7 @@ private fun runWindowed(game: GameModule, local: LocalHost, options: PlayerOptio
     val window = windowing.open(WindowSpec("Ease", options.width, options.height))
     GpuContext.open(window.surface).use { gpu ->
       println("Ease player running ${game.javaClass.simpleName} on ${gpu.description}")
-      WorldRenderer(gpu).use { renderer ->
+      WorldRenderer(gpu, problems = { System.err.println("Camera problem: $it") }).use { renderer ->
         val stats = FrameStats(SystemClock)
         val loop = FrameLoop(windowing, window, gpu, runner, renderer, stats)
         val drawn = loop.run(options.frames)

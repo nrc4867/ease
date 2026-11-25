@@ -1,7 +1,6 @@
 package dev.chieppa.ease.gpu.ffi
 
 import dev.chieppa.ease.gpu.Color
-import dev.chieppa.ease.memory.FrameArena
 import dev.chieppa.webgpu.ffi.WGPUColor
 import dev.chieppa.webgpu.ffi.WGPURenderPassColorAttachment
 import dev.chieppa.webgpu.ffi.WGPURenderPassDepthStencilAttachment
@@ -16,8 +15,6 @@ private const val DEPTH_SLICE_UNDEFINED = -1
 
 /** The depth a depth attachment clears to: the far plane. */
 private const val FAR_DEPTH = 1f
-
-private const val COLOR_PASS_SITE = "beginColorPass"
 
 private val COLOR_VIEW = WGPURenderPassColorAttachment.`view$offset`()
 private val DEPTH_VIEW = WGPURenderPassDepthStencilAttachment.`view$offset`()
@@ -101,20 +98,4 @@ internal class DepthPassDescriptor(arena: Arena, label: String) {
     setView(depth, DEPTH_VIEW, depthView)
     return FrameCalls.beginRenderPass(encoder, descriptor)
   }
-}
-
-/**
- * Begins a render pass on [encoder] that clears [view] to opaque [clear] and stores what it draws,
- * its descriptor written into [frames].
- */
-internal fun beginColorPass(frames: FrameArena, encoder: Long, view: Long, clear: Color): Long {
-  val attachment = frames.take(WGPURenderPassColorAttachment.layout().byteSize(), COLOR_PASS_SITE)
-  val descriptor = frames.take(WGPURenderPassDescriptor.layout().byteSize(), COLOR_PASS_SITE)
-  val color = attachment.segment
-  val pass = descriptor.segment
-  clearingColor(color, clear)
-  setView(color, COLOR_VIEW, view)
-  WGPURenderPassDescriptor.colorAttachmentCount(pass, 1)
-  WGPURenderPassDescriptor.colorAttachments(pass, color)
-  return FrameCalls.beginRenderPass(encoder, pass)
 }

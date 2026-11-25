@@ -3,9 +3,6 @@ package dev.chieppa.ease.memory
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout
 
-/** Floats in a 4x4 matrix. */
-private const val MATRIX_FLOATS = 16
-
 /** Byte offsets of a vector's y, z and w from its x. */
 private const val Y = 4L
 private const val Z = 8L
@@ -86,7 +83,7 @@ public class NativeWriter {
   /** Writes a column-major `mat4x4f` at [offset] from the 16 floats of [matrix] at [from]. */
   public fun mat4(offset: Long, matrix: FloatArray, from: Int = 0) {
     check()
-    MemorySegment.copy(matrix, from, target, ValueLayout.JAVA_FLOAT, base + offset, MATRIX_FLOATS)
+    MemorySegment.copy(matrix, from, target, ValueLayout.JAVA_FLOAT, base + offset, MAT4_FLOATS)
   }
 
   /** Runs [write] with [base] moved [offset] bytes on, for a struct nested inside this one. */

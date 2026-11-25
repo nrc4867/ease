@@ -5,6 +5,7 @@ import dev.chieppa.ease.gpu.ffi.createSurface
 import dev.chieppa.ease.gpu.ffi.readString
 import dev.chieppa.ease.gpu.ffi.requestAdapter
 import dev.chieppa.ease.gpu.ffi.requestDevice
+import dev.chieppa.ease.memory.DEFAULT_BYTES_PER_FRAME
 import dev.chieppa.ease.memory.FrameArena
 import dev.chieppa.ease.memory.MemoryChecks
 import dev.chieppa.ease.platform.SurfaceHandle
@@ -41,6 +42,12 @@ private constructor(
 
   private val reusableEncoder = CommandEncoder(0L, this)
 
+  /** Memory this context reuses on every call, such as the one-entry list a submit hands over. */
+  private val memory = Arena.ofShared()
+
+  /** Where [CommandEncoder.submit] puts the command buffer it submits. */
+  internal val submitList: MemorySegment = memory.allocate(wgpu_h.C_POINTER)
+
   /**
    * A new encoder on this device held in the one object this context reuses for it, so a frame loop
    * records without allocating. Submit it before asking for the next.
@@ -76,17 +83,20 @@ private constructor(
     wgpu_h.wgpuInstanceRelease(instance)
     errors.close()
     frames.close()
+    memory.close()
   }
 
   public companion object {
     /**
      * A new device on the best adapter, able to present to [window] when one is given; that
-     * window's surface is [surface]. With [frameChecks], slices of [frames] throw when used after
-     * their frame; the default follows the build.
+     * window's surface is [surface]. [frames] holds [bytesPerFrame] for each frame in flight. With
+     * [frameChecks], slices of [frames] throw when used after their frame; the default follows the
+     * build.
      */
     public fun open(
       window: SurfaceHandle? = null,
       frameChecks: Boolean = MemoryChecks.enabled,
+      bytesPerFrame: Long = DEFAULT_BYTES_PER_FRAME,
     ): GpuContext {
       WgpuNative.load()
       val instance = createInstance()
@@ -94,7 +104,7 @@ private constructor(
       val adapter = requestAdapter(instance, surface)
       val errors = ErrorLog(Arena.ofShared())
       val device = requestDevice(instance, adapter, checkNotNull(errors.callbacks), errors::report)
-      val frames = FrameArena(checked = frameChecks)
+      val frames = FrameArena(bytesPerFrame = bytesPerFrame, checked = frameChecks)
       return GpuContext(instance, adapter, device, describe(adapter), surface, errors, frames)
     }
 
@@ -102,9 +112,15 @@ private constructor(
      * A context on a device someone else made, such as an editor's viewport, given as wgpu handle
      * addresses, with the owner's [description] of it. It holds its own references, so closing it
      * leaves the owner's device working. It has no window surface, and errors go to the owner's
-     * callbacks, so [checkErrors] never throws.
+     * callbacks, so [checkErrors] never throws. [frames] holds [bytesPerFrame] for each frame in
+     * flight.
      */
-    public fun shared(instance: Long, device: Long, description: String): GpuContext {
+    public fun shared(
+      instance: Long,
+      device: Long,
+      description: String,
+      bytesPerFrame: Long = DEFAULT_BYTES_PER_FRAME,
+    ): GpuContext {
       WgpuNative.load()
       val instanceHandle = MemorySegment.ofAddress(instance)
       val deviceHandle = MemorySegment.ofAddress(device)
@@ -117,7 +133,7 @@ private constructor(
         description,
         null,
         ErrorLog(callbacks = null),
-        FrameArena(),
+        FrameArena(bytesPerFrame = bytesPerFrame),
       )
     }
 

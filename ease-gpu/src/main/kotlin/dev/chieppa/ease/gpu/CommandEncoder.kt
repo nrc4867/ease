@@ -5,8 +5,6 @@ import dev.chieppa.webgpu.ffi.wgpu_h
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout
 
-private const val SUBMIT_SITE = "CommandEncoder.submit"
-
 /**
  * Records GPU commands for one submission. Passes record into it; [submit] sends them to the queue.
  * A host that already records commands hands its own encoder over with [borrowed]; a frame loop
@@ -32,7 +30,7 @@ public class CommandEncoder internal constructor(address: Long, private val cont
   public fun submit() {
     val owner = checkNotNull(context) { "A borrowed encoder is submitted by its owner" }
     val commands = FrameCalls.finish(address)
-    val list = owner.frames.take(wgpu_h.C_POINTER.byteSize(), SUBMIT_SITE).segment
+    val list = owner.submitList
     list.set(ValueLayout.JAVA_LONG, 0, commands)
     wgpu_h.wgpuQueueSubmit(owner.queue, 1, list)
     FrameCalls.releaseCommands(commands)

@@ -17,12 +17,15 @@ import kotlinx.serialization.Serializable
 @SerialName("ease.Camera")
 public class Camera : Component<Camera> {
   @Doc("The vertical field of view, in degrees.")
-  @Range(1.0, 179.0)
+  @Range(MIN_FIELD_OF_VIEW, MAX_FIELD_OF_VIEW)
   public var fieldOfView: Float = DEFAULT_FIELD_OF_VIEW
 
-  @Doc("The nearest distance drawn, in world units, above 0.") public var near: Float = DEFAULT_NEAR
+  @Doc("The nearest distance drawn, in world units, above 0.")
+  @Range(MIN_DISTANCE, MAX_DISTANCE)
+  public var near: Float = DEFAULT_NEAR
 
   @Doc("The farthest distance drawn, in world units, beyond near.")
+  @Range(MIN_DISTANCE, MAX_DISTANCE)
   public var far: Float = DEFAULT_FAR
 
   override fun type(): ComponentType<Camera> = Camera
@@ -31,6 +34,18 @@ public class Camera : Component<Camera> {
   public companion object : ComponentType<Camera>() {
     /** The field of view a camera has unless told otherwise, in degrees. */
     public const val DEFAULT_FIELD_OF_VIEW: Float = 60f
+
+    /** The narrowest field of view a camera takes, in degrees. */
+    public const val MIN_FIELD_OF_VIEW: Double = 1.0
+
+    /** The widest field of view a camera takes, in degrees. */
+    public const val MAX_FIELD_OF_VIEW: Double = 179.0
+
+    /** The least near or far distance a scene file may hold. */
+    public const val MIN_DISTANCE: Double = 0.0001
+
+    /** The greatest near or far distance a scene file may hold. */
+    public const val MAX_DISTANCE: Double = 1.0e7
 
     /** The near distance a camera has unless told otherwise. */
     public const val DEFAULT_NEAR: Float = 0.1f

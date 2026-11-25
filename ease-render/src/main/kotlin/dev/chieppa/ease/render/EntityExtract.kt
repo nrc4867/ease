@@ -10,9 +10,6 @@ import dev.chieppa.ease.render.scene.DirectionalLight
 import dev.chieppa.ease.render.scene.Material
 import dev.chieppa.ease.render.scene.Mesh
 
-/** The w component's place in a quaternion. */
-private const val W = 3
-
 /**
  * Copies one entity into a [RenderSnapshot]: its transform, moved by a correction offset, and
  * whichever of a mesh, a camera and a light it carries. One per snapshot writer, so copying
@@ -31,7 +28,7 @@ internal class EntityExtract(private val snapshot: RenderSnapshot) {
       transform[ROTATION_AT] = local.rotationX
       transform[ROTATION_AT + 1] = local.rotationY
       transform[ROTATION_AT + 2] = local.rotationZ
-      transform[ROTATION_AT + W] = local.rotationW
+      transform[ROTATION_AT + QUAT_W] = local.rotationW
       transform[SCALE_AT] = local.scaleX
       transform[SCALE_AT + 1] = local.scaleY
       transform[SCALE_AT + 2] = local.scaleZ
@@ -67,6 +64,7 @@ internal class EntityExtract(private val snapshot: RenderSnapshot) {
     found.fieldOfView = camera.fieldOfView
     found.near = camera.near
     found.far = camera.far
+    found.problem = LensProblem.of(camera.fieldOfView, camera.near, camera.far)
   }
 
   private fun writeLight(id: Int, light: DirectionalLight) {

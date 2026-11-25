@@ -28,6 +28,18 @@ class MeshDataTest {
   }
 
   @Test
+  fun `room of one vertex and one index grows to whatever the next write needs`() {
+    MeshData(vertexCapacity = 1, indexCapacity = 1).use { mesh ->
+      repeat(3) { mesh.vertex(it.toFloat(), 0f, 0f, 0f, 0f, 1f, 0f, 0f) }
+      mesh.triangle(0, 1, 2)
+
+      assertEquals(3, mesh.indexCount)
+      assertEquals(2, mesh.indices.getAtIndex(ValueLayout.JAVA_INT, 2L))
+      assertEquals(2f, mesh.vertices.get(ValueLayout.JAVA_FLOAT, 2L * VERTEX_BYTES))
+    }
+  }
+
+  @Test
   fun `committing moves the version on, and a triangle must name existing vertices`() {
     MeshData().use { mesh ->
       mesh.vertex(0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f)

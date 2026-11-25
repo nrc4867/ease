@@ -1,6 +1,8 @@
 package dev.chieppa.ease.gpu.lit
 
 import dev.chieppa.ease.gpu.GpuContext
+import dev.chieppa.ease.memory.DEFAULT_SLICE_ALIGNMENT
+import dev.chieppa.ease.memory.MAT4_FLOATS
 import dev.chieppa.ease.memory.NativeWriter
 import dev.chieppa.webgpu.ffi.wgpu_h
 import java.lang.foreign.MemorySegment
@@ -68,8 +70,8 @@ internal class FrameUploads(private val context: GpuContext, private val writer:
     val objectSlice = context.frames.take(objectBytes, OBJECTS_SITE)
     writer.begin(objectSlice)
     for (index in 0 until count) {
-      ObjectDataWriter.model(writer, frame.models, index * MATRIX_FLOATS)
-      ObjectDataWriter.normalMatrix(writer, frame.normals, index * MATRIX_FLOATS)
+      ObjectDataWriter.model(writer, frame.models, index * MAT4_FLOATS)
+      ObjectDataWriter.normalMatrix(writer, frame.normals, index * MAT4_FLOATS)
       writer.next(ObjectDataWriter.STRUCT_SIZE)
     }
     upload(objects, objectSlice.segment, objectBytes)
@@ -77,5 +79,17 @@ internal class FrameUploads(private val context: GpuContext, private val writer:
 
   private fun upload(buffer: MemorySegment, data: MemorySegment, bytes: Long) {
     wgpu_h.wgpuQueueWriteBuffer(context.queue, buffer, 0, data, bytes)
+  }
+
+  companion object {
+    /** The most arena bytes one frame of up to [capacity] draws takes, alignment included. */
+    fun bytesPerFrame(capacity: Int): Long =
+      aligned(FrameDataWriter.STRUCT_SIZE) +
+        aligned(ViewDataWriter.STRUCT_SIZE) +
+        aligned(capacity * LitMaterialWriter.STRUCT_SIZE) +
+        aligned(capacity * ObjectDataWriter.STRUCT_SIZE)
+
+    private fun aligned(bytes: Long): Long =
+      (bytes + DEFAULT_SLICE_ALIGNMENT - 1) / DEFAULT_SLICE_ALIGNMENT * DEFAULT_SLICE_ALIGNMENT
   }
 }

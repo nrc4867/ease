@@ -85,7 +85,7 @@ public class MeshData(vertexCapacity: Int = 64, indexCapacity: Int = 96) : AutoC
     u: Float,
     v: Float,
   ): Int {
-    if ((vertexCount + 1) * VERTEX_BYTES > vertices.byteSize()) vertices = grow(vertices)
+    vertices = room(vertices, (vertexCount + 1) * VERTEX_BYTES)
     writer.begin(vertices)
     writer.base = vertexCount * VERTEX_BYTES
     writer.vec3(POSITION_OFFSET, x, y, z)
@@ -99,7 +99,7 @@ public class MeshData(vertexCapacity: Int = 64, indexCapacity: Int = 96) : AutoC
     require(a in 0 until vertexCount && b in 0 until vertexCount && c in 0 until vertexCount) {
       "Triangle ($a, $b, $c) names a vertex the mesh's $vertexCount do not include"
     }
-    if ((indexCount + TRIANGLE) * INDEX_BYTES > indices.byteSize()) indices = grow(indices)
+    indices = room(indices, (indexCount + TRIANGLE) * INDEX_BYTES)
     indices.setAtIndex(ValueLayout.JAVA_INT, indexCount.toLong(), a)
     indices.setAtIndex(ValueLayout.JAVA_INT, indexCount + 1L, b)
     indices.setAtIndex(ValueLayout.JAVA_INT, indexCount + 2L, c)
@@ -117,8 +117,10 @@ public class MeshData(vertexCapacity: Int = 64, indexCapacity: Int = 96) : AutoC
     arena.close()
   }
 
-  private fun grow(old: MemorySegment): MemorySegment {
-    val grown = arena.allocate(old.byteSize() * 2, Long.SIZE_BYTES.toLong())
+  /** [old], or when it is smaller than [needed] bytes, a copy at least twice as large. */
+  private fun room(old: MemorySegment, needed: Long): MemorySegment {
+    if (needed <= old.byteSize()) return old
+    val grown = arena.allocate(maxOf(old.byteSize() * 2, needed), Long.SIZE_BYTES.toLong())
     MemorySegment.copy(old, 0, grown, 0, old.byteSize())
     return grown
   }

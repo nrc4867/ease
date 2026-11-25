@@ -2,6 +2,8 @@ package dev.chieppa.ease.memory
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 /** Struct declarations joined so each comes once, nested structs first. */
 class WgslDeclarationsTest {
@@ -21,5 +23,15 @@ class WgslDeclarationsTest {
     val text = wgslDeclarations(listOf(frame, view, light))
 
     assertEquals("struct Light {}\nstruct Frame {}\nstruct View {}", text)
+  }
+
+  @Test
+  fun `two different structs with one name are refused`() {
+    val frame = Layout("Frame", listOf(Layout("Light", emptyList())))
+    val other = Layout("Light", emptyList())
+
+    val error = assertFailsWith<IllegalArgumentException> { wgslDeclarations(listOf(frame, other)) }
+
+    assertTrue("WGSL struct Light" in error.message.orEmpty(), error.message)
   }
 }

@@ -3,12 +3,8 @@ package dev.chieppa.ease.render
 import dev.chieppa.ease.gpu.lit.MeshFrame
 import dev.chieppa.ease.math.Mat4Cameras
 import dev.chieppa.ease.math.Mat4s
+import dev.chieppa.ease.memory.MAT4_FLOATS
 import dev.chieppa.ease.platform.PixelSize
-
-private const val MATRIX = 16
-
-/** The w component's place in a quaternion. */
-private const val W = 3
 
 /**
  * Turns a camera's transform and lens into a frame's view-projection matrix and eye position, in
@@ -16,10 +12,10 @@ private const val W = 3
  */
 internal class CameraView {
   private val conjugate = FloatArray(4)
-  private val rotation = FloatArray(MATRIX)
-  private val translation = FloatArray(MATRIX)
-  private val view = FloatArray(MATRIX)
-  private val projection = FloatArray(MATRIX)
+  private val rotation = FloatArray(MAT4_FLOATS)
+  private val translation = FloatArray(MAT4_FLOATS)
+  private val view = FloatArray(MAT4_FLOATS)
+  private val projection = FloatArray(MAT4_FLOATS)
 
   /**
    * Writes into [frame] the view of a camera at [transform] ([TRANSFORM_FLOATS] floats, scale
@@ -32,7 +28,7 @@ internal class CameraView {
     conjugate[0] = -transform[ROTATION_AT]
     conjugate[1] = -transform[ROTATION_AT + 1]
     conjugate[2] = -transform[ROTATION_AT + 2]
-    conjugate[W] = transform[ROTATION_AT + W]
+    conjugate[QUAT_W] = transform[ROTATION_AT + QUAT_W]
     Mat4s.rotation(conjugate, 0, rotation, 0)
     Mat4s.translation(-x, -y, -z, translation, 0)
     Mat4s.mul(rotation, 0, translation, 0, view, 0)

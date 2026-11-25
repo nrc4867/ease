@@ -2,9 +2,7 @@ package dev.chieppa.ease.gpu.lit
 
 import dev.chieppa.ease.gpu.Color
 import dev.chieppa.ease.gpu.mesh.MeshData
-
-/** Floats a 4x4 matrix takes. */
-internal const val MATRIX_FLOATS = 16
+import dev.chieppa.ease.memory.MAT4_FLOATS
 
 /**
  * What a [LitMeshPass] draws in one frame, filled again by a renderer each frame without
@@ -18,7 +16,7 @@ public class MeshFrame(public val capacity: Int) {
   }
 
   /** The camera's view-projection matrix. */
-  public val viewProjection: FloatArray = FloatArray(MATRIX_FLOATS)
+  public val viewProjection: FloatArray = FloatArray(MAT4_FLOATS)
 
   /** The camera's world position, x, y and z. */
   public val cameraPosition: FloatArray = FloatArray(3)
@@ -39,10 +37,10 @@ public class MeshFrame(public val capacity: Int) {
   public var clear: Color = DEFAULT_CLEAR
 
   /** Each draw's model matrix, 16 floats a draw. */
-  public val models: FloatArray = FloatArray(capacity * MATRIX_FLOATS)
+  public val models: FloatArray = FloatArray(capacity * MAT4_FLOATS)
 
   /** Each draw's normal matrix, 16 floats a draw. */
-  public val normals: FloatArray = FloatArray(capacity * MATRIX_FLOATS)
+  public val normals: FloatArray = FloatArray(capacity * MAT4_FLOATS)
 
   /** Each draw's material, packed as [MaterialFloats] says. */
   public val materials: FloatArray = FloatArray(capacity * MaterialFloats.COUNT)

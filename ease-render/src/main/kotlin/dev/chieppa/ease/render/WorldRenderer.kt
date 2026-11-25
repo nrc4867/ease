@@ -16,14 +16,16 @@ public const val DEFAULT_DRAW_CAPACITY: Int = 4096
 /**
  * Draws a [RenderSnapshot]: the target cleared to [clear], then every mesh the snapshot holds,
  * placed between its previous and current tick, seen through the snapshot's camera and lit by its
- * light, in the lit material template with a depth buffer. With no camera it only clears. Holds
- * room for [capacity] meshes and the built-in shapes' meshes, made once, so drawing a frame
- * allocates nothing on the heap.
+ * light, in the lit material template with a depth buffer. With no camera it only clears. With a
+ * camera whose lens has a [LensProblem] it only clears and hands [problems] the problem's message,
+ * once until the lens changes. Holds room for [capacity] meshes and the built-in shapes' meshes,
+ * made once, so drawing a frame allocates nothing on the heap.
  */
 public class WorldRenderer(
   context: GpuContext,
   public val capacity: Int = DEFAULT_DRAW_CAPACITY,
   clear: Color = MeshFrame.DEFAULT_CLEAR,
+  private val problems: (String) -> Unit = {},
 ) : AutoCloseable {
   private val pass = LitMeshPass(context, capacity)
   private val frame = MeshFrame(capacity).also { it.clear = clear }
@@ -31,6 +33,7 @@ public class WorldRenderer(
   private val view = CameraView()
   private val transform = FloatArray(TRANSFORM_FLOATS)
   private val draws = DrawTransforms()
+  private var reported: LensProblem? = null
 
   /**
    * Records into [encoder] a frame of [snapshot] in [target], each entity [alpha] of the way from
@@ -48,7 +51,10 @@ public class WorldRenderer(
     }
     frame.clearDraws()
     val camera = snapshot.camera
-    if (camera.present) {
+    val problem = if (camera.present) camera.problem else null
+    if (problem != reported) problem?.let { problems(it.message) }
+    reported = problem
+    if (camera.present && problem == null) {
       snapshot.transformInto(camera.entity, alpha, transform, 0)
       view.write(transform, camera, target.size, frame)
       LightSetup.write(snapshot, alpha, transform, frame)

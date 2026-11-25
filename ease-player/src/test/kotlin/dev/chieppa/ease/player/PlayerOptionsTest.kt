@@ -57,6 +57,8 @@ class PlayerOptionsTest {
 
     assertEquals(1920 to 1080, sized.width to sized.height)
     assertEquals(1280 to 800, PlayerOptions.parse(emptyArray()).let { it.width to it.height })
-    assertFailsWith<IllegalStateException> { PlayerOptions.parse(arrayOf("--size", "wide")) }
+    for (bad in listOf("wide", "1920x1080x2", "1920xwide", "0x800", "1920x", "-1x800")) {
+      assertFailsWith<IllegalStateException>(bad) { PlayerOptions.parse(arrayOf("--size", bad)) }
+    }
   }
 }

@@ -1,8 +1,8 @@
 package dev.chieppa.ease.render
 
 import dev.chieppa.ease.math.Mat4s
+import dev.chieppa.ease.memory.MAT4_FLOATS
 
-private const val MATRIX = 16
 private const val AXES = 3
 
 /**
@@ -18,7 +18,7 @@ internal class DrawTransforms {
    * [normals].
    */
   fun write(transform: FloatArray, models: FloatArray, normals: FloatArray, index: Int) {
-    val at = index * MATRIX
+    val at = index * MAT4_FLOATS
     Mat4s.fromTransform(transform, 0, transform, ROTATION_AT, transform, SCALE_AT, models, at)
     for (axis in 0 until AXES) {
       val scale = transform[SCALE_AT + axis]

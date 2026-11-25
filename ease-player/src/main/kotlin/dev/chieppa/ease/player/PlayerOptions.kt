@@ -44,9 +44,13 @@ internal data class PlayerOptions(
     private fun size(rest: Iterator<String>, option: String): Pair<Int, Int> {
       check(rest.hasNext()) { "$option needs a size; $USAGE" }
       val text = rest.next()
-      val parts = text.split('x').mapNotNull { it.toIntOrNull() }
-      check(parts.size == 2 && parts.all { it > 0 }) { "$option needs <width>x<height>, got $text" }
-      return parts[0] to parts[1]
+      val parts = text.split('x').map { it.toIntOrNull() }
+      val width = parts.firstOrNull()
+      val height = parts.getOrNull(1)
+      check(parts.size == 2 && width != null && height != null && width > 0 && height > 0) {
+        "$option needs <width>x<height>, two positive whole numbers, got $text"
+      }
+      return width to height
     }
 
     private fun folder(rest: Iterator<String>, option: String): Path {

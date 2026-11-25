@@ -1,9 +1,9 @@
 package dev.chieppa.ease.gpu
 
 import dev.chieppa.ease.gpu.ffi.BufferBinding
+import dev.chieppa.ease.gpu.ffi.ColorPassDescriptor
 import dev.chieppa.ease.gpu.ffi.Flags
 import dev.chieppa.ease.gpu.ffi.FrameCalls
-import dev.chieppa.ease.gpu.ffi.beginColorPass
 import dev.chieppa.ease.gpu.ffi.createBuffer
 import dev.chieppa.ease.gpu.ffi.createBufferBindGroup
 import dev.chieppa.ease.gpu.ffi.createColorPipeline
@@ -23,7 +23,8 @@ private const val VERTICES = 3
 /**
  * Clears a target to [clear] and draws one colored triangle on it, turned by an angle. The first
  * thing Ease draws, so a window, an offscreen texture and an editor viewport can all be checked
- * against the same picture.
+ * against the same picture. Its pass descriptor and uniform staging are made once and reused, so it
+ * records without the frame arena and needs no [GpuContext.beginFrame].
  */
 public class TrianglePass(private val context: GpuContext, public val clear: Color = CLEAR) :
   AutoCloseable {
@@ -32,7 +33,9 @@ public class TrianglePass(private val context: GpuContext, public val clear: Col
   private val params =
     createBuffer(context.device, PARAMS_BYTES, Flags.BUFFER_UNIFORM or Flags.BUFFER_COPY_DST)
   private val pipelines = mutableMapOf<TextureFormat, Pair<MemorySegment, MemorySegment>>()
-  private val staging = Arena.ofConfined().let { it to it.allocate(PARAMS_BYTES) }
+  private val memory = Arena.ofShared()
+  private val staging = memory.allocate(PARAMS_BYTES)
+  private val passDescriptor = ColorPassDescriptor(memory, clear, "triangle")
 
   /**
    * Records the pass into [encoder]: [target] cleared and the triangle drawn turned by [angle]
@@ -40,7 +43,7 @@ public class TrianglePass(private val context: GpuContext, public val clear: Col
    */
   public fun record(encoder: CommandEncoder, target: RenderTarget, angle: Float = 0f) {
     val (pipeline, bindGroup) = pipelines.getOrPut(target.format) { pipelineFor(target.format) }
-    val bytes = staging.second
+    val bytes = staging
     bytes.set(ValueLayout.JAVA_FLOAT, ANGLE_OFFSET, angle)
     bytes.set(
       ValueLayout.JAVA_FLOAT,
@@ -48,7 +51,7 @@ public class TrianglePass(private val context: GpuContext, public val clear: Col
       target.size.width.toFloat() / target.size.height,
     )
     wgpu_h.wgpuQueueWriteBuffer(context.queue, params, 0, bytes, PARAMS_BYTES)
-    val pass = beginColorPass(context.frames, encoder.address, target.view, clear)
+    val pass = passDescriptor.begin(encoder.address, target.view)
     FrameCalls.setPipeline(pass, pipeline)
     FrameCalls.setBindGroup(pass, 0, bindGroup)
     FrameCalls.draw(pass, VERTICES, 1)
@@ -62,7 +65,7 @@ public class TrianglePass(private val context: GpuContext, public val clear: Col
     }
     wgpu_h.wgpuBufferRelease(params)
     wgpu_h.wgpuShaderModuleRelease(shader)
-    staging.first.close()
+    memory.close()
   }
 
   private fun pipelineFor(format: TextureFormat): Pair<MemorySegment, MemorySegment> {
