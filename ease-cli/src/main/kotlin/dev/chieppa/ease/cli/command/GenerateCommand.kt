@@ -4,10 +4,12 @@ import dev.chieppa.ease.cli.Arguments
 import dev.chieppa.ease.cli.CliCommand
 import dev.chieppa.ease.cli.CliOutput
 import dev.chieppa.ease.cli.ExitCodes
+import dev.chieppa.ease.cli.Options
 import dev.chieppa.ease.cli.project.ProjectFile
 import dev.chieppa.ease.cli.template.GenerationPlan
 import dev.chieppa.ease.cli.template.Naming
 import dev.chieppa.ease.cli.template.Placeholders
+import dev.chieppa.ease.cli.template.ReservedNames
 import dev.chieppa.ease.cli.template.TemplateSource
 import java.nio.file.Path
 
@@ -25,11 +27,12 @@ public class GenerateCommand(
   override val summary: String = "Add a module, component or system to a game project"
 
   override fun run(arguments: Arguments, output: CliOutput): Int {
-    arguments.requireOnly(setOf(DIR))
+    arguments.requireOnly(setOf(Options.DIR))
     val (id, rawName) = arguments.positional(2, "a generator and a name")
     val generator = templates.generator(id)
     val typeName = Naming.requireName(rawName)
-    val directory = workingDirectory.resolve(arguments.option(DIR) ?: ".").normalize()
+    ReservedNames.requireFree(Naming.pascal(typeName), SYSTEM_SUFFIX)
+    val directory = workingDirectory.resolve(arguments.option(Options.DIR) ?: ".").normalize()
     val project = ProjectFile.read(directory)
     val placeholders =
       Placeholders(project.placeholders()) +
@@ -47,6 +50,7 @@ public class GenerateCommand(
   }
 
   private companion object {
-    const val DIR = "dir"
+    /** What the system generator adds to a name, so its type clashes are checked too. */
+    const val SYSTEM_SUFFIX = "System"
   }
 }

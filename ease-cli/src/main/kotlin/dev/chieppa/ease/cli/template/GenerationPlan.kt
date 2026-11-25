@@ -67,6 +67,7 @@ private constructor(
       for (insertion in template.manifest.insertions) {
         val file = placeholders.render(insertion.file)
         val path = target.resolve(file).normalize()
+        if (!path.startsWith(target.normalize())) throw CliFailure("$file leaves the project")
         if (!Files.exists(path)) throw CliFailure("$file not found: nothing to add to")
         val rendered =
           Insertion(

@@ -8,9 +8,9 @@ public object Insertions {
 
   /**
    * [content] with [insertion]'s text above its marker line, indented like the marker, and its
-   * imports among the file's imports in sorted places. Text already in the file is not added again,
-   * so running a generator twice changes nothing the second time. Fails when the file has no
-   * marker.
+   * imports among the file's imports in sorted places. Text already directly above the marker, as
+   * the same consecutive lines, is not added again, so running a generator twice changes nothing
+   * the second time. Fails when the file has no marker.
    */
   public fun apply(content: String, insertion: Insertion, file: String): String {
     val lines = content.split("\n").toMutableList()
@@ -18,18 +18,32 @@ public object Insertions {
     if (at < 0) throw CliFailure("$file has no ${insertion.marker} line to add to")
     val indent = lines[at].takeWhile { it == ' ' }
     val block = insertion.text.removeSuffix("\n").split("\n")
-    if (!containsBlock(lines, block)) {
+    if (!presentAbove(lines, at, block)) {
       lines.addAll(at, block.map { if (it.isEmpty()) it else indent + it })
     }
     insertion.imports.forEach { addImport(lines, it) }
     return lines.joinToString("\n")
   }
 
-  private fun containsBlock(lines: List<String>, block: List<String>): Boolean {
-    val wanted = block.map { it.trim() }.filter { it.isNotEmpty() }
-    val present = lines.map { it.trim() }
-    return wanted.isNotEmpty() && wanted.all { it in present }
+  /**
+   * Whether [block] is already directly above index [marker] in [lines]: as the last lines before
+   * it, or, for a block with no blank line, as consecutive lines among the statements stacked there
+   * by earlier insertions (the lines up to the previous blank line or opening brace).
+   */
+  private fun presentAbove(lines: List<String>, marker: Int, block: List<String>): Boolean {
+    val wanted = block.map { it.trim() }
+    val above = lines.subList(0, marker).map { it.trim() }
+    return above.takeLast(wanted.size) == wanted ||
+      (wanted.none { it.isEmpty() } && containsRun(stackedAbove(above), wanted))
   }
+
+  /** The statements directly above a marker: up to the previous blank line or opening brace. */
+  private fun stackedAbove(above: List<String>): List<String> = above.takeLastWhile {
+    it.isNotEmpty() && !it.endsWith("{")
+  }
+
+  private fun containsRun(lines: List<String>, run: List<String>): Boolean =
+    (0..lines.size - run.size).any { lines.subList(it, it + run.size) == run }
 
   private fun addImport(lines: MutableList<String>, name: String) {
     val line = IMPORT + name

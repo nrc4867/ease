@@ -25,5 +25,17 @@ for template in $projects; do
   done
   # The game's own wrapper builds it; ease.dir points at this checkout.
   (cd "$game" && ./gradlew --quiet --console=plain "-Pease.dir=$root" check)
+  # The run task belongs to the game's module alone: with a generated module beside it, running
+  # the game still finds exactly one game.
+  (cd "$game" && ./gradlew --quiet --console=plain "-Pease.dir=$root" runHeadless)
+  # A pin that differs from the checkout fails the build, naming both versions.
+  if pinned="$(cd "$game" && ./gradlew --quiet --console=plain "-Pease.dir=$root" -Pease.version=9.9.9 help 2>&1)"; then
+    echo "A game pinning Ease 9.9.9 built against a different checkout" >&2
+    exit 1
+  fi
+  case "$pinned" in
+    *9.9.9*) ;;
+    *) echo "The pin failure does not name the pinned version: $pinned" >&2; exit 1 ;;
+  esac
 done
 echo "All templates build: $(echo $projects)"

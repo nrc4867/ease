@@ -1,9 +1,15 @@
 // A game's settings: Ease as a composite build from the checkout named by ease.dir (default
-// ../ease), the engine's version catalog, and the repositories its dependencies come from.
+// ../ease) at the version the game pins, the engine's version catalog, and the repositories its
+// dependencies come from.
 import dev.chieppa.ease.build.game.GameDependencies
 
 val easeDir =
   providers.gradleProperty(GameDependencies.DIR_PROPERTY).getOrElse(GameDependencies.DEFAULT_DIR)
+
+GameDependencies.requirePinMatches(
+  file(easeDir),
+  providers.gradleProperty(GameDependencies.VERSION_PROPERTY).orNull,
+)
 
 dependencyResolutionManagement {
   repositories {

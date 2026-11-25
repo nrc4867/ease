@@ -10,10 +10,13 @@ import java.io.PrintStream
 import java.nio.file.Path
 
 /** The command line run against the shipped templates, with its output captured. */
-class Harness(workingDirectory: Path, hooks: List<PostGenerateHook> = emptyList()) {
+class Harness(
+  workingDirectory: Path,
+  hooks: List<PostGenerateHook> = emptyList(),
+  templates: TemplateSource = TemplateSource.shipped(),
+) {
   private val out = ByteArrayOutputStream()
   private val err = ByteArrayOutputStream()
-  private val templates = TemplateSource.shipped()
   private val cli =
     EaseCli(
       listOf(

@@ -60,4 +60,32 @@ class InsertionsTest {
 
     assertEquals("A.kt has no // mark line to add to", failure.message)
   }
+
+  @Test
+  fun `the same line elsewhere in the file does not count as already added`() {
+    val elsewhere = "package a\n\nfun f() {\n  run()\n}\n\nclass A {\n  // mark\n}"
+
+    val result = Insertions.apply(elsewhere, Insertion("A.kt", "// mark", "run()"), "A.kt")
+
+    assertEquals("package a\n\nfun f() {\n  run()\n}\n\nclass A {\n  run()\n  // mark\n}", result)
+  }
+
+  @Test
+  fun `several lines count as added only when they are all directly above the marker`() {
+    val insertion = Insertion("A.kt", "// mark", "one()\ntwo()")
+    val split = "class A {\n  one()\n  other()\n  two()\n  // mark\n}"
+
+    val result = Insertions.apply(split, insertion, "A.kt")
+
+    assertEquals("class A {\n  one()\n  other()\n  two()\n  one()\n  two()\n  // mark\n}", result)
+  }
+
+  @Test
+  fun `a statement stacked above the marker by an earlier insertion is not added again`() {
+    val stacked = "class A {\n  a()\n  b()\n  // mark\n}"
+
+    val result = Insertions.apply(stacked, Insertion("A.kt", "// mark", "a()"), "A.kt")
+
+    assertEquals(stacked, result)
+  }
 }

@@ -3,6 +3,7 @@ package dev.chieppa.ease.cli.project
 import dev.chieppa.ease.annotations.Doc
 import dev.chieppa.ease.cli.CliFailure
 import dev.chieppa.ease.cli.template.Naming
+import dev.chieppa.ease.cli.template.VersionedYaml
 import dev.chieppa.ease.serialization.format.FormatMigrations
 import dev.chieppa.ease.serialization.yaml.CanonicalYaml
 import java.nio.file.Path
@@ -11,8 +12,6 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
 
 @Doc("A game project's manifest: what generators need to know to add to it.")
 @Serializable
@@ -27,6 +26,20 @@ public class ProjectFile(
   @Doc("The template the game was made from.") public val template: String,
 ) {
   @Doc("The version of this file's format.") public val formatVersion: Int = FORMAT_VERSION
+
+  /**
+   * This project when its module, package and class name are what generators can write files for: a
+   * plain folder name, a package and a class name. Fails otherwise, naming the field.
+   */
+  public fun validated(): ProjectFile {
+    if (!MODULE.matches(module))
+      throw CliFailure("$FILE_NAME: module '$module' is not a folder name")
+    Naming.requirePackage(packageName)
+    if (!CLASS_NAME.matches(className)) {
+      throw CliFailure("$FILE_NAME: className '$className' is not a class name")
+    }
+    return this
+  }
 
   /** The values generators fill their templates with, from this project. */
   public fun placeholders(): Map<String, String> =
@@ -50,15 +63,14 @@ public class ProjectFile(
     public const val FILE_NAME: String = "ease-project.yaml"
 
     private val migrations = FormatMigrations(FORMAT_VERSION)
+    private val MODULE = Regex("[A-Za-z0-9][A-Za-z0-9_-]*")
+    private val CLASS_NAME = Regex("[A-Z][A-Za-z0-9]*")
 
-    /** The project file in [directory]. Fails when there is none, as when not in a game. */
+    /** The project file in [directory]. Fails when there is none, or it is not a valid one. */
     public fun read(directory: Path): ProjectFile {
       val file = directory.resolve(FILE_NAME)
       if (!file.exists()) throw CliFailure("$FILE_NAME not found in $directory: not a game project")
-      val tree =
-        CanonicalYaml.read(file.readText()) as? JsonObject
-          ?: throw CliFailure("$FILE_NAME is not a mapping")
-      return Json.decodeFromJsonElement(serializer(), migrations.migrate(tree))
+      return VersionedYaml.decode(serializer(), file.readText(), migrations, FILE_NAME).validated()
     }
 
     /** Writes [project] as `ease-project.yaml` in [directory]. */

@@ -6,12 +6,15 @@ import dev.chieppa.ease.cli.CliFailure
 import dev.chieppa.ease.cli.CliOutput
 import dev.chieppa.ease.cli.EaseVersion
 import dev.chieppa.ease.cli.ExitCodes
+import dev.chieppa.ease.cli.Options
 import dev.chieppa.ease.cli.hook.GeneratedProject
 import dev.chieppa.ease.cli.hook.PostGenerateHook
 import dev.chieppa.ease.cli.project.ProjectFile
+import dev.chieppa.ease.cli.template.EaseCheckout
 import dev.chieppa.ease.cli.template.GenerationPlan
 import dev.chieppa.ease.cli.template.Naming
 import dev.chieppa.ease.cli.template.Placeholders
+import dev.chieppa.ease.cli.template.ReservedNames
 import dev.chieppa.ease.cli.template.TemplateSource
 import java.nio.file.Files
 import java.nio.file.Path
@@ -37,7 +40,7 @@ public class NewCommand(
     val id = arguments.positional(1, "a template id").single()
     val template = templates.project(id)
     val project = projectFile(arguments, id, template.manifest.gameModule)
-    val directory = target(arguments.option(DIR) ?: Naming.kebab(project.name))
+    val directory = target(arguments.option(Options.DIR), project)
     GenerationPlan.of(template, Placeholders(project.placeholders()), directory).apply()
     ProjectFile.write(directory, project)
     hooks.forEach { it.run(GeneratedProject(directory, project)) }
@@ -46,20 +49,32 @@ public class NewCommand(
   }
 
   private fun projectFile(arguments: Arguments, template: String, module: String): ProjectFile {
-    val name = Naming.requireName(arguments.option(NAME) ?: throw CliFailure("--name is required"))
-    val defaultPackage = "$DEFAULT_PACKAGE_ROOT.${Naming.flat(name)}"
-    return ProjectFile(
-      name = name,
-      packageName = Naming.requirePackage(arguments.option(PACKAGE) ?: defaultPackage),
-      className = Naming.pascal(name),
-      module = module,
-      easeVersion = arguments.option(EASE_VERSION) ?: EaseVersion.current,
-      template = template,
-    )
+    val name =
+      Naming.requireName(arguments.option(Options.NAME) ?: throw CliFailure("--name is required"))
+    val defaultPackage = Naming.defaultPackage(DEFAULT_PACKAGE_ROOT, name)
+    val project =
+      ProjectFile(
+        name = name,
+        packageName = Naming.requirePackage(arguments.option(Options.PACKAGE) ?: defaultPackage),
+        className = Naming.pascal(name),
+        module = module,
+        easeVersion = arguments.option(Options.EASE_VERSION) ?: EaseVersion.current,
+        template = template,
+      )
+    ReservedNames.requireFree(project.className)
+    return project.validated()
   }
 
-  private fun target(folder: String): Path {
-    val directory = workingDirectory.resolve(folder).normalize()
+  /** The folder to generate in: [explicit] if given, else the name's own folder. */
+  private fun target(explicit: String?, project: ProjectFile): Path {
+    val directory = workingDirectory.resolve(explicit ?: Naming.kebab(project.name)).normalize()
+    val checkout = EaseCheckout.containing(directory)
+    if (explicit == null && checkout != null) {
+      throw CliFailure(
+        "$directory is inside the Ease checkout $checkout: " +
+          "give --dir to say where the game goes, outside it"
+      )
+    }
     if (directory.exists() && (!directory.isDirectory() || isNotEmpty(directory))) {
       throw CliFailure("$directory already exists and is not empty")
     }
@@ -70,11 +85,7 @@ public class NewCommand(
     Files.list(directory).use { it.findAny().isPresent }
 
   private companion object {
-    const val NAME = "name"
-    const val PACKAGE = "package"
-    const val DIR = "dir"
-    const val EASE_VERSION = "ease-version"
     const val DEFAULT_PACKAGE_ROOT = "example"
-    val OPTIONS = setOf(NAME, PACKAGE, DIR, EASE_VERSION)
+    val OPTIONS = setOf(Options.NAME, Options.PACKAGE, Options.DIR, Options.EASE_VERSION)
   }
 }

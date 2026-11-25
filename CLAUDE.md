@@ -26,7 +26,7 @@ Gradle needs JDK 25 as `JAVA_HOME`. Stretch is found as `../stretch` or through 
 ./gradlew generateNotice         # rewrite NOTICE after a dependency change; check fails while it is stale
 ./gradlew installGitHook         # the pre-commit hook; any compile installs it too
 ./gradlew :ease-cli:installDist  # the ease command, under ease-cli/build/install/ease/bin
-./gradlew :ease-cli:runEase --args="new empty --name 'My Game'"   # ease new, from Gradle
+./gradlew :ease-cli:runEase --args="new empty --name 'My Game' --dir ../my-game"   # ease new, from Gradle
 tools/check-templates.sh         # generate a game from every template, build it, run its tests; CI runs it
 ```
 
@@ -62,7 +62,7 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | Test support | `ease-testing` | The allocation harness (`AllocationBudget`); test configurations only (Java) |
 | Build tool | `ease-codegen` | The KSP processors: `@Replicated` components' serializers, and for every `@Serializable` type a JSON Schema and a TypeScript declaration under `META-INF/ease`; `ksp` configurations only, never shipped |
 
-`build-logic` holds the convention plugins (`ease.kotlin-module`, `ease.java-module`, `ease.root`, `ease.licenses`, and for games `ease.game-settings`, `ease.game-root`, `ease.game-module`), `checkSources` and its rules, and the license check, each with a test.
+`build-logic` holds the convention plugins (`ease.kotlin-module`, `ease.java-module`, `ease.root`, `ease.licenses`, and for games `ease.game-settings`, `ease.game-root`, `ease.game-module`, and `ease.game-app` for the module holding the game's `GameModule`), `checkSources` and its rules, and the license check, each with a test.
 
 ## Rules the checks enforce
 

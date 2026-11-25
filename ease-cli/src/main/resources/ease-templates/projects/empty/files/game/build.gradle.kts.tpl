@@ -1,1 +1,1 @@
-plugins { id("ease.game-module") }
+plugins { id("ease.game-app") }

@@ -1,6 +1,7 @@
-// The ease command line: new projects from templates and generators for what a project holds. Later
-// commands join it here. `./gradlew :ease-cli:installDist` writes the distribution under
-// build/install/ease; `./gradlew :ease-cli:runEase --args="new empty --name 'My Game'"` runs it.
+// The ease command line: new projects from templates and generators for what a project holds.
+// Later commands join it here. `./gradlew :ease-cli:installDist` writes the distribution under
+// build/install/ease; `./gradlew :ease-cli:runEase --args="new empty --name Moon --dir ../moon"`
+// runs it from Gradle.
 plugins {
   id("ease.kotlin-module")
   id("org.jetbrains.kotlin.plugin.serialization")
@@ -34,5 +35,7 @@ tasks.register<JavaExec>("runEase") {
   group = "application"
   description = "Runs the ease command line; pass its arguments as --args='...'."
   classpath = sourceSets.main.get().runtimeClasspath
-  mainClass = "dev.chieppa.ease.cli.MainKt"
+  mainClass = application.mainClass
+  // Relative paths in the arguments are relative to where Gradle was started, not this module.
+  workingDir = gradle.startParameter.currentDir
 }
