@@ -5,6 +5,7 @@ import com.github.quillraven.fleks.ComponentType
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
 import dev.chieppa.ease.annotations.Doc
+import dev.chieppa.ease.commands.CreationCheck
 import dev.chieppa.ease.scene.runtime.SceneNodes
 import kotlinx.serialization.Serializable
 
@@ -16,14 +17,16 @@ internal const val KEY_SEPARATOR = '/'
  * that led to the node (sublevel and prefab instance nodes, outermost first), then the node's own
  * local id. Two copies of one prefab or sublevel never collide, because their placement ids differ.
  * Written as the ids' hex joined by `/`. Equal keys have equal ids; comparing or hashing a key
- * never allocates. A world with a [SceneNodes] system indexes every entity carrying one.
+ * never allocates. A world with a [SceneNodes] system indexes every entity carrying one, and an
+ * entity whose key is already live there is refused before it is created.
  */
 @Doc(
   "Which node an entity is: the local ids of the prefab and sublevel placements that led to it, " +
     "outermost first, then its own local id, written as hex joined by /."
 )
 @Serializable(with = NodeKeySerializer::class)
-public class NodeKey private constructor(private val ids: LongArray) : Component<NodeKey> {
+public class NodeKey private constructor(private val ids: LongArray) :
+  Component<NodeKey>, CreationCheck {
   private val hash = ids.contentHashCode()
 
   /** The node's own local id, the last of the key. */
@@ -57,6 +60,11 @@ public class NodeKey private constructor(private val ids: LongArray) : Component
   override fun toString(): String = text
 
   override fun type(): ComponentType<NodeKey> = NodeKey
+
+  override fun creationRefusal(world: World): String? {
+    val index = world.systemOrNull<SceneNodes>()?.index ?: return null
+    return if (this in index) "Node $this already exists" else null
+  }
 
   override fun World.onAdd(entity: Entity) {
     systemOrNull<SceneNodes>()?.index?.put(this@NodeKey, entity)

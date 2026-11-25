@@ -15,6 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.float
 import kotlinx.serialization.json.jsonObject
@@ -186,5 +187,30 @@ class PrefabTest {
     assertNull(resolved.parentOf(4))
     assertTrue(resolved[key(5)] != null)
     assertEquals(0f, resolved.x(2, 11))
+  }
+
+  @Test
+  fun `an empty asset slot is no problem, and a bad one names its component`() {
+    val scene =
+      document(
+        node(1, "Dark").withField(Scenes.BEACON, "glow", JsonNull),
+        node(2, "Odd").withField(Scenes.BEACON, "glow", JsonPrimitive("not a guid")),
+      )
+
+    val problems = resolver.resolve(scene).problems
+
+    val bad = problems.map { assertIs<SceneProblem.BadComponent>(it) }
+    assertTrue(bad.isNotEmpty())
+    assertTrue(bad.all { it.node == key(2) && it.component == Scenes.BEACON }, problems.toString())
+    assertTrue(bad.any { "not a guid" in it.reason })
+  }
+
+  @Test
+  fun `parents come before their children whatever their keys`() {
+    val scene = document(node(1, "Lid", parent = 2), node(2, "Jar", parent = 9), node(9, "Shelf"))
+
+    val order = resolver.resolve(scene).nodes.map { it.key }
+
+    assertEquals(listOf(key(9), key(2), key(1)), order)
   }
 }

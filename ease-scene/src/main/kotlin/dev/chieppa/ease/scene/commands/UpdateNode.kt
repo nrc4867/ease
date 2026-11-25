@@ -7,6 +7,7 @@ import com.github.quillraven.fleks.wildcardSnapshotOf
 import dev.chieppa.ease.annotations.Doc
 import dev.chieppa.ease.commands.Command
 import dev.chieppa.ease.commands.CommandScope
+import dev.chieppa.ease.commands.builtin.rejectIf
 import dev.chieppa.ease.scene.node.NodeKey
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -51,17 +52,22 @@ public class UpdateNode(
     val unset = mutableListOf<String>()
     setting.forEach { type ->
       val previous = type.of(world, entity)
-      if (previous == null) unset += type.serialName else restore += previous
+      if (previous == null) unset += type.serialName else restore += type.copyOf(previous)
     }
-    removing.forEach { type -> type.of(world, entity)?.let { restore += it } }
+    removing.forEach { type -> type.of(world, entity)?.let { restore += type.copyOf(it) } }
+    val added =
+      set.components.filterIndexed { index, component ->
+        !setting[index].writeReplicated(world, entity, component)
+      }
     with(world) {
       entity.configure { updated ->
         removing.forEach { type ->
           if (type.of(world, updated) != null) type.removeFrom(this, updated)
         }
-        updated += set.components
+        updated += added
       }
     }
+    added.forEach { component -> nodes.types.of(component)?.markReplicated(world, entity) }
     return UpdateNode(node, wildcardSnapshotOf(restore, emptyList()), unset)
   }
 }

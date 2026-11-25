@@ -15,23 +15,21 @@ import dev.chieppa.ease.scene.resolve.ResolvedScene
 /**
  * The commands that bring a world's live nodes in line with a resolved scene, matched by key: a
  * node the scene has and the world lacks spawns, one whose scene components differ is updated, and
- * one the last applied version of the scene had ([previous]) and this one lacks is destroyed. Only
- * the component types in [SceneNodes.types] are compared; components of other types are left alone.
- * Spawns come in key order, then updates, then removals.
+ * one the last applied version of the scene had ([previous], parents first) and this one lacks is
+ * destroyed. Only the component types in [SceneNodes.types] are compared; components of other
+ * types, and those that failed to load this time, are left as they are. Spawns and updates come
+ * parents first, then removals children first.
  */
 internal class SceneDiff(private val world: World, private val nodes: SceneNodes) {
-  fun commands(scene: ResolvedScene, previous: Collection<NodeKey>): List<Command> {
+  fun commands(scene: ResolvedScene, previous: List<NodeKey>): List<Command> {
     val spawns = mutableListOf<Command>()
     val updates = mutableListOf<Command>()
     for (node in scene.nodes) {
       val entity = nodes.index[node.key]
       if (entity == Entity.NONE) spawns += spawn(node) else update(node, entity)?.let(updates::add)
     }
-    val removals =
-      previous
-        .filter { scene[it] == null && it in nodes.index }
-        .sortedByDescending { it.text }
-        .map { DestroyNode(it) }
+    val gone = previous.asReversed().filter { scene[it] == null && it in nodes.index }
+    val removals = gone.map { DestroyNode(it) }
     return spawns + updates + removals
   }
 
@@ -47,6 +45,7 @@ internal class SceneDiff(private val world: World, private val nodes: SceneNodes
     val set = mutableListOf<Component<*>>()
     val remove = mutableListOf<String>()
     for (type in nodes.types.all) {
+      if (type.serialName in node.failed) continue
       val wanted = node.components[type.serialName]
       val live = type.of(world, entity)?.let { type.encode(it) }
       when {

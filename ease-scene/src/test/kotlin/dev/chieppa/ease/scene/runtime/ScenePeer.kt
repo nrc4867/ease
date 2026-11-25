@@ -41,7 +41,8 @@ class ScenePeer(root: Path, peer: PeerId = PeerId.HOST) {
   }
   val world: World =
     phasedWorld(
-      replication = ReplicationSettings(localPeer = peer, serializers = codec.replicated)
+      replication =
+        ReplicationSettings(localPeer = peer, serializers = codec.replicated, debugChecks = true)
     ) {
       add(Phase.INPUT, AssetReloadSystem(store))
       add(Phase.INPUT, SceneNodes(Scenes.types))

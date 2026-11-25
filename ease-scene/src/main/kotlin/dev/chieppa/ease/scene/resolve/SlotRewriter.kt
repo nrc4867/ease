@@ -7,6 +7,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.StructureKind
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -22,8 +23,7 @@ internal class SlotRewriter(private val prefix: String, private val assets: (Str
     val name = descriptor.serialName.removeSuffix("?")
     return when {
       name == NODE_REF_NAME -> nodeRef(element)
-      name == ASSET_REF_NAME ->
-        element.also { (it as? JsonPrimitive)?.let { slot -> assets(slot.content) } }
+      name == ASSET_REF_NAME -> element.also(::assetRef)
       descriptor.isInline -> rewrite(descriptor.getElementDescriptor(0), element)
       descriptor.kind == StructureKind.LIST && element is JsonArray ->
         JsonArray(element.map { rewrite(descriptor.getElementDescriptor(0), it) })
@@ -42,6 +42,11 @@ internal class SlotRewriter(private val prefix: String, private val assets: (Str
         if (index < 0) value else rewrite(descriptor.getElementDescriptor(index), value)
       }
     )
+
+  private fun assetRef(element: JsonElement) {
+    val slot = element as? JsonPrimitive
+    if (slot != null && slot !is JsonNull) assets(slot.content)
+  }
 
   private fun nodeRef(element: JsonElement): JsonElement {
     val slot = element as? JsonPrimitive

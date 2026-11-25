@@ -1,15 +1,19 @@
 package dev.chieppa.ease.scene.commands
 
+import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.wildcardSnapshotOf
 import dev.chieppa.ease.commands.CommandHistory
 import dev.chieppa.ease.commands.CommandOrigin
 import dev.chieppa.ease.commands.CommandRejected
+import dev.chieppa.ease.commands.builtin.Restore
+import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.commands.permissionRefusal
 import dev.chieppa.ease.commands.worldCodec
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.phasedWorld
+import dev.chieppa.ease.ecs.replication.NetworkId
 import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.ecs.replication.ReplicationSettings
 import dev.chieppa.ease.scene.Beacon
@@ -121,6 +125,29 @@ class NodeCommandsTest {
       UpdateNode(lamp, wildcardSnapshotOf(emptyList(), emptyList()), listOf("x.Y")).validate(world)
     )
     assertEquals(before, state())
+  }
+
+  @Test
+  fun `a generic spawn or restore carrying a live node key is refused before anything is built`() {
+    spawnLamp()
+    val before = state()
+    val entities = world.numEntities
+    val copy: List<Component<out Any>> = listOf(NodeKey.of(LocalId(1)), NodeName("Copy"))
+
+    assertFailsWith<CommandRejected> {
+      history.execute(Spawn(copy), 1, CommandOrigin.USER)
+    }
+    assertFailsWith<CommandRejected> {
+      history.execute(
+        Restore(NetworkId(500), wildcardSnapshotOf(copy, emptyList())),
+        1,
+        CommandOrigin.USER,
+      )
+    }
+
+    assertEquals(entities, world.numEntities)
+    assertEquals(before, state())
+    assertEquals("Lamp", with(world) { index[lamp][NodeName].name })
   }
 
   @Test

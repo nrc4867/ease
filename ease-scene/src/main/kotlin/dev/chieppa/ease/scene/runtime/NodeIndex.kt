@@ -5,7 +5,8 @@ import dev.chieppa.ease.scene.node.NodeKey
 
 /**
  * The live entity of each node key in one world, kept by the `NodeKey` component itself as it is
- * added and removed. Looking a key up never allocates.
+ * added and removed. Looking a key up never allocates. Commands refuse a second entity with a live
+ * key before creating it; should one be made outside them, the first keeps the key.
  */
 public class NodeIndex internal constructor() {
   private val entities = HashMap<NodeKey, Entity>()
@@ -25,7 +26,7 @@ public class NodeIndex internal constructor() {
   public operator fun contains(key: NodeKey): Boolean = entities.containsKey(key)
 
   internal fun put(key: NodeKey, entity: Entity) {
-    check(entities.putIfAbsent(key, entity) == null) { "Node $key is already live" }
+    entities.putIfAbsent(key, entity)
   }
 
   internal fun remove(key: NodeKey, entity: Entity) {

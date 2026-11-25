@@ -102,9 +102,10 @@ class SceneReloadTest {
         .without(id(3))
         .with(node(7, "Banner", parent = 1, order = scene.nextOrder(id(1))))
     val written = SceneFolder.write(cave, edited)
-    SceneFolder.write(crate, document(node(10, "Box"), node(11, "Lid", parent = 10, x = 3f)))
+    val crateSave =
+      SceneFolder.write(crate, document(node(10, "Box"), node(11, "Lid", parent = 10, x = 3f)))
     (written.written + written.deleted).forEach { changed(host, cave.resolve(it)) }
-    changed(host, crate.resolve("nodes/000000000000000b.yaml"))
+    crateSave.written.forEach { changed(host, crate.resolve(it)) }
     host.beforeTick(1)
     client.receiveFrom(host)
 

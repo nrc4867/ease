@@ -12,6 +12,7 @@ import dev.chieppa.ease.assets.meta.AssetMeta
 import dev.chieppa.ease.assets.meta.MetaFiles
 import dev.chieppa.ease.platform.files.FileChangeKind
 import dev.chieppa.ease.platform.files.ManualFileWatcher
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.reflect.KClass
@@ -22,6 +23,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.io.TempDir
 
 /** A folder a folder-asset contributor names is one asset, its files that asset's contents. */
@@ -114,6 +116,18 @@ class FolderAssetTest {
     val names = AssetStore(database, associations).handle(guid, String::class).value
 
     assertEquals("head.yaml,rooms/one.yaml", names)
+  }
+
+  @Test
+  fun `a folder that cannot be read whole fails as an IOException`() {
+    level()
+    val locked = project.path("hall.level/rooms").toFile()
+    assumeTrue(locked.setReadable(false) && !Files.isReadable(locked.toPath()))
+    try {
+      assertFailsWith<IOException> { FolderPack.pack(project.path("hall.level")) }
+    } finally {
+      locked.setReadable(true)
+    }
   }
 
   @Test

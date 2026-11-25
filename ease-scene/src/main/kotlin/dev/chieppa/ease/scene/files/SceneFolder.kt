@@ -7,7 +7,8 @@ import java.nio.file.Path
 /**
  * Reads and saves a scene or prefab folder on disk. Saving writes only the files whose bytes differ
  * and deletes the files of nodes that are gone, so saving an unchanged document touches nothing and
- * git sees one changed file per changed node.
+ * git sees one changed file per changed node. A renamed node's file is renamed with it; every other
+ * node keeps the file it has, as long as that file's name follows [NodeFileNames].
  */
 public object SceneFolder {
   /** The document in [folder]. Throws [SceneFileException] when a file cannot be read. */
@@ -18,8 +19,8 @@ public object SceneFolder {
    * folder (written with `/`) that it wrote or deleted.
    */
   public fun write(folder: Path, document: SceneDocument): SceneSave {
-    val wanted = SceneFiles.encode(document)
     val existing = files(folder)
+    val wanted = SceneFiles.encode(document, SceneFiles.namesById(existing))
     val written = wanted.filter { (path, text) -> existing[path] != text }.keys.toList()
     val deleted = existing.keys.filter { SceneFiles.isNodeFile(it) && it !in wanted }
     written.forEach { path ->

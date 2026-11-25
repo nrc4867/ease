@@ -4,9 +4,9 @@ import dev.chieppa.ease.serialization.format.FormatMigrations
 
 /**
  * The names and version of the scene format. A scene `cave.scene/` or a prefab `crate.prefab/` is a
- * folder holding [HEADER_FILE] and one file per node in [NODES_FOLDER], named by the node's local
- * id. Every file carries `formatVersion`; reading migrates an older file in memory one version at a
- * time, and only an explicit project upgrade writes the result.
+ * folder holding [HEADER_FILE] and one file per node in [NODES_FOLDER], named by the node's name
+ * and short id (see [NodeFileNames]). Every file carries `formatVersion`; reading migrates an older
+ * file in memory one version at a time, and only an explicit project upgrade writes the result.
  */
 public object SceneFormat {
   /** The scene format version this Ease writes. */
@@ -33,6 +33,6 @@ public object SceneFormat {
   /** The steps that bring a node file to [FORMAT_VERSION]. */
   internal val nodeMigrations: FormatMigrations = FormatMigrations(FORMAT_VERSION)
 
-  /** The path of the node file for [id] inside the folder, written with `/`. */
-  public fun nodeFile(id: String): String = "$NODES_FOLDER/$id$NODE_EXTENSION"
+  /** The path inside the folder, written with `/`, of the node file named [stem]. */
+  public fun nodeFile(stem: String): String = "$NODES_FOLDER/$stem$NODE_EXTENSION"
 }

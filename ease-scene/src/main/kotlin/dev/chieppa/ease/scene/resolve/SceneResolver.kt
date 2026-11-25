@@ -49,15 +49,13 @@ public class SceneResolver(
 
   private inner class Run {
     val nodes = LinkedHashMap<NodeKey, SortedMap<String, JsonObject>>()
+    val parents = HashMap<NodeKey, NodeKey?>()
     val problems = mutableListOf<SceneProblem>()
     val assets = LinkedHashSet<Guid>()
 
     fun result(asset: Guid?): ResolvedScene {
       val ordered = LinkedHashSet<Guid>().apply { asset?.let(::add) } + assets
-      val resolved =
-        nodes.entries
-          .sortedBy { it.key.text }
-          .map { (key, components) -> ResolvedNode(key, canonical(key, components)) }
+      val resolved = TreeOrder.of(parents).map { key -> canonical(key, nodes.getValue(key)) }
       return ResolvedScene(resolved, ordered.toList(), problems.toList())
     }
 
@@ -82,20 +80,21 @@ public class SceneResolver(
 
     private fun add(document: SceneDocument, node: SceneNode, placement: NodeKey?) {
       val key = keyOf(placement, node)
-      val rewriter = rewriterFor(key, placement)
       val components = sortedMapOf<String, JsonObject>()
       node.components.forEach { (name, fields) ->
         if (name in SceneTypes.STRUCTURAL) {
           problems += SceneProblem.BadComponent(key, name, "it is set by the node's own fields")
         } else {
           val descriptor = types[name]?.serializer?.descriptor
-          components[name] = if (descriptor == null) fields else rewriter.fields(descriptor, fields)
+          components[name] =
+            if (descriptor == null) fields
+            else rewriterFor(key, placement, name).fields(descriptor, fields)
         }
       }
       components[NAME] = encode(NodeName(node.name))
-      parentOf(document, node, key, placement)?.let {
-        components[PARENT] = encode(Parent(it, node.order))
-      }
+      val parent = parentOf(document, node, key, placement)
+      parent?.let { components[PARENT] = encode(Parent(it, node.order)) }
+      parents[key] = parent
       nodes[key] = components
     }
 
@@ -125,9 +124,9 @@ public class SceneResolver(
         inner == null -> problems += SceneProblem.MissingAsset(key, asset)
         else -> {
           assets += asset
-          val rewriter = rewriterFor(key, placing.placement)
           val own =
             placing.instance.overrides.map { (path, value) ->
+              val rewriter = rewriterFor(key, placing.placement, path.component)
               Pending(path, overrideValue(path, value, rewriter), key)
             }
           val passed =
@@ -162,32 +161,39 @@ public class SceneResolver(
       else rewriter.rewrite(descriptor.getElementDescriptor(index), value)
     }
 
-    private fun rewriterFor(key: NodeKey, placement: NodeKey?): SlotRewriter =
+    /** Resolves the slots of [component] on [key], written in the file placed at [placement]. */
+    private fun rewriterFor(key: NodeKey, placement: NodeKey?, component: String): SlotRewriter =
       SlotRewriter(placement?.text.orEmpty()) { text ->
         val guid = runCatching { Guid.parse(text) }.getOrNull()
         when {
-          guid == null -> problems += SceneProblem.BadComponent(key, text, "not an asset GUID")
+          guid == null ->
+            problems += SceneProblem.BadComponent(key, component, "\"$text\" is not an asset GUID")
           !assetExists(guid) -> problems += SceneProblem.MissingAsset(key, guid)
         }
       }
 
-    /** [components] decoded and written again by their types, dropping those that do not load. */
-    private fun canonical(
-      key: NodeKey,
-      components: Map<String, JsonObject>,
-    ): SortedMap<String, JsonObject> {
+    /**
+     * The node [key] with [components] decoded and written again by their types; those that do not
+     * load are reported and named as failed, so a live node keeps its last good value of them.
+     */
+    private fun canonical(key: NodeKey, components: Map<String, JsonObject>): ResolvedNode {
       val result = sortedMapOf<String, JsonObject>()
+      val failed = sortedSetOf<String>()
       components.forEach { (name, fields) ->
         val type = types[name]
         if (type == null) {
           problems += SceneProblem.BadComponent(key, name, "no component type has this name")
+          failed += name
         } else {
           runCatching { type.encode(type.decode(fields)) }
             .onSuccess { result[name] = it }
-            .onFailure { problems += SceneProblem.BadComponent(key, name, it.message.orEmpty()) }
+            .onFailure {
+              problems += SceneProblem.BadComponent(key, name, it.message.orEmpty())
+              failed += name
+            }
         }
       }
-      return result
+      return ResolvedNode(key, result, failed)
     }
   }
 

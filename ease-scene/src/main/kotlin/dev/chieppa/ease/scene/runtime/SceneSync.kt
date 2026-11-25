@@ -18,10 +18,11 @@ import dev.chieppa.ease.scene.resolve.SceneSource
  * Spawns scenes into the world of [history] and keeps them in step with their files, on the peer
  * holding authority. [place] spawns a scene or prefab; at each tick boundary, after the asset
  * reloads, [beforeTick] looks at the files every placed scene was built from (the scene, and every
- * prefab and sublevel in it). When one has reloaded, it resolves the scene again and applies the
- * difference from the live nodes as `SpawnNode`, `UpdateNode` and `DestroyNode` commands with the
- * engine's origin. The commands go through the history, so they are logged and reach every peer the
- * same way. A tick where no file changed allocates nothing.
+ * prefab and sublevel in it), and at those it needed but could not load. When one has reloaded,
+ * appeared or changed, it resolves the scene again and applies the difference from the live nodes
+ * as `SpawnNode`, `UpdateNode` and `DestroyNode` commands with the engine's origin. The commands go
+ * through the history, so they are logged and reach every peer the same way. A tick where no file
+ * changed allocates nothing.
  */
 public class SceneSync(
   world: World,
@@ -51,13 +52,18 @@ public class SceneSync(
   public fun beforeTick(tick: Long) {
     for (index in placed.indices) {
       val scene = placed[index]
-      if (scene.isStale()) apply(scene, tick)
+      if (scene.isStale(store.database)) apply(scene, tick)
     }
   }
 
   private fun apply(scene: PlacedScene, tick: Long) {
     val handles = mutableListOf<AssetHandle<SceneDocument>>()
-    val source = SceneSource { guid -> handleOf(guid)?.also { handles += it }?.value }
+    val failed = LinkedHashMap<Guid, String?>()
+    val source = SceneSource { guid ->
+      val handle = handleOf(guid)
+      if (handle == null) failed[guid] = store.database[guid]?.contentHash else handles += handle
+      handle?.value
+    }
     val resolver = SceneResolver(nodes.types, source) { store.database[it] != null }
     val resolved = resolver.resolve(scene.asset, scene.placement)
     val problems = resolved.problems.toMutableList()
@@ -68,9 +74,9 @@ public class SceneSync(
         problems += SceneProblem.Rejected(rejected.message.orEmpty())
       }
     }
-    scene.keys = resolved.nodes.map { it.key }.toSet()
+    scene.keys = resolved.nodes.map { it.key }
     scene.problems = problems
-    scene.track(handles)
+    scene.track(handles, failed)
   }
 
   @Suppress("SwallowedException") // A missing or broken file is reported as a scene problem.

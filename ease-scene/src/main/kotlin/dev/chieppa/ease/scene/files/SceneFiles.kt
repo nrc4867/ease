@@ -1,6 +1,7 @@
 package dev.chieppa.ease.scene.files
 
 import dev.chieppa.ease.scene.document.SceneDocument
+import dev.chieppa.ease.scene.document.SceneNode
 import dev.chieppa.ease.scene.node.LocalId
 import dev.chieppa.ease.serialization.format.FormatMigrations
 import dev.chieppa.ease.serialization.format.UnsupportedFormatVersion
@@ -16,11 +17,20 @@ import kotlinx.serialization.json.JsonObject
  * changes only that node's file.
  */
 public object SceneFiles {
-  /** The files [document] is written as: the header and one file per node. */
-  public fun encode(document: SceneDocument): SortedMap<String, String> {
+  /**
+   * The files [document] is written as: the header and one file per node, named as [NodeFileNames]
+   * says. [previous] holds the file names (without folder or extension) the nodes had, so a node
+   * that keeps its name keeps its file.
+   */
+  public fun encode(
+    document: SceneDocument,
+    previous: Map<LocalId, String> = emptyMap(),
+  ): SortedMap<String, String> {
     val files = sortedMapOf(SceneFormat.HEADER_FILE to header(document))
+    val names = NodeFileNames.assign(document, previous)
     document.nodes.values.forEach { node ->
-      files[SceneFormat.nodeFile(node.id.text)] = CanonicalYaml.write(NodeFileFormat.nodeTree(node))
+      files[SceneFormat.nodeFile(names.getValue(node.id))] =
+        CanonicalYaml.write(NodeFileFormat.nodeTree(node))
     }
     return files
   }
@@ -30,23 +40,43 @@ public object SceneFiles {
     CanonicalYaml.write(NodeFileFormat.headerTree(document.settings))
 
   /**
-   * The document [files] hold, each file migrated to the current format in memory. Files other than
-   * the header and the node files are left alone. Throws [SceneFileException], naming the file,
-   * when one cannot be read.
+   * The document [files] hold, each file migrated to the current format in memory. Nodes are known
+   * by the id inside their file, whatever the file is called. Files other than the header and the
+   * node files are left alone. Throws [SceneFileException], naming the file, when one cannot be
+   * read, or naming both files when two hold the same id.
    */
   public fun decode(files: Map<String, String>): SceneDocument {
     val headerText =
       files[SceneFormat.HEADER_FILE] ?: throw SceneFileException(SceneFormat.HEADER_FILE, "missing")
     val header = parse(SceneFormat.HEADER_FILE, headerText, SceneFormat.headerMigrations)
-    val nodes =
-      files
-        .filterKeys { isNodeFile(it) }
-        .map { (path, text) ->
-          val tree = parse(path, text, SceneFormat.nodeMigrations)
-          reading(path) { NodeFileFormat.node(idOf(path), tree) }
+    val nodes = LinkedHashMap<LocalId, Pair<String, SceneNode>>()
+    files
+      .filterKeys { isNodeFile(it) }
+      .forEach { (path, text) ->
+        val tree = parse(path, text, SceneFormat.nodeMigrations)
+        val node = reading(path) { NodeFileFormat.node(tree) }
+        nodes.put(node.id, path to node)?.let { (other, _) ->
+          throw SceneFileException(path, "holds node ${node.id}, as $other does")
         }
-    return SceneDocument(NodeFileFormat.settings(header), nodes)
+      }
+    return SceneDocument(NodeFileFormat.settings(header), nodes.values.map { it.second })
   }
+
+  /**
+   * The file name, without folder or extension, of each node the node files among [files] hold;
+   * files that cannot be read are left out.
+   */
+  public fun namesById(files: Map<String, String>): Map<LocalId, String> =
+    files
+      .filterKeys { isNodeFile(it) }
+      .mapNotNull { (path, text) ->
+        val node = runCatching {
+          NodeFileFormat.node(parse(path, text, SceneFormat.nodeMigrations))
+        }
+          .getOrNull()
+        node?.let { it.id to stemOf(path) }
+      }
+      .toMap()
 
   /** Whether [path] inside a scene folder is a node file. */
   public fun isNodeFile(path: String): Boolean =
@@ -54,10 +84,8 @@ public object SceneFiles {
       path.endsWith(SceneFormat.NODE_EXTENSION) &&
       path.count { it == '/' } == 1
 
-  private fun idOf(path: String): LocalId =
-    LocalId.parse(
-      path.removePrefix(SceneFormat.NODES_FOLDER + "/").removeSuffix(SceneFormat.NODE_EXTENSION)
-    )
+  private fun stemOf(path: String): String =
+    path.removePrefix(SceneFormat.NODES_FOLDER + "/").removeSuffix(SceneFormat.NODE_EXTENSION)
 
   private fun parse(path: String, text: String, migrations: FormatMigrations): JsonObject =
     reading(path) {

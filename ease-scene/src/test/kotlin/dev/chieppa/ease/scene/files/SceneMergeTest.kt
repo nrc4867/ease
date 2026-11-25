@@ -9,11 +9,14 @@ import dev.chieppa.ease.scene.document.SceneNode
 import dev.chieppa.ease.scene.node.LocalId
 import dev.chieppa.ease.scene.node.LocalIdSource
 import dev.chieppa.ease.scene.node.OrderKey
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.io.TempDir
 
@@ -85,6 +88,25 @@ class SceneMergeTest {
   }
 
   @Test
+  fun `renaming a node on one branch and editing another on the other merge cleanly`() {
+    SceneFolder.write(scene, base)
+    repo.commitAll("base")
+    branch("left") { it.edit(2) { lamp -> lamp.copy(name = "Lantern") } }
+    branch("right") { it.moveX(3, 9) }
+
+    val merge = repo.run("merge", "--no-edit", "left")
+
+    assertEquals(0, merge.exitCode, merge.output)
+    assertEquals("", repo.git("diff", "--name-only", "--diff-filter=U"))
+    assertTrue(Files.exists(scene.resolve("nodes/lantern-0000.yaml")))
+    assertFalse(Files.exists(scene.resolve("nodes/lamp-0000.yaml")))
+    val merged = SceneFolder.read(scene)
+    assertEquals("Lantern", merged[id(2)]?.name)
+    assertEquals(JsonPrimitive(9), fieldX(merged, 3))
+    assertTrue(SceneFolder.write(scene, merged).unchanged)
+  }
+
+  @Test
   fun `two edits of the same node conflict in that node's file only`() {
     SceneFolder.write(scene, base)
     repo.commitAll("base")
@@ -95,7 +117,7 @@ class SceneMergeTest {
 
     assertNotEquals(0, merge.exitCode)
     assertEquals(
-      "cave.scene/nodes/0000000000000002.yaml",
+      "cave.scene/nodes/lamp-0000.yaml",
       repo.git("diff", "--name-only", "--diff-filter=U").trim(),
     )
   }

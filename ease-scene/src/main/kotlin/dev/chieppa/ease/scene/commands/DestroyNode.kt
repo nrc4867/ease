@@ -4,6 +4,8 @@ import com.github.quillraven.fleks.World
 import dev.chieppa.ease.annotations.Doc
 import dev.chieppa.ease.commands.Command
 import dev.chieppa.ease.commands.CommandScope
+import dev.chieppa.ease.commands.builtin.rejectIf
+import dev.chieppa.ease.commands.builtin.withoutIdentity
 import dev.chieppa.ease.scene.node.NodeKey
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

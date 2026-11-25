@@ -1,7 +1,10 @@
 package dev.chieppa.ease.assets.folders
 
+import dev.chieppa.ease.assets.database.ProjectPaths
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
+import java.io.IOException
+import java.io.UncheckedIOException
 import java.nio.BufferUnderflowException
 import java.nio.ByteBuffer
 import java.nio.file.Files
@@ -14,7 +17,6 @@ private const val MAGIC = 0x4550414b
 /** The pack layout this Ease writes. */
 private const val PACK_VERSION = 1
 
-private const val HIDDEN_PREFIX = "."
 private const val SEPARATOR = "/"
 
 /**
@@ -24,15 +26,22 @@ private const val SEPARATOR = "/"
  * loaders read the pack, and cooking can write it as the asset's one file.
  */
 public object FolderPack {
-  /** The pack of the files under [folder]. */
+  /**
+   * The pack of the files under [folder]. Throws [IOException] when the folder cannot be read
+   * whole, such as when it is deleted while being read.
+   */
   public fun pack(folder: Path): ByteArray {
     val files = sortedMapOf<String, ByteArray>()
-    Files.walk(folder).use { walk ->
-      walk
-        .filter { Files.isRegularFile(it) }
-        .map { folder.relativize(it) }
-        .filter { relative -> relative.none { it.toString().startsWith(HIDDEN_PREFIX) } }
-        .forEach { files[relative(it)] = Files.readAllBytes(folder.resolve(it)) }
+    try {
+      Files.walk(folder).use { walk ->
+        walk
+          .filter { Files.isRegularFile(it) }
+          .map { folder.relativize(it) }
+          .filter { !ProjectPaths.isHidden(it) }
+          .forEach { files[relative(it)] = Files.readAllBytes(folder.resolve(it)) }
+      }
+    } catch (failure: UncheckedIOException) {
+      throw failure.cause ?: failure
     }
     return pack(files)
   }

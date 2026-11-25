@@ -3,6 +3,8 @@ package dev.chieppa.ease.scene.types
 import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType
 import dev.chieppa.ease.ecs.LocalTransform
+import dev.chieppa.ease.ecs.replication.ReplicatedSerializer
+import dev.chieppa.ease.ecs.replication.replication
 import dev.chieppa.ease.scene.node.NodeName
 import dev.chieppa.ease.scene.node.Parent
 import kotlinx.serialization.KSerializer
@@ -48,6 +50,16 @@ public class SceneTypes private constructor(types: List<SceneComponentType<*>>) 
           serializer,
           read = { world, entity -> with(world) { entity.getOrNull(type) } },
           remove = { entity -> entity -= type },
+          replicate = { world, entity, value ->
+            val wire = world.replication.types
+            val id = wire.idOf(type)
+            if (id >= 0) {
+              @Suppress("UNCHECKED_CAST") // The wire type registered for this component type.
+              val replicated = wire[id].serializer as ReplicatedSerializer<T>
+              world.replication.write(entity, type) { value?.let { replicated.copy(it, this) } }
+            }
+            id >= 0
+          },
         )
     }
   }

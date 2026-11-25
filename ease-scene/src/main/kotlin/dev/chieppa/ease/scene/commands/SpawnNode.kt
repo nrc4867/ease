@@ -6,6 +6,7 @@ import com.github.quillraven.fleks.World
 import dev.chieppa.ease.annotations.Doc
 import dev.chieppa.ease.commands.Command
 import dev.chieppa.ease.commands.CommandScope
+import dev.chieppa.ease.commands.builtin.rejectIf
 import dev.chieppa.ease.ecs.replication.spawnEntity
 import dev.chieppa.ease.scene.node.NodeKey
 import kotlinx.serialization.SerialName
@@ -13,7 +14,8 @@ import kotlinx.serialization.Serializable
 
 @Doc(
   "Creates a node: an entity carrying what the snapshot holds, its NodeKey included, with a " +
-    "network id and authority from the world. Undone by destroying the node. Only the world's " +
+    "network id and authority from the world; its replicated components are marked for the next " +
+    "snapshot. Undone by destroying the node. Only the world's " +
     "own peer may send it; rejected when a live node has the key."
 )
 @Serializable
@@ -31,10 +33,12 @@ public class SpawnNode(
     rejectIf(validate(world))
     @Suppress("UNCHECKED_CAST") // Fleks keeps every tag as a UniqueId of Any.
     val tags = snapshot.tags as List<EntityTags>
-    world.spawnEntity {
+    val entity = world.spawnEntity {
       it += snapshot.components
       it += tags
     }
+    val types = sceneNodes(world).types
+    snapshot.components.forEach { types.of(it)?.markReplicated(world, entity) }
     return DestroyNode(snapshot.components.filterIsInstance<NodeKey>().single())
   }
 }
