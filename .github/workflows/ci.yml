@@ -180,7 +180,7 @@ jobs:
           distribution: corretto
           java-version: 25
       - uses: gradle/actions/setup-gradle@v5
-      - run: tools/check-templates.sh "$RUNNER_TEMP/templates"
+      - run: bash tools/check-templates.sh "$RUNNER_TEMP/templates"
         working-directory: ease
 
   # The one check main's ruleset requires: green when the changed files were read and every code job
