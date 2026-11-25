@@ -100,7 +100,7 @@ public class ProjectFixer(private val project: Path, private val git: Git = Git(
   /** Whether the sidecars [ours] and [theirs] are the same but for the GUID. */
   private fun differOnlyInGuid(ours: AssetMeta, theirs: AssetMeta): Boolean =
     ours.guid != theirs.guid &&
-      MetaFiles.encode(AssetMeta(ours.formatVersion, theirs.guid)) == MetaFiles.encode(theirs)
+      MetaFiles.encode(ours.withGuid(theirs.guid)) == MetaFiles.encode(theirs)
 
   private fun restore(commit: String, meta: String): String? {
     val before = "$commit^"

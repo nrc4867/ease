@@ -2,6 +2,7 @@ package dev.chieppa.ease.cli
 
 import dev.chieppa.ease.cli.command.CheckCommand
 import dev.chieppa.ease.cli.command.GenerateCommand
+import dev.chieppa.ease.cli.command.ImportCommand
 import dev.chieppa.ease.cli.command.MergeDriverCommand
 import dev.chieppa.ease.cli.command.NewCommand
 import dev.chieppa.ease.cli.command.TemplatesCommand
@@ -56,6 +57,7 @@ public class EaseCli(
           GenerateCommand(templates),
           TemplatesCommand(templates),
           CheckCommand(),
+          ImportCommand(),
           MergeDriverCommand(),
         ),
         output,

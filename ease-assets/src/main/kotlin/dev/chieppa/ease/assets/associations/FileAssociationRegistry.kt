@@ -36,6 +36,9 @@ public class FileAssociationRegistry : FileAssociations {
     return ranked.map { kind.type.javaObjectType.cast(it.contributor) }
   }
 
+  override fun <T : Contributor> contributors(kind: ContributorKind<T>): List<T> =
+    entries.filter { it.kind === kind }.map { kind.type.javaObjectType.cast(it.contributor) }
+
   override fun attachments(file: ProjectFile): List<Attachment> =
     matching(file).map { it.attachment() }
 

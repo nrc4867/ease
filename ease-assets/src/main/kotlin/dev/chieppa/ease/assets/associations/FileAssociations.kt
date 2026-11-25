@@ -29,6 +29,9 @@ public interface FileAssociations {
     accepts: (T) -> Boolean = { true },
   ): List<T>
 
+  /** Every contributor registered for [kind], whatever it matches, in registration order. */
+  public fun <T : Contributor> contributors(kind: ContributorKind<T>): List<T>
+
   /** Every contributor attached to [file], of every kind, with where each came from. */
   public fun attachments(file: ProjectFile): List<Attachment>
 

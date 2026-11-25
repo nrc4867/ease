@@ -1,6 +1,7 @@
 package dev.chieppa.ease.runtime
 
 import dev.chieppa.ease.assets.Guid
+import dev.chieppa.ease.assets.associations.FileAssociations
 import dev.chieppa.ease.commands.CommandRegistry
 import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.ecs.replication.PeerId
@@ -25,6 +26,14 @@ public interface GameModule {
    * with the codec as well, so a world spawns them from files, saves them and sends them.
    */
   public fun registerSceneTypes(types: SceneTypes.Builder) {}
+
+  /**
+   * Registers the game's own importers, and any other contributors for its file types, with the
+   * file association service. The editor and `ease import` call this; the player has no registry
+   * and loads cooked assets. Everything registered through [associations] is removed together when
+   * the module is unloaded.
+   */
+  public fun registerContributors(associations: FileAssociations) {}
 
   /**
    * The GUID of the scene the host's world starts from, or null when the game builds its world in

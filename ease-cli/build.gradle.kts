@@ -12,6 +12,7 @@ dependencies {
   implementation(project(":ease-annotations"))
   implementation(project(":ease-serialization"))
   implementation(project(":ease-project"))
+  implementation(project(":ease-runtime"))
   testImplementation(testFixtures(project(":ease-project")))
 }
 

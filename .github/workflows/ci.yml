@@ -77,6 +77,9 @@ jobs:
       # ease check on the sample's own content, as a game's pre-commit hook runs it.
       - run: ./gradlew :ease-cli:runEase --args="check --dir sample"
         working-directory: ease
+      # ease import on the sample's content: the sample's own palette importer runs headless.
+      - run: ./gradlew :sample:sampleImport
+        working-directory: ease
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

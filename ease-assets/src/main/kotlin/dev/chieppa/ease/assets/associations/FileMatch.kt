@@ -64,5 +64,17 @@ public sealed interface FileMatch {
       extensionMatch.matches(file) && accepts(file.head)
 
     override fun toString(): String = "$extensionMatch by content"
+
+    public companion object {
+      /** A sniffer for [extension] files whose first bytes are exactly [prefix]. */
+      public fun startingWith(extension: String, prefix: ByteArray): Sniffer =
+        Sniffer(extension) { head ->
+          head.size >= prefix.size && prefix.indices.all { head[it] == prefix[it] }
+        }
+
+      /** A sniffer for [extension] files whose text starts with [prefix] (UTF-8). */
+      public fun startingWith(extension: String, prefix: String): Sniffer =
+        startingWith(extension, prefix.toByteArray(Charsets.UTF_8))
+    }
   }
 }

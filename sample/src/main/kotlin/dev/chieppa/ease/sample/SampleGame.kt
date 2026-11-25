@@ -1,6 +1,7 @@
 package dev.chieppa.ease.sample
 
 import dev.chieppa.ease.assets.Guid
+import dev.chieppa.ease.assets.associations.FileAssociations
 import dev.chieppa.ease.commands.CommandRegistry
 import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.ecs.Phase
@@ -23,6 +24,10 @@ import dev.chieppa.ease.scene.types.SceneTypes
 public class SampleGame : GameModule {
   override fun registerSceneTypes(types: SceneTypes.Builder) {
     types.component(Velocity, Velocity.serializer())
+  }
+
+  override fun registerContributors(associations: FileAssociations) {
+    PaletteImporter.register(associations)
   }
 
   override fun registerTypes(registry: CommandRegistry) {

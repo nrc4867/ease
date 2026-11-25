@@ -72,6 +72,20 @@ tasks.register<JavaExec>("runAgentHost") {
   jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
+// `ease import` on the sample's content with the sample's own importers: the command line from
+// :ease-cli, and the sample's classpath, where the command finds its GameModule.
+val easeCli by configurations.creating
+
+dependencies { easeCli(project(":ease-cli")) }
+
+tasks.register<JavaExec>("sampleImport") {
+  group = "verification"
+  description = "Runs ease import on the sample's content, its palette importer included."
+  classpath = main.runtimeClasspath + easeCli
+  mainClass = "dev.chieppa.ease.cli.MainKt"
+  args("import", "--dir", projectDir.path)
+}
+
 // The game's ease.d.ts: its own types joined with every engine module's, for scripts and tests.
 val easeTypes =
   tasks.register<AssembleEaseTypes>("assembleEaseTypes") {
