@@ -16,6 +16,7 @@ import dev.chieppa.ease.net.input.InputPacket
 import dev.chieppa.ease.net.snapshot.SnapshotReceiver
 import dev.chieppa.ease.net.view.ReplicaContent
 import dev.chieppa.ease.net.view.ViewReceiver
+import dev.chieppa.ease.net.view.ViewRecord
 import dev.chieppa.ease.net.view.ViewRefusal
 
 /**
@@ -34,8 +35,9 @@ public class ClientSession(
   private val settings: NetSettings = NetSettings(),
   content: ReplicaContent = ReplicaContent.NONE,
 ) {
-  private val snapshots = SnapshotReceiver(world.replication)
-  private val views = ViewReceiver(world, connection.remote, content)
+  private val record = ViewRecord()
+  private val views = ViewReceiver(world, connection.remote, content, record)
+  private val snapshots = SnapshotReceiver(world.replication, record)
   private val history = InputHistory(settings.input)
   private val packet = InputPacket(settings.input)
   private val commands = codec.commandWriter()
@@ -123,8 +125,7 @@ public class ClientSession(
     while (connection.isOpen) {
       val length = connection.receive(ChannelKind.UNRELIABLE, incoming)
       if (length == Channels.NO_MESSAGE) return
-      val status =
-        if (greeted) snapshots.receive(incoming, length, views.applied) else DecodeStatus.OK
+      val status = if (greeted) snapshots.receive(incoming, length) else DecodeStatus.OK
       if (status != DecodeStatus.OK) {
         snapshotRefusal = status
         close(CloseReason.MALFORMED_SNAPSHOT)

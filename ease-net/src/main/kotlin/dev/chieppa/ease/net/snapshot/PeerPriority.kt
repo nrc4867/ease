@@ -10,8 +10,10 @@ private const val INITIAL_ENTITIES = 64
 /**
  * The order one peer's snapshot takes its entities in. Each entity with changes the peer lacks is
  * [offer]ed with its [PriorityRule] score plus what it built up while left out; [sort] puts the
- * highest first. An entity a snapshot carries starts again from 0 and one left out keeps its total,
- * so an entity left out long enough rises past any score. It allocates only as the world grows.
+ * highest first. An entity a snapshot carries, or with nothing to send, starts again from 0; one
+ * left out keeps its total plus [LEFT_OUT_STEP], so an entity left out long enough rises past any
+ * other, even under a rule that scores everything 0. A score that is not finite or below 0 counts
+ * as 0. It allocates only as the world grows.
  */
 internal class PeerPriority(
   private val world: World,
@@ -45,9 +47,10 @@ internal class PeerPriority(
       ids = ids.copyOf(size * 2)
       keys = keys.copyOf(size * 2)
     }
-    val score = rule.priority(world, entity, viewer, motion.speedOf(entity)).coerceAtLeast(0f)
+    val raw = rule.priority(world, entity, viewer, motion.speedOf(entity))
+    val score = if (raw.isFinite() && raw > 0f) raw else 0f
     ids[size] = id
-    keys[size] = builtUp[id] + score
+    keys[size] = (builtUp[id] + score).coerceAtMost(Float.MAX_VALUE)
     size++
   }
 
@@ -61,6 +64,12 @@ internal class PeerPriority(
 
   /** Records whether the snapshot [carried] the entity at [index] of the order. */
   fun settle(index: Int, carried: Boolean) {
-    builtUp[ids[index]] = if (carried) 0f else keys[index]
+    builtUp[ids[index]] =
+      if (carried) 0f else (keys[index] + LEFT_OUT_STEP).coerceAtMost(Float.MAX_VALUE)
+  }
+
+  companion object {
+    /** What an entity left out of a snapshot gains beyond its score, each time. */
+    const val LEFT_OUT_STEP: Float = 1f / 64
   }
 }

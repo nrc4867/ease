@@ -2,8 +2,11 @@ package dev.chieppa.ease.net.snapshot
 
 /** The entities in one peer's view, as its snapshots read them. */
 internal interface ViewMembers {
-  /** How many spawn and despawn messages the peer has been sent. */
-  val sequence: Long
+  /**
+   * The number of the spawn that brought the entity at entity id [entityId] into view, counting
+   * every spawn and despawn sent to the peer from 1.
+   */
+  fun spawnOf(entityId: Int): Long
 
   /** How many entities are in view. */
   val count: Int

@@ -9,20 +9,20 @@ import dev.chieppa.ease.ecs.replication.WireBits
 /**
  * Applies the snapshots a client receives, treating every byte as hostile. Only a snapshot newer
  * than every one applied so far applies; an older or repeated one is skipped, since the host's
- * deltas assume the client holds what the newest applied snapshot carried. So is one sent after a
- * different number of spawns and despawns than the client has applied: it may name an entity the
- * client has not been told about yet, or one it has removed; a later snapshot carries its fields.
- * It keeps what the client acknowledges: the newest applied tick and which of the 32 before it were
- * applied too.
+ * deltas assume the client holds what the newest applied snapshot carried. So is one that needs a
+ * spawn the client has not applied yet; a later snapshot carries its fields. Otherwise it applies,
+ * and [history] passes over the entities spawned again or despawned since it was sent. It keeps
+ * what the client acknowledges: the newest applied tick and which of the 32 before it were applied
+ * too.
  */
-internal class SnapshotReceiver(replication: Replication) {
+internal class SnapshotReceiver(replication: Replication, private val history: ViewHistory) {
   private val header = BitReader()
-  private val state = StatePacketReader(replication)
+  private val state = StatePacketReader(replication, history)
 
   // The header of the snapshot being read.
   private var tick = 0L
   private var inputPlusOne = 0L
-  private var sequence = 0L
+  private var needs = 0L
 
   /** The tick of the newest applied snapshot, or [Snapshots.NO_TICK]. */
   var latestTick: Long = Snapshots.NO_TICK
@@ -36,14 +36,11 @@ internal class SnapshotReceiver(replication: Replication) {
   var lastInputTick: Long = Snapshots.NO_TICK
     private set
 
-  /**
-   * Reads the first [length] bytes of [bytes], once the client has applied [viewSequence] spawns
-   * and despawns: applies them, skips them, or refuses.
-   */
-  fun receive(bytes: ByteArray, length: Int, viewSequence: Long): DecodeStatus {
+  /** Reads the first [length] bytes of [bytes]: applies them, skips them, or refuses. */
+  fun receive(bytes: ByteArray, length: Int): DecodeStatus {
     if (length < 0 || length > bytes.size) return DecodeStatus.TRUNCATED
     val problem = readHeader(bytes, length)
-    val skip = tick <= latestTick || sequence != viewSequence
+    val skip = tick <= latestTick || needs > history.applied
     return if (problem != DecodeStatus.OK || skip) problem else applyState(bytes, length)
   }
 
@@ -51,10 +48,10 @@ internal class SnapshotReceiver(replication: Replication) {
     header.reset(bytes, length)
     tick = header.readVarLong()
     inputPlusOne = header.readVarLong()
-    sequence = header.readVarLong()
+    needs = header.readVarLong()
     return when {
       !header.ok -> header.status
-      tick < 0 || inputPlusOne < 0 || sequence < 0 -> DecodeStatus.MALFORMED
+      tick < 0 || inputPlusOne < 0 || needs < 0 -> DecodeStatus.MALFORMED
       inputPlusOne - 1 > tick -> DecodeStatus.BAD_VALUE
       else -> DecodeStatus.OK
     }
@@ -62,10 +59,12 @@ internal class SnapshotReceiver(replication: Replication) {
 
   private fun applyState(bytes: ByteArray, length: Int): DecodeStatus {
     val headerBytes = WireBits.bytesFor(header.bitPosition)
+    history.reading(needs)
     val status = state.read(bytes, headerBytes, length - headerBytes)
     if (status == DecodeStatus.OK) {
       applied(tick)
       lastInputTick = inputPlusOne - 1
+      history.appliedThrough(needs)
     }
     return status
   }

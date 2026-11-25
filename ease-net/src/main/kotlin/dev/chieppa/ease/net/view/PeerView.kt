@@ -23,11 +23,12 @@ private const val STILL_RELEVANT = Long.MIN_VALUE
 
 /**
  * Which of the host's entities one peer holds, kept each tick by [update]. An entity enters the
- * view, with a spawn, on the tick it becomes relevant to the peer's [viewer]; it leaves, with a
- * despawn, once it has been irrelevant for the grace ticks, or at once when the host destroys it or
- * stops holding it. An entity whose owner or set of replicated components changed leaves and enters
- * again in the same tick, so the peer's copy and the fields it may hold follow. A tick in which
- * nothing enters or leaves allocates nothing.
+ * view, with a spawn, on the tick it becomes relevant to the peer's [viewer]. It leaves, with a
+ * despawn, at once when a filter says `NEVER`, the host destroys it or stops holding it; when it is
+ * only `DISTANT`, it leaves on the tick it has been so for the grace ticks, at once for 0. An
+ * entity whose owner or set of replicated components changed leaves and enters again in the same
+ * tick, so the peer's copy and the fields it may hold follow. A tick in which nothing enters or
+ * leaves allocates nothing.
  */
 internal class PeerView(
   private val world: World,
@@ -46,8 +47,9 @@ internal class PeerView(
   private var positions = IntArray(INITIAL_ENTITIES)
   private var members = IntArray(INITIAL_ENTITIES)
 
-  override var sequence: Long = 0L
-    private set
+  /** How many spawns and despawns the peer has been sent. */
+  private var sequence = 0L
+  private var spawnedBy = LongArray(INITIAL_ENTITIES)
 
   override var count: Int = 0
     private set
@@ -55,6 +57,8 @@ internal class PeerView(
   override fun memberAt(index: Int): Int = members[index]
 
   override fun networkIdOf(entityId: Int): Long = inView[entityId]
+
+  override fun spawnOf(entityId: Int): Long = spawnedBy[entityId]
 
   override fun isOwner(entityId: Int): Boolean = owners[entityId] == viewer.peer.value
 
@@ -78,7 +82,8 @@ internal class PeerView(
     if (inView[id] != NOT_IN_VIEW && inView[id] != networkId) leave(id, connection)
     seenAt[id] = tick
     val owner = with(world) { entity[Authority].owner }
-    val relevant = isRelevant(entity, owner)
+    val verdict = verdictOf(entity, owner)
+    val relevant = verdict == Relevance.ALWAYS || verdict == Relevance.PASS
     var member = inView[id] != NOT_IN_VIEW
     if (member && (owners[id] != owner.value || !snapshots.holdsAll(entity, networkId))) {
       leave(id, connection)
@@ -87,23 +92,38 @@ internal class PeerView(
     when {
       !member -> if (relevant) enter(entity, networkId, owner, connection)
       relevant -> lostAt[id] = STILL_RELEVANT
-      lostAt[id] == STILL_RELEVANT -> lostAt[id] = tick
-      tick - lostAt[id] >= settings.graceTicks -> leave(id, connection)
+      verdict == Relevance.NEVER -> leave(id, connection)
+      else -> fade(id, tick, connection)
     }
   }
 
-  /** Whether [entity], owned by [owner], is relevant to the viewer: see `RelevancyFilter`. */
-  private fun isRelevant(entity: Entity, owner: PeerId): Boolean {
+  /**
+   * Counts the grace of the entity at [id], out of range at [tick], and takes it out once spent.
+   */
+  private fun fade(id: Int, tick: Long, connection: Connection) {
+    if (lostAt[id] == STILL_RELEVANT) lostAt[id] = tick
+    if (tick - lostAt[id] >= settings.graceTicks) leave(id, connection)
+  }
+
+  /** What the filters together say about [entity], owned by [owner]: see `RelevancyFilter`. */
+  private fun verdictOf(entity: Entity, owner: PeerId): Relevance {
     var always = owner == viewer.peer
     var never = false
+    var distant = false
     for (filter in filters) {
       when (filter.relevance(world, entity, viewer)) {
         Relevance.ALWAYS -> always = true
         Relevance.NEVER -> never = true
+        Relevance.DISTANT -> distant = true
         Relevance.PASS -> Unit
       }
     }
-    return always || !never
+    return when {
+      always -> Relevance.ALWAYS
+      never -> Relevance.NEVER
+      distant -> Relevance.DISTANT
+      else -> Relevance.PASS
+    }
   }
 
   private fun enter(entity: Entity, networkId: Long, owner: PeerId, connection: Connection) {
@@ -113,6 +133,7 @@ internal class PeerView(
     sequence++
     val id = entity.id
     inView[id] = networkId
+    spawnedBy[id] = sequence
     lostAt[id] = STILL_RELEVANT
     owners[id] = owner.value
     positions[id] = count
@@ -137,6 +158,7 @@ internal class PeerView(
   private fun grow(id: Int) {
     val size = maxOf(id + 1, inView.size * 2)
     inView = inView.copyOf(size)
+    spawnedBy = spawnedBy.copyOf(size)
     lostAt = lostAt.copyOf(size)
     owners = owners.copyOf(size)
     seenAt = seenAt.copyOf(size)

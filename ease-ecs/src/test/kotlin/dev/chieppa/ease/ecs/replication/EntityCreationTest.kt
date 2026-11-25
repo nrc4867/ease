@@ -65,9 +65,9 @@ class EntityCreationTest {
   }
 
   @Test
-  fun `ids stop below the limit, and the last one ends the session cleanly`() {
+  fun `ids stop below the host's range, and the last one ends the session cleanly`() {
     val world = ReplicationWorlds.world()
-    world.entity { it += NetworkIdentity(NetworkId(NetworkId.LIMIT - 1)) }
+    world.entity { it += NetworkIdentity(NetworkId(NetworkId.LOCAL_START - 1)) }
 
     assertFailsWith<IllegalStateException> { world.entity {} }
   }

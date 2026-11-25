@@ -20,7 +20,7 @@ public enum class ViewRefusal(public val contentMismatch: Boolean = false) {
   /** A message kind other than spawn or despawn. */
   UNKNOWN_KIND,
 
-  /** A network id no entity can have. */
+  /** A network id the host does not issue, outside `1` to `NetworkId.LOCAL_START`. */
   BAD_NETWORK_ID,
 
   /** A spawn for a network id a live entity already carries. */

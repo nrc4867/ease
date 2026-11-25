@@ -6,7 +6,7 @@ import dev.chieppa.ease.net.relevancy.RelevancyFilter
 
 /**
  * What the host sends each peer: the [filters] that decide which entities are relevant to it, how
- * many ticks [graceTicks] an entity stays in view after it stops being relevant, so one at the edge
+ * many ticks [graceTicks] an entity out of range stays in view before it leaves, so one at the edge
  * does not spawn and despawn tick after tick, the [priority] that orders a full snapshot, and the
  * [naming] that says what asset a spawn names.
  */

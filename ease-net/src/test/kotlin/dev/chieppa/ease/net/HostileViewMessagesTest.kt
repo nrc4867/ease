@@ -3,15 +3,19 @@ package dev.chieppa.ease.net
 import com.github.quillraven.fleks.World
 import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.commands.WorldCodec
+import dev.chieppa.ease.ecs.replication.BitWriter
+import dev.chieppa.ease.ecs.replication.NetworkId
 import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.ecs.replication.spawnEntity
 import dev.chieppa.ease.net.channel.ChannelKind
+import dev.chieppa.ease.net.channel.Channels
 import dev.chieppa.ease.net.channel.LocalLink
 import dev.chieppa.ease.net.session.ClientSession
 import dev.chieppa.ease.net.session.CloseReason
 import dev.chieppa.ease.net.session.Hello
 import dev.chieppa.ease.net.view.ReplicaContent
 import dev.chieppa.ease.net.view.SceneReplicas
+import dev.chieppa.ease.net.view.ViewRefusal
 import dev.chieppa.ease.scene.document.SceneDocument
 import dev.chieppa.ease.scene.document.SceneNode
 import dev.chieppa.ease.scene.node.LocalId
@@ -53,7 +57,12 @@ class HostileViewMessagesTest {
   }
 
   /** Feeds [bytes] as a view message to a fresh client session over [world]. */
-  private fun feed(world: World, codec: WorldCodec, content: ReplicaContent, bytes: ByteArray) {
+  private fun feed(
+    world: World,
+    codec: WorldCodec,
+    content: ReplicaContent,
+    bytes: ByteArray,
+  ): ClientSession {
     val link = LocalLink(clientPeer = Session.CLIENT)
     val client = ClientSession(world, codec, link.clientEnd, content = content)
     Hello.send(codec, link.hostEnd)
@@ -64,6 +73,44 @@ class HostileViewMessagesTest {
       assertTrue(client.viewRefusal != null)
       assertEquals(before, world.numEntities)
     }
+    return client
+  }
+
+  /** A plain spawn of [id] with no components, owned by the raw ten groups of [ownerGroups]. */
+  private fun plainSpawn(id: Long, ownerGroups: IntArray): ByteArray {
+    val writer = BitWriter(Channels.MAX_RELIABLE_BYTES)
+    writer.writeBits(SPAWN, Byte.SIZE_BITS)
+    writer.writeVarLong(id)
+    ownerGroups.forEachIndexed { index, group ->
+      writer.writeBits(group, GROUP_BITS)
+      writer.writeBoolean(index < ownerGroups.size - 1)
+    }
+    writer.writeBits(0, Byte.SIZE_BITS)
+    writer.writeBits(0, COUNT_BITS)
+    writer.padToByte()
+    return writer.buffer.copyOf(writer.byteLength)
+  }
+
+  @Test
+  fun `a spawn whose owner decodes below 0 is refused`() {
+    val session = Session(entities = 1)
+    val (target, _) = session.lateClient(PeerId(2))
+    val negative = IntArray(MAX_GROUPS) { if (it < MAX_GROUPS - 1) GROUP_MASK else 1 }
+
+    val client = feed(target, session.codec, ReplicaContent.NONE, plainSpawn(1, negative))
+
+    assertEquals(ViewRefusal.BAD_PEER, client.viewRefusal)
+  }
+
+  @Test
+  fun `a spawn naming an id from a client's own range is refused`() {
+    val session = Session(entities = 1)
+    val (target, _) = session.lateClient(PeerId(2))
+
+    val spawn = plainSpawn(NetworkId.LOCAL_START, intArrayOf(1))
+    val client = feed(target, session.codec, ReplicaContent.NONE, spawn)
+
+    assertEquals(ViewRefusal.BAD_NETWORK_ID, client.viewRefusal)
   }
 
   @Test
@@ -105,6 +152,11 @@ class HostileViewMessagesTest {
     const val MAX_FLIPS = 4
     const val NOISE = 1_000
     const val MAX_NOISE = 300
+    const val SPAWN = 1
+    const val GROUP_BITS = 7
+    const val GROUP_MASK = 0x7F
+    const val MAX_GROUPS = 10
+    const val COUNT_BITS = 9
     val REFUSALS = setOf(CloseReason.MALFORMED_SPAWN, CloseReason.CONTENT_MISMATCH)
   }
 }

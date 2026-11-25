@@ -4,10 +4,12 @@ import dev.chieppa.ease.net.channel.Channels
 
 /**
  * The layout of a snapshot message: the host's tick, the last input tick it processed for the
- * receiving peer plus one (0 when none), and how many spawn and despawn messages it had sent that
- * peer, all variable-length and padded to a byte; then a state packet whose fields are those the
- * peer may not hold yet. A client applies a snapshot only once it has applied exactly that many
- * spawns and despawns, so a snapshot never names an entity the client has not been told about.
+ * receiving peer plus one (0 when none), and the number of the latest spawn among the entities it
+ * carries (counting every spawn and despawn sent to that peer from 1, 0 when it carries none), all
+ * variable-length and padded to a byte; then a state packet whose fields are those the peer may not
+ * hold yet. A client applies a snapshot once it has applied at least that many spawns and despawns,
+ * so a snapshot never names an entity the client has not been told about, and a lagging spawn holds
+ * back only the snapshots that carry its entity.
  */
 internal object Snapshots {
   /** The longest header: three variable-length numbers of at most ten bytes each. */

@@ -8,6 +8,15 @@ public enum class Relevance {
   /** No objection: relevant unless another filter says [NEVER]. */
   PASS,
 
-  /** Not relevant, unless another filter says [ALWAYS]. */
+  /**
+   * Out of range, such as too far away: not relevant unless another filter says [ALWAYS], but an
+   * entity in view stays for the grace ticks first, so one at the edge does not flap.
+   */
+  DISTANT,
+
+  /**
+   * Not relevant, unless another filter says [ALWAYS]; an entity in view leaves at once, such as
+   * one on another team.
+   */
   NEVER,
 }

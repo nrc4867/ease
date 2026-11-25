@@ -82,21 +82,23 @@ internal class PeerSnapshots(
   fun write(tick: Long, lastInputTick: Long, view: ViewMembers, message: ByteArray): Int {
     require(tick > lastTick) { "Snapshot ticks rise: $tick follows $lastTick" }
     lastTick = tick
-    header.reset()
-    header.writeVarLong(tick)
-    header.writeVarLong(lastInputTick + 1)
-    header.writeVarLong(view.sequence)
-    header.padToByte()
     record = sent[(tick % Snapshots.SENT_RING).toInt()]
     record.start(tick)
     full = false
     packets.begin(packet)
+    var needs = 0L
     offer(view)
     for (index in 0 until priority.size) {
       val id = priority.idAt(index)
       val carried = !full && visit(Entity(id), view.networkIdOf(id), view.isOwner(id), tick)
+      if (carried) needs = maxOf(needs, view.spawnOf(id))
       priority.settle(index, carried)
     }
+    header.reset()
+    header.writeVarLong(tick)
+    header.writeVarLong(lastInputTick + 1)
+    header.writeVarLong(needs)
+    header.padToByte()
     val stateBytes = packets.end()
     System.arraycopy(header.buffer, 0, message, 0, header.byteLength)
     System.arraycopy(packet.buffer, 0, message, header.byteLength, stateBytes)
@@ -129,7 +131,8 @@ internal class PeerSnapshots(
     priority.clear()
     for (index in 0 until view.count) {
       val id = view.memberAt(index)
-      if (hasPending(Entity(id), view.networkIdOf(id), view.isOwner(id))) priority.offer(Entity(id))
+      val pending = hasPending(Entity(id), view.networkIdOf(id), view.isOwner(id))
+      if (pending) priority.offer(Entity(id)) else priority.reset(Entity(id))
     }
     priority.sort()
   }

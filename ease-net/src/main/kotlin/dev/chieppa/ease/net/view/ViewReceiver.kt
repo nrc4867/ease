@@ -18,21 +18,20 @@ import dev.chieppa.ease.net.channel.Channels
  * Applies the spawns and despawns a client receives from [host], treating every byte as hostile. A
  * spawn builds a replica under the host's network id, held by [host] and owned as the spawn says,
  * from the scene node [content] finds or from the replicated state alone; a despawn removes one. A
- * refused message changes nothing. It counts the messages it [applied], which snapshots are matched
- * against. Spawns allocate the replica they build; despawns allocate nothing.
+ * refused message changes nothing. Each one applied goes in [record], which snapshots are matched
+ * against. Only ids the host issues (`NetworkId.isShared`) are taken, so a replica never meets an
+ * entity the client made itself. Spawns allocate the replica they build; despawns allocate nothing
+ * once the record has grown.
  */
 internal class ViewReceiver(
   private val world: World,
   private val host: PeerId,
   private val content: ReplicaContent,
+  private val record: ViewRecord,
 ) {
   private val replication = world.replication
   private val reader = BitReader()
   private val spawns = SpawnReader(replication.types, reader)
-
-  /** How many spawns and despawns were applied. */
-  var applied: Long = 0L
-    private set
 
   /** Applies the message in the first [length] bytes of [bytes], or returns why it was refused. */
   fun receive(bytes: ByteArray, length: Int): ViewRefusal? {
@@ -42,7 +41,6 @@ internal class ViewReceiver(
         length > Channels.MAX_RELIABLE_BYTES -> ViewRefusal.TOO_LONG
         else -> read(bytes, length)
       }
-    if (refusal == null) applied++
     return refusal
   }
 
@@ -64,7 +62,10 @@ internal class ViewReceiver(
       !spawns.ok -> Unit
       entity == Entity.NONE -> spawns.refuse(ViewRefusal.UNKNOWN_ENTITY)
       replication.hasAuthority(entity) -> spawns.refuse(ViewRefusal.LOCAL_AUTHORITY)
-      finished() -> world -= entity
+      finished() -> {
+        world -= entity
+        record.despawned(id, entity)
+      }
     }
   }
 
@@ -75,7 +76,7 @@ internal class ViewReceiver(
     when {
       !spawns.ok -> Unit
       world.entityOf(id) != Entity.NONE -> spawns.refuse(ViewRefusal.DUPLICATE_ENTITY)
-      owner > Int.MAX_VALUE -> spawns.refuse(ViewRefusal.BAD_PEER)
+      owner !in 0..Int.MAX_VALUE -> spawns.refuse(ViewRefusal.BAD_PEER)
     }
     val base = if (spawns.ok) baseOf(checkNotNull(form)) else null
     val components = base?.let { spawns.components(it) }
@@ -95,17 +96,18 @@ internal class ViewReceiver(
     }
 
   private fun build(id: NetworkId, owner: PeerId, components: List<Component<out Any>>) {
-    world.spawnEntity {
+    val entity = world.spawnEntity {
       it += NetworkIdentity(id)
       it += Authority(host, owner)
       it += components
     }
+    record.spawned(entity)
   }
 
-  /** Reads a network id, refusing one no entity can have. */
+  /** Reads a network id, refusing one the host does not issue. */
   private fun networkId(): NetworkId {
     val id = NetworkId(reader.readVarLong())
-    if (reader.ok && !id.isValid) spawns.refuse(ViewRefusal.BAD_NETWORK_ID)
+    if (reader.ok && !id.isShared) spawns.refuse(ViewRefusal.BAD_NETWORK_ID)
     return id
   }
 
