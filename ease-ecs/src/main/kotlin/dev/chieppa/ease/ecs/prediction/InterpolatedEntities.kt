@@ -48,9 +48,17 @@ public class InterpolatedEntities(
     for (index in 0 until slots.activeCount) slots.activeAt(index).push(world, tick)
   }
 
-  /** Sets each entity's interpolated state to what it was at [time], in ticks. */
+  /**
+   * Sets each entity's interpolated state to what it was at [time], in ticks. An entity removed
+   * since the last scan, or whose id a new entity took, is left alone.
+   */
   public fun present(time: Double) {
-    for (index in 0 until slots.activeCount) slots.activeAt(index).present(world, time)
+    for (index in 0 until slots.activeCount) {
+      val slot = slots.activeAt(index)
+      if (slot.entity in world && slot.carriesSame(world, slot.entity, interpolated)) {
+        slot.present(world, time)
+      }
+    }
   }
 
   private fun scan() {

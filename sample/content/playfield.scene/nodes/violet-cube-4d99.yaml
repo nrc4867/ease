@@ -1,0 +1,30 @@
+components:
+  ease.LocalTransform:
+    rotationW: 1.0
+    rotationX: 0.0
+    rotationY: 0.0
+    rotationZ: 0.0
+    scaleX: 0.8
+    scaleY: 0.8
+    scaleZ: 0.8
+    x: -3.0
+    "y": -3.0
+    z: 0.0
+  ease.Material:
+    blue: 0.79691654
+    emissiveBlue: 0.0
+    emissiveGreen: 0.0
+    emissiveRed: 0.0
+    green: 0.13320851
+    metallic: 0.0
+    red: 0.325037
+    roughness: 0.6
+  ease.Mesh:
+    shape: CUBE
+  sample.Velocity:
+    x: -2.5
+    "y": -1.0
+formatVersion: 1
+id: "4d992601084444f2"
+name: "Violet cube"
+order: z

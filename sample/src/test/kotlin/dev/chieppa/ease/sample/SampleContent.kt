@@ -41,8 +41,14 @@ internal class SampleContent(
   /** The playfield scene as its folder holds it now. */
   fun playfield(): SceneDocument = SceneFolder.read(folder.resolve(PLAYFIELD))
 
-  /** The playfield scene's squares, its nodes, as its folder holds them now. */
-  fun squares(): Collection<SceneNode> = playfield().nodes.values
+  /** The playfield scene's nodes, as its folder holds them now. */
+  fun nodes(): Collection<SceneNode> = playfield().nodes.values
+
+  /** The playfield scene's cubes, its nodes with a velocity, as its folder holds them now. */
+  fun cubes(): Collection<SceneNode> = nodes().filter { VELOCITY in it.components }
+
+  /** The playfield scene's camera node, as its folder holds it now. */
+  fun camera(): SceneNode = playfield().nodes.values.single { CAMERA in it.components }
 
   /** Saves [document] as the playfield scene and publishes every file it wrote or deleted. */
   fun edit(document: SceneDocument) {
@@ -56,6 +62,9 @@ internal class SampleContent(
   companion object {
     /** The playfield scene's folder, relative to the content folder. */
     const val PLAYFIELD = "playfield.scene"
+
+    private const val VELOCITY = "sample.Velocity"
+    private const val CAMERA = "ease.Camera"
 
     /** The keys of [document]'s nodes placed as the outermost scene, as text, sorted. */
     fun keysOf(document: SceneDocument): List<String> {

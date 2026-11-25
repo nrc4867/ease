@@ -50,4 +50,15 @@ class PlayerOptionsTest {
   fun `an unknown option is refused`() {
     assertFailsWith<IllegalStateException> { PlayerOptions.parse(arrayOf("--fast")) }
   }
+
+  @Test
+  fun `a window size is width by height, 1280 by 800 unless given`() {
+    val sized = PlayerOptions.parse(arrayOf("--size", "1920x1080"))
+
+    assertEquals(1920 to 1080, sized.width to sized.height)
+    assertEquals(1280 to 800, PlayerOptions.parse(emptyArray()).let { it.width to it.height })
+    for (bad in listOf("wide", "1920x1080x2", "1920xwide", "0x800", "1920x", "-1x800")) {
+      assertFailsWith<IllegalStateException>(bad) { PlayerOptions.parse(arrayOf("--size", bad)) }
+    }
+  }
 }

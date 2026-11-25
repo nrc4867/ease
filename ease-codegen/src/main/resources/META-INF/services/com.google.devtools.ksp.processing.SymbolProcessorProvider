@@ -1,2 +1,3 @@
 dev.chieppa.ease.codegen.ReplicatedProcessorProvider
 dev.chieppa.ease.codegen.SerializableProcessorProvider
+dev.chieppa.ease.codegen.GpuStructProcessorProvider

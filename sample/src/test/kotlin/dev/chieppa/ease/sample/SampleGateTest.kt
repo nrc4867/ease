@@ -70,8 +70,8 @@ class SampleGateTest {
 
     val log = local.host.history.log
     val entries = log.all
-    val squares = content.playfield().nodes.size
-    assertEquals(squares + 1, entries.size, "the scene's squares, then the courier")
+    val nodes = content.playfield().nodes.size
+    assertEquals(nodes + 1, entries.size, "the scene's nodes, then the courier")
     assertTrue(entries.all { it.tick == 0L && it.origin == CommandOrigin.GAME })
     val client = local.client.world
     val clientLog = client.history.log

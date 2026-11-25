@@ -3,6 +3,7 @@ package dev.chieppa.ease.codegen.read
 import com.google.devtools.ksp.getConstructors
 import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.isPublic
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import dev.chieppa.ease.codegen.model.ComponentModel
@@ -49,6 +50,7 @@ internal class ComponentReader(private val optionReaders: List<FieldOptionReader
         typeName,
         type.isMarkedNullable,
         settable = isSettable(property),
+        isEnum = (type.declaration as? KSClassDeclaration)?.classKind == ClassKind.ENUM_CLASS,
       )
     return optionReaders.fold(plain) { field, reader -> reader.read(property, field) }
   }

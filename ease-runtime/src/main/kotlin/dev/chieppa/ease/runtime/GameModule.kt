@@ -5,7 +5,6 @@ import dev.chieppa.ease.assets.associations.ContributorProvider
 import dev.chieppa.ease.commands.CommandRegistry
 import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.ecs.replication.PeerId
-import dev.chieppa.ease.render.Camera2D
 import dev.chieppa.ease.scene.types.SceneTypes
 
 /**
@@ -82,7 +81,4 @@ public interface GameModule : ContributorProvider {
    * whether to attach it to a [ClientWorld], where it sends commands to the host.
    */
   public fun inputScript(): InputScript? = null
-
-  /** The camera a host starts with. */
-  public fun camera(): Camera2D = Camera2D()
 }

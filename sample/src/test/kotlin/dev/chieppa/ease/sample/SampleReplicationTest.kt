@@ -78,7 +78,8 @@ class SampleReplicationTest {
         .map { nameOf(it) }
         .toSet()
 
-    assertEquals(setOf("ease.LocalTransform", "ease.Quad", "sample.Velocity"), carried - COURIER)
+    val scene = setOf("ease.Camera", "ease.DirectionalLight", "ease.Mesh", "ease.Material")
+    assertEquals(scene + "ease.LocalTransform" + "sample.Velocity", carried - COURIER)
     assertTrue(COURIER in carried)
     assertEquals(carried, replicated)
   }
@@ -99,14 +100,15 @@ class SampleReplicationTest {
       }
     }
 
-    assertEquals(content.playfield().nodes.size * SQUARE_TYPES + COURIER_TYPES, checked)
+    // Every component a scene node holds replicates.
+    val nodeTypes = content.nodes().sumOf { it.components.size }
+    assertEquals(nodeTypes + COURIER_TYPES, checked)
   }
 
   private companion object {
     const val CAPACITY = 256
     const val TICKS = 45
     const val COURIER = "sample.Courier"
-    const val SQUARE_TYPES = 3
-    const val COURIER_TYPES = 4
+    const val COURIER_TYPES = 5
   }
 }

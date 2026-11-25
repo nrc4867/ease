@@ -11,9 +11,9 @@ class {{className}}Test {
   private val hosted = HostedWorld(GameModules.load(), FixedStep.perSecond())
 
   @Test
-  fun `the game on the classpath spawns its square`() {
+  fun `the game on the classpath spawns its cube, camera and light`() {
     assertIs<{{className}}>(GameModules.load())
-    assertEquals(1, hosted.world.numEntities)
+    assertEquals(3, hosted.world.numEntities)
   }
 
   @Test

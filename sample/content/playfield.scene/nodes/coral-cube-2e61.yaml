@@ -1,0 +1,30 @@
+components:
+  ease.LocalTransform:
+    rotationW: 1.0
+    rotationX: 0.0
+    rotationY: 0.0
+    rotationZ: 0.0
+    scaleX: 1.2
+    scaleY: 1.2
+    scaleZ: 1.2
+    x: -5.0
+    "y": 2.0
+    z: 0.0
+  ease.Material:
+    blue: 0.10114517
+    emissiveBlue: 0.0
+    emissiveGreen: 0.0
+    emissiveRed: 0.0
+    green: 0.17343904
+    metallic: 0.0
+    red: 0.89126205
+    roughness: 0.6
+  ease.Mesh:
+    shape: CUBE
+  sample.Velocity:
+    x: 3.0
+    "y": 1.5
+formatVersion: 1
+id: "2e61a12163eaf649"
+name: "Coral cube"
+order: "n"

@@ -13,7 +13,8 @@ import dev.chieppa.ease.ecs.replication.Authority
 import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.ecs.replication.replication
 import dev.chieppa.ease.net.input.peerInputs
-import dev.chieppa.ease.render.Quad
+import dev.chieppa.ease.render.scene.Mesh
+import dev.chieppa.ease.render.scene.MeshShape
 
 /**
  * A game for prediction: each peer that joins gets a walker it owns, which its input's first axis
@@ -27,7 +28,7 @@ internal class WalkModule(
 ) : GameModule {
   override fun populate(world: HostedWorld) {
     repeat(crowd) {
-      world.execute(Spawn(listOf<Component<out Any>>(LocalTransform(), Quad.of(1f, 1f, 1f, 1f))))
+      world.execute(Spawn(listOf<Component<out Any>>(LocalTransform(), Mesh.of(MeshShape.CUBE))))
     }
   }
 
@@ -35,7 +36,7 @@ internal class WalkModule(
     val walker =
       listOf<Component<out Any>>(
         LocalTransform(),
-        Quad.of(1f, 1f, 1f, 1f),
+        Mesh.of(MeshShape.CUBE),
         Authority(PeerId.HOST, peer),
       )
     world.execute(Spawn(walker))

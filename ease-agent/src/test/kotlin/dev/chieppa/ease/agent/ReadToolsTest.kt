@@ -36,7 +36,7 @@ class ReadToolsTest {
 
     val components = types(described, "components")
     assertEquals("number", property(components.getValue("ease.LocalTransform"), "x").text("type"))
-    assertEquals("number", property(components.getValue("ease.Quad"), "size").text("type"))
+    assertEquals("number", property(components.getValue("ease.Material"), "roughness").text("type"))
     assertEquals("number", property(components.getValue("test.Glow"), "level").text("type"))
     val setTransform = types(described, "commands").getValue("ease.SetTransform")
     assertEquals(setOf("type", "entity", "transform"), properties(setTransform).keys)
@@ -68,11 +68,14 @@ class ReadToolsTest {
 
     assertEquals(TICKS, queried.getValue("tick").jsonPrimitive.int)
     val entities = queried.getValue("entities").jsonArray
-    assertEquals(2, entities.size)
+    assertEquals(4, entities.size)
     val types = entities.map { componentTypes(it) }
-    val drawn = setOf("ease.LocalTransform", "ease.Quad", "ease.Authority")
+    val placed = setOf("ease.LocalTransform", "ease.Authority")
+    val drawn = placed + setOf("ease.Mesh", "ease.Material")
     assertEquals(drawn + "test.Glow", types[0])
     assertEquals(drawn, types[1])
+    assertEquals(placed + "ease.Camera", types[2])
+    assertEquals(placed + "ease.DirectionalLight", types[3])
   }
 
   @Test

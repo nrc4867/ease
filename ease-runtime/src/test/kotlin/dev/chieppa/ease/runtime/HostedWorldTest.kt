@@ -5,6 +5,7 @@ import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.net.prediction.ClockSettings
 import dev.chieppa.ease.platform.time.ManualClock
+import dev.chieppa.ease.render.TRANSFORM_FLOATS
 import dev.chieppa.ease.runtime.loop.FixedStep
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -34,8 +35,11 @@ class HostedWorldTest {
     assertEquals(STEPS.toLong(), hosted.tick)
     assertEquals(STEPS.toFloat(), driftedX())
     val id = hosted.snapshot.entityAt(0)
-    assertEquals(STEPS.toFloat(), hosted.snapshot.currentX[id])
-    assertEquals(STEPS - 1f, hosted.snapshot.previousX[id])
+    val transform = FloatArray(TRANSFORM_FLOATS)
+    hosted.snapshot.transformInto(id, 1f, transform, 0)
+    assertEquals(STEPS.toFloat(), transform[0])
+    hosted.snapshot.transformInto(id, 0f, transform, 0)
+    assertEquals(STEPS - 1f, transform[0])
   }
 
   @Test

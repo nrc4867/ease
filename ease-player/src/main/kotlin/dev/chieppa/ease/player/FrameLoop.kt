@@ -1,11 +1,9 @@
 package dev.chieppa.ease.player
 
-import dev.chieppa.ease.gpu.CommandEncoder
 import dev.chieppa.ease.gpu.GpuContext
 import dev.chieppa.ease.platform.Window
 import dev.chieppa.ease.platform.WindowEvent
 import dev.chieppa.ease.platform.Windowing
-import dev.chieppa.ease.render.Camera2D
 import dev.chieppa.ease.render.WorldRenderer
 import dev.chieppa.ease.runtime.WorldRunner
 
@@ -15,9 +13,9 @@ private const val RESIZED_HEIGHT = 810
 
 /**
  * Runs [runner]'s host and client and draws [window]'s frames with [gpu]: each frame runs the ticks
- * due, then draws the client world's snapshot through [camera], blended between the last two ticks.
- * Presenting waits for the display, and while the window is minimized it waits for window events,
- * so it never spins.
+ * due, then draws the client world's snapshot through its camera, blended between the last two
+ * ticks, timing each frame in [stats]. Presenting waits for the display, and while the window is
+ * minimized it waits for window events, so it never spins.
  */
 internal class FrameLoop(
   private val windowing: Windowing,
@@ -25,7 +23,7 @@ internal class FrameLoop(
   private val gpu: GpuContext,
   private val runner: WorldRunner,
   private val renderer: WorldRenderer,
-  private val camera: Camera2D,
+  private val stats: FrameStats,
 ) {
   private val surface = checkNotNull(gpu.surface) { "The GPU context has no window surface" }
 
@@ -39,6 +37,7 @@ internal class FrameLoop(
     while (frames == null || frame < frames) {
       if (!handleEvents()) break
       if (frames != null && frame == frames / 2) window.requestSize(RESIZED_WIDTH, RESIZED_HEIGHT)
+      stats.startFrame()
       runner.frame()
       if (draw()) frame++
     }
@@ -58,16 +57,19 @@ internal class FrameLoop(
 
   /** Draws and presents one frame; false when there was no frame to draw into. */
   private fun draw(): Boolean {
+    gpu.beginFrame()
     val target = surface.acquire()
     if (target == null) {
       // Minimized, or out of date: wait for the window to change, or match its size.
       if (window.pixelSize.isEmpty) windowing.awaitEvent() else surface.configure(window.pixelSize)
       return false
     }
-    val encoder = CommandEncoder.on(gpu)
-    renderer.render(runner.local.snapshot, runner.alpha, camera, target, encoder)
+    val encoder = gpu.frameEncoder()
+    renderer.render(runner.local.snapshot, runner.alpha, target, encoder)
     encoder.submit()
+    stats.submitted()
     surface.present()
+    stats.presented()
     gpu.checkErrors()
     return true
   }

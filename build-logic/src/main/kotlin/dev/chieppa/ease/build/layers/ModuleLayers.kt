@@ -10,6 +10,7 @@ val moduleLayers: Map<String, Layer> =
     "ease-testing" to Layer.TEST_SUPPORT,
     "ease-math" to Layer.FOUNDATION,
     "ease-annotations" to Layer.FOUNDATION,
+    "ease-memory" to Layer.FOUNDATION,
     "ease-ecs" to Layer.CORE,
     "ease-serialization" to Layer.DATA,
     "ease-commands" to Layer.WORLD,

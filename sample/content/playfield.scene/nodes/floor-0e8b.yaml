@@ -1,0 +1,27 @@
+components:
+  ease.LocalTransform:
+    rotationW: 0.70710677
+    rotationX: 0.70710677
+    rotationY: 0.0
+    rotationZ: 0.0
+    scaleX: 17.0
+    scaleY: 1.0
+    scaleZ: 10.0
+    x: 0.0
+    "y": 0.0
+    z: -0.75
+  ease.Material:
+    blue: 0.24
+    emissiveBlue: 0.0
+    emissiveGreen: 0.0
+    emissiveRed: 0.0
+    green: 0.2
+    metallic: 0.0
+    red: 0.18
+    roughness: 0.9
+  ease.Mesh:
+    shape: PLANE
+formatVersion: 1
+id: "0e8b6d3f52a9c471"
+name: Floor
+order: zz

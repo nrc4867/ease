@@ -10,13 +10,17 @@ import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.ecs.replication.replication
-import dev.chieppa.ease.render.Camera2D
-import dev.chieppa.ease.render.Quad
+import dev.chieppa.ease.render.scene.Camera
+import dev.chieppa.ease.render.scene.DirectionalLight
+import dev.chieppa.ease.render.scene.Material
+import dev.chieppa.ease.render.scene.Mesh
+import dev.chieppa.ease.render.scene.MeshShape
 import dev.chieppa.ease.runtime.GameModule
 import dev.chieppa.ease.runtime.HostedWorld
 
 /**
- * A small game: a glowing quad that drifts a tenth of a unit along x every tick, and a still one.
+ * A small game: a glowing cube that drifts a tenth of a unit along x every tick and a still one,
+ * then the camera that sees them and the sun that lights them.
  */
 internal class DriftGame : GameModule {
   override fun registerTypes(registry: CommandRegistry) {
@@ -28,16 +32,23 @@ internal class DriftGame : GameModule {
   }
 
   override fun populate(world: HostedWorld) {
-    world.execute(Spawn(quad(-2f, red = 1f, glow = true)))
-    world.execute(Spawn(quad(2f, red = 0f, glow = false)))
+    world.execute(Spawn(cube(-2f, red = 1f, glow = true)))
+    world.execute(Spawn(cube(2f, red = 0f, glow = false)))
+    val camera = LocalTransform().also { it.z = CAMERA_DISTANCE }
+    world.execute(Spawn(listOf<Component<out Any>>(camera, Camera.of())))
+    world.execute(Spawn(listOf<Component<out Any>>(LocalTransform(), DirectionalLight.of())))
   }
 
-  override fun camera(): Camera2D = Camera2D(visibleHeight = VISIBLE_HEIGHT)
-
-  private fun quad(x: Float, red: Float, glow: Boolean): List<Component<out Any>> =
+  private fun cube(x: Float, red: Float, glow: Boolean): List<Component<out Any>> =
     listOfNotNull(
-      LocalTransform().also { it.x = x },
-      Quad.of(size = 2f, red = red, green = 1f, blue = 0f),
+      LocalTransform().also {
+        it.x = x
+        it.scaleX = 2f
+        it.scaleY = 2f
+        it.scaleZ = 2f
+      },
+      Mesh.of(MeshShape.CUBE),
+      Material.of(red = red, green = 1f, blue = 0f),
       if (glow) Glow().also { it.level = 1f } else null,
     )
 
@@ -51,6 +62,6 @@ internal class DriftGame : GameModule {
 
   companion object {
     const val STEP = 0.1f
-    const val VISIBLE_HEIGHT = 8f
+    const val CAMERA_DISTANCE = 8f
   }
 }

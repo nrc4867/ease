@@ -79,6 +79,6 @@ internal object ModelRules {
     when {
       field.nullable -> "a replicated field may not be nullable"
       field.quantizedBits != null -> "@Quantized goes on a Float, not ${field.typeName}"
-      else -> "a replicated field is a Float, Int or Boolean, not ${field.typeName}"
+      else -> "a replicated field is a Float, Int, Boolean or enum, not ${field.typeName}"
     }
 }

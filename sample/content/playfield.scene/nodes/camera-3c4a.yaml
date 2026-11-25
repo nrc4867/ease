@@ -1,0 +1,20 @@
+components:
+  ease.Camera:
+    far: 500.0
+    fieldOfView: 60.0
+    near: 0.1
+  ease.LocalTransform:
+    rotationW: 0.9537379
+    rotationX: 0.3006394
+    rotationY: 0.0
+    rotationZ: 0.0
+    scaleX: 1.0
+    scaleY: 1.0
+    scaleZ: 1.0
+    x: 0.0
+    "y": -7.0
+    z: 10.0
+formatVersion: 1
+id: "3c4a91e27d05b618"
+name: Camera
+order: zu

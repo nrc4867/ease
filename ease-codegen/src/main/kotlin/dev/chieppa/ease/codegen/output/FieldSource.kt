@@ -30,6 +30,7 @@ internal object FieldSource {
       FieldKind.QUANTIZED_FLOAT -> "$FIELDS.writeQuantized(writer, $value, ${range(field)})"
       FieldKind.INT -> "$FIELDS.writeInt(writer, $value)"
       FieldKind.BOOLEAN -> "writer.writeBoolean($value)"
+      FieldKind.ENUM -> "$FIELDS.writeInt(writer, $value.ordinal)"
       null -> error("${field.name} cannot replicate")
     }
   }
@@ -41,6 +42,7 @@ internal object FieldSource {
       FieldKind.QUANTIZED_FLOAT -> "$FIELDS.readQuantized(reader, ${range(field)})"
       FieldKind.INT -> "$FIELDS.readInt(reader)"
       FieldKind.BOOLEAN -> "reader.readBoolean()"
+      FieldKind.ENUM -> "${field.typeName}.entries[$FIELDS.readInt(reader)]"
       null -> error("${field.name} cannot replicate")
     }
 

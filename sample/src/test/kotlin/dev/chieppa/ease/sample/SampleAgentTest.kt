@@ -35,22 +35,23 @@ class SampleAgentTest {
 
     val components = described.getValue("components")
     assertTrue(fieldNames(components, "ease.LocalTransform").containsAll(listOf("x", "y", "z")))
-    assertEquals(setOf("size", "red", "green", "blue"), fieldNames(components, "ease.Quad"))
+    assertEquals(setOf("shape"), fieldNames(components, "ease.Mesh"))
     assertEquals(setOf("x", "y"), fieldNames(components, "sample.Velocity"))
     val commands = described.getValue("commands")
     assertEquals(setOf("entity", "transform"), fieldNames(commands, "ease.SetTransform"))
   }
 
   @Test
-  fun `query gives every square with its transform, quad and velocity`() {
+  fun `query gives every node, the cubes with their transform, mesh and velocity`() {
     val queried = agent.json(agent.call("query")).jsonObject
 
     assertEquals(0, queried.text("tick").toInt())
     val entities = queried.list("entities")
-    assertEquals(agent.content.squares().size, entities.size)
-    entities.forEach { entity ->
-      val text = entity.toString()
-      listOf("ease.LocalTransform", "ease.Quad", "sample.Velocity").forEach { type ->
+    assertEquals(agent.content.nodes().size, entities.size)
+    val cubes = entities.map { it.toString() }.filter { "\"type\":\"sample.Velocity\"" in it }
+    assertEquals(agent.content.cubes().size, cubes.size)
+    cubes.forEach { text ->
+      listOf("ease.LocalTransform", "ease.Mesh", "ease.Material").forEach { type ->
         assertTrue("\"type\":\"$type\"" in text, text)
       }
     }

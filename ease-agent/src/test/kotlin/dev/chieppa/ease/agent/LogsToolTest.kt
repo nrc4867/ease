@@ -60,6 +60,6 @@ class LogsToolTest {
 
     val lines = bench.log.since(0).lines
     val loaded = lines.single().text
-    assertEquals("Game loaded: ${DriftGame::class.java.name}, 2 entities at tick 0", loaded)
+    assertEquals("Game loaded: ${DriftGame::class.java.name}, 4 entities at tick 0", loaded)
   }
 }

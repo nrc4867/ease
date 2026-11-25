@@ -10,9 +10,11 @@ public object ReservedNames {
   private val TAKEN =
     setOf(
       "Any",
+      "Camera",
       "Component",
       "ComponentType",
       "CommandRegistry",
+      "DirectionalLight",
       "Doc",
       "Entity",
       "Float",
@@ -23,9 +25,10 @@ public object ReservedNames {
       "IteratingSystem",
       "List",
       "LocalTransform",
+      "Mesh",
+      "MeshShape",
       "Phase",
       "PhasedSystems",
-      "Quad",
       "SerialName",
       "Serializable",
       "Spawn",

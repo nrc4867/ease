@@ -12,7 +12,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/** Capture on a real GPU: the PNG decodes to the size asked for and shows the world's quads. */
+/** Capture on a real GPU: the PNG decodes to the size asked for and shows the world's meshes. */
 class CaptureGpuTest {
   @Test
   fun `a capture is a PNG of the requested size showing more than one color`() = runTest {

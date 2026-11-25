@@ -1,0 +1,30 @@
+components:
+  ease.LocalTransform:
+    rotationW: 1.0
+    rotationX: 0.0
+    rotationY: 0.0
+    rotationZ: 0.0
+    scaleX: 0.9
+    scaleY: 0.9
+    scaleZ: 0.9
+    x: 5.0
+    "y": 3.0
+    z: 0.0
+  ease.Material:
+    blue: 0.07176145
+    emissiveBlue: 0.0
+    emissiveGreen: 0.0
+    emissiveRed: 0.0
+    green: 0.6120656
+    metallic: 0.0
+    red: 0.17343904
+    roughness: 0.6
+  ease.Mesh:
+    shape: CUBE
+  sample.Velocity:
+    x: -3.5
+    "y": -0.5
+formatVersion: 1
+id: ccacb344c915716c
+name: "Moss cube"
+order: zn

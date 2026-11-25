@@ -23,7 +23,7 @@ public class QueryTool(private val world: AgentWorld) : AgentTool {
       "network ids, or with a component type an entity must carry."
   override val input: ToolInput = ToolInput.of {
     integers(ENTITIES, "Only these network ids; every entity when absent.")
-    string(COMPONENT, "Only entities carrying this component type, such as ease.Quad.")
+    string(COMPONENT, "Only entities carrying this component type, such as ease.Mesh.")
   }
   override val readOnly: Boolean = true
 

@@ -6,4 +6,7 @@ internal enum class FieldKind {
   QUANTIZED_FLOAT,
   INT,
   BOOLEAN,
+
+  /** An enum, sent as its ordinal. */
+  ENUM,
 }

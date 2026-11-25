@@ -5,12 +5,15 @@ import dev.chieppa.ease.commands.CommandRegistry
 import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.PhasedSystems
-import dev.chieppa.ease.render.Quad
+import dev.chieppa.ease.render.scene.Camera
+import dev.chieppa.ease.render.scene.DirectionalLight
+import dev.chieppa.ease.render.scene.Mesh
+import dev.chieppa.ease.render.scene.MeshShape
 import dev.chieppa.ease.runtime.GameModule
 import dev.chieppa.ease.runtime.HostedWorld
 import dev.chieppa.ease.scene.types.SceneTypes
 
-/** {{projectName}}: one white square at the origin. */
+/** {{projectName}}: one white cube at the origin, seen by a camera and lit by a sun. */
 public class {{className}} : GameModule {
   override fun registerTypes(registry: CommandRegistry) {
     // ease:types
@@ -25,12 +28,14 @@ public class {{className}} : GameModule {
   }
 
   override fun populate(world: HostedWorld) {
-    val square: List<Component<out Any>> =
-      listOf(LocalTransform(), Quad.of(SQUARE_SIZE, 1f, 1f, 1f))
-    world.execute(Spawn(square))
+    val cube: List<Component<out Any>> = listOf(LocalTransform(), Mesh.of(MeshShape.CUBE))
+    world.execute(Spawn(cube))
+    val eye = LocalTransform().also { it.z = CAMERA_DISTANCE }
+    world.execute(Spawn(listOf<Component<out Any>>(eye, Camera.of())))
+    world.execute(Spawn(listOf<Component<out Any>>(LocalTransform(), DirectionalLight.of())))
   }
 
   private companion object {
-    const val SQUARE_SIZE = 1f
+    const val CAMERA_DISTANCE = 4f
   }
 }

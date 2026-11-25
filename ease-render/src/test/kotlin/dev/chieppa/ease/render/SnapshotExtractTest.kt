@@ -2,31 +2,35 @@ package dev.chieppa.ease.render
 
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.phasedWorld
+import dev.chieppa.ease.render.scene.Mesh
+import dev.chieppa.ease.render.scene.MeshShape
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /** A world nobody ticks, extracted on demand. */
 class SnapshotExtractTest {
   @Test
-  fun `an extract outside a tick writes every quad where it is`() {
+  fun `an extract outside a tick writes every mesh where it is`() {
     val world = phasedWorld {}
     world.entity { it += LocalTransform() }
-    val quad = world.entity {
+    val sphere = world.entity {
       it +=
         LocalTransform().apply {
           x = 3f
           y = -1f
+          z = 2f
         }
-      it += Quad.of(size = 2f, red = 1f, green = 0f, blue = 0f)
+      it += Mesh.of(MeshShape.SPHERE)
     }
     val snapshot = RenderSnapshot()
+    val transform = FloatArray(TRANSFORM_FLOATS)
 
     snapshot.extractFrom(world)
+    snapshot.transformInto(sphere.id, 1f, transform, 0)
 
     assertEquals(1, snapshot.count)
-    assertEquals(quad.id, snapshot.entityAt(0))
-    assertEquals(3f, snapshot.x(quad.id, alpha = 1f))
-    assertEquals(-1f, snapshot.y(quad.id, alpha = 1f))
-    assertEquals(2f, snapshot.size[quad.id])
+    assertEquals(sphere.id, snapshot.entityAt(0))
+    assertEquals(listOf(3f, -1f, 2f), transform.take(3))
+    assertEquals(MeshShape.SPHERE, snapshot.shape(sphere.id))
   }
 }
