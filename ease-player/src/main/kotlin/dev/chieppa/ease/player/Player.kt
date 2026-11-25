@@ -5,6 +5,7 @@ import dev.chieppa.ease.platform.WindowSpec
 import dev.chieppa.ease.platform.sdl.SdlWindowing
 import dev.chieppa.ease.platform.time.SystemClock
 import dev.chieppa.ease.render.WorldRenderer
+import dev.chieppa.ease.runtime.GameContent
 import dev.chieppa.ease.runtime.GameModule
 import dev.chieppa.ease.runtime.GameModules
 import dev.chieppa.ease.runtime.LocalHost
@@ -16,15 +17,16 @@ private const val HEIGHT = 540
 
 /**
  * Runs the one game on the classpath as a host world plus a local client world, with its input
- * script attached to the client: in a window until it is closed or for a set number of frames, both
- * ticking on the fixed-step loop in real time and the client's world drawn every frame; or headless
- * for a set number of ticks. Single-player is this same host and client. Runs on the process's
- * first thread, as windows need.
+ * script attached to the client, over the game's content folder when `--content` names one: in a
+ * window until it is closed or for a set number of frames, both ticking on the fixed-step loop in
+ * real time and the client's world drawn every frame; or headless for a set number of ticks.
+ * Single-player is this same host and client. Runs on the process's first thread, as windows need.
  */
 public fun main(args: Array<String>) {
   val options = PlayerOptions.parse(args)
   val game = GameModules.load()
-  val local = LocalHost(game, FixedStep.perSecond(), input = game.inputScript())
+  val assets = options.content?.let { GameContent.open(it) }
+  val local = LocalHost(game, FixedStep.perSecond(), input = game.inputScript(), assets = assets)
   val ticks = options.headlessTicks
   if (ticks != null) {
     runHeadless(local, ticks)
@@ -35,17 +37,23 @@ public fun main(args: Array<String>) {
 
 /**
  * Runs [ticks] ticks of [local] with no window, GPU or clock, and reports what changed the host's
- * world and whether the client kept up. Fails when the client's session closed.
+ * world, what its scenes placed, and whether the client kept up. Fails when the client's session
+ * closed.
  */
 private fun runHeadless(local: LocalHost, ticks: Int) {
   repeat(ticks) { local.step() }
-  val log = local.host.history.log
+  val host = local.host
+  val log = host.history.log
   val commands = log.all.size
   val client = local.client.session
   check(client.isOpen) { "The local client's session closed: ${client.closeReason}" }
+  val scenes = host.scenes?.scenes.orEmpty()
+  val clientWorld = local.client.world.world
   println(
     "Ran ${local.tick} ticks headless; $commands commands logged; " +
-      "client at snapshot ${client.latestSnapshotTick}"
+      "${scenes.sumOf { it.keys.size }} scene nodes from ${scenes.size} scenes; " +
+      "host ${host.world.numEntities} entities, " +
+      "client ${clientWorld.numEntities} at snapshot ${client.latestSnapshotTick}"
   )
 }
 

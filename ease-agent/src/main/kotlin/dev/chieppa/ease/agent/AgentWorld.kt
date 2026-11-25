@@ -1,5 +1,6 @@
 package dev.chieppa.ease.agent
 
+import dev.chieppa.ease.assets.loading.AssetStore
 import dev.chieppa.ease.runtime.GameModule
 import dev.chieppa.ease.runtime.HostedWorld
 import dev.chieppa.ease.runtime.loop.FixedStep
@@ -7,16 +8,17 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
 /**
- * The live world agents look at: built from [module] on its first [access], then frozen, since
- * nothing here steps it. Every access runs on [dispatcher], which must run one task at a time on
- * one thread, so the world and the GPU are only ever touched from that thread; tools are called on
- * the server's threads and hop onto it.
+ * The live world agents look at: built from [module], over its content [assets] when it has any, on
+ * its first [access], then frozen, since nothing here steps it. Every access runs on [dispatcher],
+ * which must run one task at a time on one thread, so the world and the GPU are only ever touched
+ * from that thread; tools are called on the server's threads and hop onto it.
  */
 public class AgentWorld(
   public val module: GameModule,
   public val fixedStep: FixedStep,
   private val dispatcher: CoroutineDispatcher,
   private val log: HostLog,
+  private val assets: AssetStore? = null,
 ) {
   private var live: HostedWorld? = null
 
@@ -25,7 +27,7 @@ public class AgentWorld(
     withContext(dispatcher) { block(live ?: load()) }
 
   /** A fresh world from the same module and fixed step, populated but never stepped. */
-  public fun fresh(): HostedWorld = HostedWorld(module, fixedStep)
+  public fun fresh(): HostedWorld = HostedWorld(module, fixedStep, assets = assets)
 
   private fun load(): HostedWorld =
     fresh().also {

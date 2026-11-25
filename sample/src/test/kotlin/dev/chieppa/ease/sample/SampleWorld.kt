@@ -2,18 +2,24 @@ package dev.chieppa.ease.sample
 
 import com.github.quillraven.fleks.Entity
 import dev.chieppa.ease.ecs.LocalTransform
+import dev.chieppa.ease.render.Quad
 import dev.chieppa.ease.runtime.GameModules
 import dev.chieppa.ease.runtime.HostedWorld
 import dev.chieppa.ease.runtime.loop.FixedStep
+import java.nio.file.Path
 
-/** The sample world as a headless host makes it: the game found on the classpath, no window. */
-internal class SampleWorld {
+/**
+ * The sample world as a headless host makes it: the game found on the classpath, over a copy of its
+ * content in [root], no window.
+ */
+internal class SampleWorld(root: Path) {
   val fixedStep: FixedStep = FixedStep.perSecond()
   val module = GameModules.load()
-  val hosted = HostedWorld(module, fixedStep)
+  val content = SampleContent(root)
+  val hosted = HostedWorld(module, fixedStep, assets = content.assets)
   val stepSeconds: Float = fixedStep.stepNanos / NANOS_PER_SECOND
 
-  /** The world's entities in id order, which is the order the game spawned its squares in. */
+  /** The world's entities in id order: the playfield scene's squares. */
   val entities: List<Entity> = with(hosted.world) { asEntityBag().map { it }.sortedBy { it.id } }
 
   fun step(ticks: Int) = repeat(ticks) { hosted.step() }
@@ -22,7 +28,23 @@ internal class SampleWorld {
 
   fun y(entity: Entity): Float = with(hosted.world) { entity[LocalTransform].y }
 
+  /** [entity]'s velocity along x and y. */
+  fun velocity(entity: Entity): Pair<Float, Float> =
+    with(hosted.world) { entity[Velocity].x to entity[Velocity].y }
+
+  /** [entity]'s color as `0xRRGGBB`, its quad's channels rounded to bytes. */
+  fun rgb(entity: Entity): Int =
+    with(hosted.world) {
+      val quad = entity[Quad]
+      (byte(quad.red) shl RED_SHIFT) or (byte(quad.green) shl GREEN_SHIFT) or byte(quad.blue)
+    }
+
+  private fun byte(channel: Float): Int = Math.round(channel * CHANNEL_MAX)
+
   private companion object {
     const val NANOS_PER_SECOND = 1_000_000_000f
+    const val CHANNEL_MAX = 255f
+    const val RED_SHIFT = 16
+    const val GREEN_SHIFT = 8
   }
 }

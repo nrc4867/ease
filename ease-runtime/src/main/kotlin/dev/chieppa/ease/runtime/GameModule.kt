@@ -1,9 +1,11 @@
 package dev.chieppa.ease.runtime
 
+import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.commands.CommandRegistry
 import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.render.Camera2D
+import dev.chieppa.ease.scene.types.SceneTypes
 
 /**
  * A game's code as hosts see it. A game lists its module in
@@ -11,8 +13,26 @@ import dev.chieppa.ease.render.Camera2D
  * and builds a [HostedWorld] from it.
  */
 public interface GameModule {
-  /** Registers the game's own command and component types, so worlds can log and send them. */
+  /**
+   * Registers the game's own command and component types, so worlds can log and send them. A
+   * component type its scenes save goes in [registerSceneTypes] instead, which registers it here
+   * too; its replicated serializer is still registered here.
+   */
   public fun registerTypes(registry: CommandRegistry) {}
+
+  /**
+   * Registers the component types the game's scene and prefab files hold, beyond the engine's, each
+   * with the codec as well, so a world spawns them from files, saves them and sends them.
+   */
+  public fun registerSceneTypes(types: SceneTypes.Builder) {}
+
+  /**
+   * The GUID of the scene the host's world starts from, or null when the game builds its world in
+   * code alone. The host finds it in the game's content and places it before [populate]; changes to
+   * its files reload into the running world. Named by GUID, so moving or renaming the scene keeps
+   * it, as it keeps every other reference to it.
+   */
+  public fun startScene(): Guid? = null
 
   /**
    * Adds the systems every world runs, the host's and each client's, each in its phase: systems
@@ -43,7 +63,8 @@ public interface GameModule {
 
   /**
    * Creates the game's starting entities in the host's [world], through [HostedWorld.execute] so
-   * the history and the command log hold them. Clients receive them as spawns.
+   * the history and the command log hold them, after the [startScene] is placed. Clients receive
+   * them as spawns.
    */
   public fun populate(world: HostedWorld) {}
 

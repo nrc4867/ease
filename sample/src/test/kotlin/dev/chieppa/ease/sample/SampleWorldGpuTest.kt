@@ -8,17 +8,21 @@ import dev.chieppa.ease.gpu.OffscreenTarget
 import dev.chieppa.ease.gpu.Pixels
 import dev.chieppa.ease.platform.PixelSize
 import dev.chieppa.ease.render.WorldRenderer
+import java.nio.file.Path
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.io.TempDir
 
 /** The sample world rendered offscreen by the same renderer the player uses, then probed. */
 class SampleWorldGpuTest {
+  @TempDir lateinit var folder: Path
+
   private val size = PixelSize(320, 180)
-  private val sample = SampleWorld()
-  private val camera = sample.module.camera()
-  private val pixelsPerUnit = size.height / camera.visibleHeight
+  private val sample by lazy { SampleWorld(folder) }
+  private val camera by lazy { sample.module.camera() }
+  private val pixelsPerUnit by lazy { size.height / camera.visibleHeight }
 
   @Test
   fun `every square shows its color at its projected center and the corners stay clear`() {
@@ -26,11 +30,11 @@ class SampleWorldGpuTest {
 
     val pixels = render()
 
-    sample.entities.zip(SampleGame.SQUARES).forEach { (entity, square) ->
+    sample.entities.forEach { entity ->
       val column = pixelX(sample.x(entity))
       val row = pixelY(sample.y(entity))
       val found = pixels.rgb(column, row)
-      assertTrue(close(found, square.rgb), "square at ($column, $row) is ${hex(found)}")
+      assertTrue(close(found, sample.rgb(entity)), "square at ($column, $row) is ${hex(found)}")
     }
     val clear = rgbOf(InstancedQuadPass.DEFAULT_CLEAR)
     val corners =
@@ -42,7 +46,7 @@ class SampleWorldGpuTest {
 
   private fun render(): Pixels =
     GpuContext.open().use { gpu ->
-      WorldRenderer(gpu, capacity = SampleGame.SQUARES.size).use { renderer ->
+      WorldRenderer(gpu, capacity = sample.entities.size).use { renderer ->
         OffscreenTarget(gpu, size).use { offscreen ->
           val encoder = CommandEncoder.on(gpu)
           renderer.render(sample.hosted.snapshot, 1f, camera, offscreen.target, encoder)

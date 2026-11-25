@@ -14,7 +14,10 @@ import dev.chieppa.ease.net.session.NetSettings
 import dev.chieppa.ease.net.transport.LoopbackLink
 import dev.chieppa.ease.net.transport.LoopbackTransport
 import dev.chieppa.ease.net.view.ReplicaContent
+import dev.chieppa.ease.net.view.SceneNaming
 import dev.chieppa.ease.net.view.SceneReplicas
+import dev.chieppa.ease.net.view.SpawnNaming
+import dev.chieppa.ease.net.view.ViewSettings
 import dev.chieppa.ease.render.RenderSnapshot
 import dev.chieppa.ease.runtime.loop.FixedStep
 
@@ -26,9 +29,12 @@ import dev.chieppa.ease.runtime.loop.FixedStep
  * the session; then the host ticks and sends its changes as spawns and snapshots. Clients predict
  * and interpolate as [prediction] says. Rendering shows the [client].
  *
- * The join handshake compares the content both build from: with [assets], every asset in its
- * database, the content a game ships; enabled mods join it once mods exist. Both worlds read the
- * same files, so they always match here. A tick allocates nothing but the commands it carries.
+ * With [assets], the game's content (see [GameContent]), the host places the game's start scene and
+ * keeps it in step with its files, and names each scene node it spawns by its scene and key; each
+ * client builds those nodes from the same files, and the host's snapshots carry the rest. The join
+ * handshake compares the content both build from: every asset in the database, the content a game
+ * ships; enabled mods join it once mods exist. Both worlds read the same files, so they always
+ * match here. A tick allocates nothing but the commands it carries.
  */
 public class LocalHost(
   private val module: GameModule,
@@ -57,6 +63,7 @@ public class LocalHost(
       CommandExecutor { command, _, tick ->
         host.history.execute(command, tick, CommandOrigin.NETWORK)
       },
+      viewSettings = ViewSettings(naming = host.scenes?.let(::SceneNaming) ?: SpawnNaming.PLAIN),
     )
 
   /** The local client's link; its conditions simulate a network, perfect by default. */

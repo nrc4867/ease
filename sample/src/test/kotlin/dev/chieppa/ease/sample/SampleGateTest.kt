@@ -9,21 +9,27 @@ import dev.chieppa.ease.runtime.HostedWorld
 import dev.chieppa.ease.runtime.LocalHost
 import dev.chieppa.ease.runtime.loop.FixedStep
 import dev.chieppa.ease.testing.AllocationBudget
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.io.TempDir
 
 /**
  * The Phase 2a gate, headless: the sample with its input script, as the player runs it, a host
- * world and a local client world over the loopback transport. The courier moves only by the
- * client's input, the client predicts it there at once, the host's log and that input give the same
- * world again, and the run allocates nothing.
+ * world and a local client world over the loopback transport, on a perfect link. The courier moves
+ * only by the client's input, the client predicts it there at once, the host's log and that input
+ * give the same world again, and the run allocates nothing. [SceneGateTest] runs the same game
+ * under a bad link, with a scene reload.
  */
 class SampleGateTest {
+  @TempDir lateinit var folder: Path
+
   private val fixedStep = FixedStep.perSecond()
   private val corners = listOf(2f to 0f, 2f to 2f, 0f to 2f, 0f to 0f)
+  private val content by lazy { SampleContent(folder) }
 
-  private fun scripted() = LocalHost(SampleGame(), fixedStep, input = CourierScript())
+  private fun scripted() = LocalHost(SampleGame(), fixedStep, CourierScript(), content.assets)
 
   private fun courierAt(world: HostedWorld): Pair<Float, Float> =
     with(world.world) {
@@ -64,7 +70,8 @@ class SampleGateTest {
 
     val log = local.host.history.log
     val entries = log.all
-    assertEquals(SampleGame.SQUARES.size + 1, entries.size, "the squares, then the courier")
+    val squares = content.playfield().nodes.size
+    assertEquals(squares + 1, entries.size, "the scene's squares, then the courier")
     assertTrue(entries.all { it.tick == 0L && it.origin == CommandOrigin.GAME })
     val client = local.client.world
     val clientLog = client.history.log
@@ -77,18 +84,17 @@ class SampleGateTest {
     repeat(RUN_TICKS) { local.step() }
     val live = local.host
 
-    val replayed = HostedWorld(SampleGame(), fixedStep)
+    val replayed = HostedWorld(SampleGame(), fixedStep, assets = content.assets, replaying = true)
     val input = InputFrame(local.settings.input)
     replayed.inputs[LocalHost.LOCAL_PEER] = input
     fun stepReplayed() {
       CourierScript.steer(input, replayed.tick)
       replayed.step()
     }
-    val entries = live.history.log.all
-    val seeded = replayed.history.log
-    entries.drop(seeded.all.size).forEach { entry ->
+    val log = live.history.log
+    log.all.forEach { entry ->
       while (replayed.tick < entry.tick) stepReplayed()
-      replayed.execute(live.history.log.commandOf(entry), entry.origin)
+      replayed.execute(log.commandOf(entry), entry.origin)
     }
     while (replayed.tick < live.tick) stepReplayed()
 

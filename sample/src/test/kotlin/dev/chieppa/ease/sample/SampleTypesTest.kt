@@ -4,19 +4,23 @@ import dev.chieppa.ease.agent.list
 import dev.chieppa.ease.agent.text
 import dev.chieppa.ease.annotations.GeneratedFiles
 import java.io.File
+import java.nio.file.Path
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
+import org.junit.jupiter.api.io.TempDir
 
 /**
  * The docs and ranges the sample declares reach both generated outputs: the `ease.d.ts` its build
  * assembles from every module's types, and the JSON Schemas the agent `describe` tool serves.
  */
 class SampleTypesTest {
-  private val agent = SampleAgent()
+  @TempDir lateinit var folder: Path
+
+  private val agent by lazy { SampleAgent(folder) }
   private val maxSpeed = Velocity.MAX_SPEED.toInt()
   private val maxPace = Courier.MAX_PACE.toInt()
 

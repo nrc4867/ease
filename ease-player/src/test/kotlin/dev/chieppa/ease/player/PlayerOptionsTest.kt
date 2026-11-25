@@ -1,5 +1,6 @@
 package dev.chieppa.ease.player
 
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -21,6 +22,15 @@ class PlayerOptionsTest {
       PlayerOptions(headlessTicks = 600),
       PlayerOptions.parse(arrayOf("--headless", "600")),
     )
+  }
+
+  @Test
+  fun `content names the game's content folder, with any run`() {
+    assertEquals(
+      PlayerOptions(headlessTicks = 600, content = Path.of("content")),
+      PlayerOptions.parse(arrayOf("--content", "content", "--headless", "600")),
+    )
+    assertFailsWith<IllegalStateException> { PlayerOptions.parse(arrayOf("--content")) }
   }
 
   @Test
