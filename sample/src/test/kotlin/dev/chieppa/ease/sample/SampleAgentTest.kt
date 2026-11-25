@@ -16,11 +16,12 @@ import org.junit.jupiter.api.io.TempDir
 class SampleAgentTest {
   @TempDir lateinit var folder: Path
 
-  private val agent by lazy { SampleAgent(folder) }
+  private val started = lazy { SampleAgent(folder) }
+  private val agent by started
 
   @AfterTest
   fun close() {
-    agent.close()
+    if (started.isInitialized()) agent.close()
   }
 
   private fun fieldNames(types: JsonElement, name: String): Set<String> {

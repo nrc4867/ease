@@ -182,7 +182,7 @@ public class SceneResolver(
       components.forEach { (name, fields) ->
         val type = types[name]
         if (type == null) {
-          problems += SceneProblem.BadComponent(key, name, "no component type has this name")
+          problems += SceneProblem.UnknownComponent(key, name)
           failed += name
         } else {
           runCatching { type.encode(type.decode(fields)) }

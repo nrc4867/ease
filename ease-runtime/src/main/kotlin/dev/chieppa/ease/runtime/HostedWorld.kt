@@ -12,6 +12,7 @@ import dev.chieppa.ease.ecs.DEFAULT_ENTITY_CAPACITY
 import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.phasedWorld
 import dev.chieppa.ease.ecs.prediction.CorrectionOffsets
+import dev.chieppa.ease.ecs.replication.DebugBuild
 import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.ecs.replication.ReplicationSettings
 import dev.chieppa.ease.net.input.PEER_INPUTS_INJECTABLE
@@ -31,7 +32,8 @@ private const val NANOS_PER_SECOND = 1_000_000_000f
  * reads, drawn [corrections] away while a prediction settles, and the current [tick]. Every world
  * holds a `SceneNodes` system with the module's scene types. Building it registers [module]'s types
  * and, in the host's own world, places the module's start scene from [assets] and lets the module
- * populate it; a client's world starts empty and receives the host's entities.
+ * populate it; a client's world starts empty and receives the host's entities. What a scene could
+ * not honor is kept in [sceneProblems].
  *
  * With [assets], each [step] of the host's world begins by applying the asset file changes waiting
  * since the last one, as `ReloadAsset` commands in the history, then the changes they make to the
@@ -102,6 +104,12 @@ public class HostedWorld(
    */
   public val scenes: SceneSync? = assets?.takeIf { syncs }?.let { SceneSync(world, it, history) }
 
+  /**
+   * What the placed [scenes] could not honor, at their placing and every reload. In a debug build a
+   * component whose type the module does not register as a scene type throws.
+   */
+  public val sceneProblems: SceneProblemLog = SceneProblemLog(scenes)
+
   /** How long one step is, in seconds. */
   internal val stepSeconds = fixedStep.stepNanos / NANOS_PER_SECOND
 
@@ -117,6 +125,7 @@ public class HostedWorld(
       checkNotNull(assets) { "$name starts from scene $scene, so its host needs the content" }
       checkNotNull(assets.database[scene]) { "$name's start scene $scene is not in its content" }
       checkNotNull(scenes).place(scene, tick)
+      if (DebugBuild.enabled) sceneProblems.checkApplied()
     }
     module.populate(this)
   }
@@ -128,6 +137,7 @@ public class HostedWorld(
   public fun step() {
     assetSync?.beforeTick(tick)
     scenes?.beforeTick(tick)
+    if (DebugBuild.enabled) sceneProblems.checkApplied()
     world.update(stepSeconds)
     tick++
   }

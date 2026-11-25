@@ -26,11 +26,16 @@ public class AgentWorld(
   public suspend fun <T> access(block: (HostedWorld) -> T): T =
     withContext(dispatcher) { block(live ?: load()) }
 
-  /** A fresh world from the same module and fixed step, populated but never stepped. */
-  public fun fresh(): HostedWorld = HostedWorld(module, fixedStep, assets = assets)
+  /**
+   * An empty world from the same module, fixed step and content that a log is replayed into: it
+   * neither starts itself nor syncs with the content, so it never takes the live world's file
+   * changes.
+   */
+  public fun replica(): HostedWorld =
+    HostedWorld(module, fixedStep, assets = assets, replaying = true)
 
   private fun load(): HostedWorld =
-    fresh().also {
+    HostedWorld(module, fixedStep, assets = assets).also {
       live = it
       log.record(
         "Game loaded: ${module.javaClass.name}, ${it.world.numEntities} entities at tick ${it.tick}"

@@ -8,8 +8,6 @@ import java.io.ByteArrayInputStream
 import java.nio.file.Path
 import java.util.Base64
 import javax.imageio.ImageIO
-import kotlin.math.abs
-import kotlin.math.roundToInt
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,11 +23,12 @@ import org.junit.jupiter.api.io.TempDir
 class SampleAgentGpuTest {
   @TempDir lateinit var folder: Path
 
-  private val agent by lazy { SampleAgent(folder) }
+  private val started = lazy { SampleAgent(folder) }
+  private val agent by started
 
   @AfterTest
   fun close() {
-    agent.close()
+    if (started.isInitialized()) agent.close()
   }
 
   @Test
@@ -64,7 +63,7 @@ class SampleAgentGpuTest {
       val column = (WIDTH / 2f + x * pixelsPerUnit).toInt()
       val row = (HEIGHT / 2f - y * pixelsPerUnit).toInt()
       val found = frame.getRGB(column, row)
-      assertTrue(close(found, rgb(square)), "${square.name} at ($x, $y)")
+      assertTrue(Rgb.close(found, rgb(square)), "${square.name} at ($x, $y)")
     }
   }
 
@@ -72,23 +71,14 @@ class SampleAgentGpuTest {
   private fun field(square: SceneNode, component: String, field: String): Float =
     SampleContent.field(square, component, field)
 
-  /** [square]'s quad color as `0xRRGGBB`, each channel rounded to a byte. */
+  /** [square]'s quad color as `0xRRGGBB`, as its node file holds it. */
   private fun rgb(square: SceneNode): Int {
-    fun channel(name: String) = (field(square, "ease.Quad", name) * CHANNEL).roundToInt()
-    return (channel("red") shl RED_SHIFT) or (channel("green") shl GREEN_SHIFT) or channel("blue")
+    fun channel(name: String) = field(square, "ease.Quad", name)
+    return Rgb.of(channel("red"), channel("green"), channel("blue"))
   }
-
-  /** Whether every channel of [a] and [b] is within one step, as rounding allows. */
-  private fun close(a: Int, b: Int): Boolean =
-    listOf(RED_SHIFT, GREEN_SHIFT, 0).all { shift ->
-      abs((a shr shift and CHANNEL) - (b shr shift and CHANNEL)) <= 1
-    }
 
   private companion object {
     const val WIDTH = 320
     const val HEIGHT = 180
-    const val RED_SHIFT = 16
-    const val GREEN_SHIFT = 8
-    const val CHANNEL = 0xFF
   }
 }

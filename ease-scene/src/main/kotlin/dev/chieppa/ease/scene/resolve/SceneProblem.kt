@@ -17,7 +17,17 @@ public sealed interface SceneProblem {
       get() = "Node $node names a parent that does not exist"
   }
 
-  /** A component this build has no type for, or whose fields do not fit its type. */
+  /**
+   * A component naming a type this build does not register as a scene type, such as one a game left
+   * out of its scene types; it stays in the file and is not spawned.
+   */
+  public class UnknownComponent(public val node: NodeKey, public val component: String) :
+    SceneProblem {
+    override val message: String
+      get() = "Node $node has component $component, which is not a registered scene type"
+  }
+
+  /** A component whose fields do not fit its type. */
   public class BadComponent(
     public val node: NodeKey,
     public val component: String,

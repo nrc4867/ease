@@ -25,15 +25,21 @@ dependencies {
 
 val main by sourceSets.getting
 
-// The folder the game's assets and scenes are in, which every run reads and watches.
-val content = layout.projectDirectory.dir("content").asFile
+// The folder the game's assets and scenes are in, which every run reads and watches. It is passed
+// through an argument provider, so `--args` adds to it rather than replacing it.
+val content = layout.projectDirectory.dir("content")
+
+/** `--content <folder>`, capturing only the path, as the configuration cache needs. */
+fun contentArgsOf(path: String) = CommandLineArgumentProvider { listOf("--content", path) }
+
+val contentArgs = contentArgsOf(content.asFile.path)
 
 tasks.register<JavaExec>("runSample") {
   group = "application"
   description = "Runs the sample game in the player until its window is closed."
   classpath = main.runtimeClasspath
   mainClass = "dev.chieppa.ease.player.PlayerKt"
-  args("--content", content.path)
+  argumentProviders.add(contentArgs)
   desktopApp(this)
 }
 
@@ -42,7 +48,8 @@ tasks.register<JavaExec>("sampleSmoke") {
   description = "Runs the sample game in the player for 120 frames, resizing halfway, and exits."
   classpath = main.runtimeClasspath
   mainClass = "dev.chieppa.ease.player.PlayerKt"
-  args("--frames", "120", "--content", content.path)
+  args("--frames", "120")
+  argumentProviders.add(contentArgs)
   desktopApp(this)
 }
 
@@ -51,7 +58,8 @@ tasks.register<JavaExec>("sampleHeadless") {
   description = "Runs the sample game in the player headless for 600 ticks, input script attached."
   classpath = main.runtimeClasspath
   mainClass = "dev.chieppa.ease.player.PlayerKt"
-  args("--headless", "600", "--content", content.path)
+  args("--headless", "600")
+  argumentProviders.add(contentArgs)
 }
 
 tasks.register<JavaExec>("runAgentHost") {
@@ -60,7 +68,7 @@ tasks.register<JavaExec>("runAgentHost") {
     "Serves the sample world to agents over MCP on 127.0.0.1 until stopped; --args='--port <n>'."
   classpath = main.runtimeClasspath
   mainClass = "dev.chieppa.ease.agent.AgentMainKt"
-  args("--content", content.path)
+  argumentProviders.add(contentArgs)
   jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
@@ -76,7 +84,12 @@ val easeTypes =
 tasks.withType<Test>().configureEach {
   inputs.file(easeTypes.flatMap { it.output })
   systemProperty("ease.dts", easeTypes.get().output.get().asFile.path)
-  // Tests copy the content before opening it, since a run writes caches into its content folder.
-  inputs.dir(content)
-  systemProperty("ease.sampleContent", content.path)
+  // Tests copy the content before opening it, since a run writes caches into its content folder;
+  // those caches are not inputs.
+  inputs
+    .files(content.asFileTree.matching { exclude(".ease/**") })
+    .withPropertyName("sampleContent")
+    .withPathSensitivity(PathSensitivity.RELATIVE)
+  // Relative to the test's working folder, this module's own, so the path is no input.
+  systemProperty("ease.sampleContent", content.asFile.relativeTo(projectDir).path)
 }

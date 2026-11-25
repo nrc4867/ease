@@ -180,7 +180,7 @@ class PrefabTest {
 
     val kinds = resolved.problems.map { it::class.simpleName }.toSet()
     assertEquals(
-      setOf("Cycle", "MissingAsset", "StaleOverride", "MissingParent", "BadComponent"),
+      setOf("Cycle", "MissingAsset", "StaleOverride", "MissingParent", "UnknownComponent"),
       kinds,
     )
     assertIs<SceneProblem.Cycle>(resolved.problems.first { it is SceneProblem.Cycle })

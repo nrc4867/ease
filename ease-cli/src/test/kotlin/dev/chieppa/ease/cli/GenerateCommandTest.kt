@@ -29,7 +29,7 @@ class GenerateCommandTest {
   }
 
   @Test
-  fun `a component is written with its doc and serial name and registered with the game`() {
+  fun `a component is written with its doc and serial name and registered as a scene type`() {
     assertEquals(ExitCodes.OK, generate("component", "Health Points"), harness.stderr)
 
     val component =
@@ -38,7 +38,7 @@ class GenerateCommandTest {
     assertTrue(component.contains("@SerialName(\"moongarden.HealthPoints\")"))
     assertTrue(
       gameClass.contains(
-        "    registry.component(HealthPoints::class, HealthPoints.serializer())\n    // ease:types"
+        "    types.component(HealthPoints, HealthPoints.serializer())\n    // ease:scene-types"
       )
     )
   }

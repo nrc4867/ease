@@ -16,12 +16,21 @@ import kotlinx.serialization.json.float
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * A copy of the sample's content folder in [root], opened as a host opens it but watched by a
- * scripted [watcher], so a test edits the scene on disk and says when the edit is seen.
+ * A copy of the sample's content folder in [root], changed by [prepare] (given the playfield scene
+ * as its folder holds it, returning the scene to save in its place) and then opened as a host opens
+ * it, but watched by a scripted [watcher], so a test edits the scene on disk and says when the edit
+ * is seen.
  */
-internal class SampleContent(root: Path) {
+internal class SampleContent(
+  root: Path,
+  prepare: (SceneDocument) -> SceneDocument = { it },
+) {
   /** The copied content folder. */
-  val folder: Path = copy(source, root.resolve("content"))
+  val folder: Path =
+    copy(source, root.resolve("content")).also { copied ->
+      val scene = copied.resolve(PLAYFIELD)
+      SceneFolder.write(scene, prepare(SceneFolder.read(scene)))
+    }
 
   /** The watcher the content's database drains; [edit] publishes to it. */
   val watcher = ManualFileWatcher()

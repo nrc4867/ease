@@ -21,14 +21,16 @@ public fun main(args: Array<String>) {
   val options = AgentOptions.parse(args)
   val fixed = System.getenv(AgentConstants.TOKEN_ENV)
   val token = AgentToken.resolve(fixed)
+  val game = GameModules.load()
+  val assets = GameContent.forGame(game, options.content, ManualFileWatcher())
   val worldThread = Executors.newSingleThreadExecutor { Thread(it, WORLD_THREAD) }
   val host =
     AgentHost(
-      GameModules.load(),
+      game,
       token,
       worldThread.asCoroutineDispatcher(),
       HostLog { println(it.text) },
-      assets = options.content?.let { GameContent.open(it, ManualFileWatcher()) },
+      assets = assets,
     )
   val port = runBlocking { host.start(options.port) }
   val shown = if (fixed.isNullOrBlank()) token else "\$${AgentConstants.TOKEN_ENV}"

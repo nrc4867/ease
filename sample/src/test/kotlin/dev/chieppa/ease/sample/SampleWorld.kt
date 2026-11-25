@@ -17,7 +17,7 @@ internal class SampleWorld(root: Path) {
   val module = GameModules.load()
   val content = SampleContent(root)
   val hosted = HostedWorld(module, fixedStep, assets = content.assets)
-  val stepSeconds: Float = fixedStep.stepNanos / NANOS_PER_SECOND
+  val stepSeconds: Float = stepSeconds(fixedStep)
 
   /** The world's entities in id order: the playfield scene's squares. */
   val entities: List<Entity> = with(hosted.world) { asEntityBag().map { it }.sortedBy { it.id } }
@@ -36,15 +36,6 @@ internal class SampleWorld(root: Path) {
   fun rgb(entity: Entity): Int =
     with(hosted.world) {
       val quad = entity[Quad]
-      (byte(quad.red) shl RED_SHIFT) or (byte(quad.green) shl GREEN_SHIFT) or byte(quad.blue)
+      Rgb.of(quad.red, quad.green, quad.blue)
     }
-
-  private fun byte(channel: Float): Int = Math.round(channel * CHANNEL_MAX)
-
-  private companion object {
-    const val NANOS_PER_SECOND = 1_000_000_000f
-    const val CHANNEL_MAX = 255f
-    const val RED_SHIFT = 16
-    const val GREEN_SHIFT = 8
-  }
 }

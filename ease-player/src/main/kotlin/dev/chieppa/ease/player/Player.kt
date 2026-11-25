@@ -25,8 +25,9 @@ private const val HEIGHT = 540
 public fun main(args: Array<String>) {
   val options = PlayerOptions.parse(args)
   val game = GameModules.load()
-  val assets = options.content?.let { GameContent.open(it) }
+  val assets = GameContent.forGame(game, options.content)
   val local = LocalHost(game, FixedStep.perSecond(), input = game.inputScript(), assets = assets)
+  local.sceneProblems = { System.err.println("Scene problem: ${it.message}") }
   val ticks = options.headlessTicks
   if (ticks != null) {
     runHeadless(local, ticks)
@@ -37,12 +38,14 @@ public fun main(args: Array<String>) {
 
 /**
  * Runs [ticks] ticks of [local] with no window, GPU or clock, and reports what changed the host's
- * world, what its scenes placed, and whether the client kept up. Fails when the client's session
+ * world, what its scenes placed and could not honor, and whether the client kept up. Fails when a
+ * scene holds a component of a type the game does not register, or when the client's session
  * closed.
  */
 private fun runHeadless(local: LocalHost, ticks: Int) {
   repeat(ticks) { local.step() }
   val host = local.host
+  host.sceneProblems.checkTypes()
   val log = host.history.log
   val commands = log.all.size
   val client = local.client.session
@@ -51,7 +54,8 @@ private fun runHeadless(local: LocalHost, ticks: Int) {
   val clientWorld = local.client.world.world
   println(
     "Ran ${local.tick} ticks headless; $commands commands logged; " +
-      "${scenes.sumOf { it.keys.size }} scene nodes from ${scenes.size} scenes; " +
+      "${scenes.sumOf { it.keys.size }} scene nodes from ${scenes.size} scenes, " +
+      "${host.sceneProblems.count} scene problems; " +
       "host ${host.world.numEntities} entities, " +
       "client ${clientWorld.numEntities} at snapshot ${client.latestSnapshotTick}"
   )

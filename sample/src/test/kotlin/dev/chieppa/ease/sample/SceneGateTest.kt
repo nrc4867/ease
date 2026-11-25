@@ -114,7 +114,7 @@ class SceneGateTest {
     val host = run.local.host
     val log = host.history.log
     val reload = log.all.single { log.commandOf(it) is ReloadAsset }.tick
-    val seconds = run.fixedStep.stepNanos / NANOS_PER_SECOND
+    val seconds = stepSeconds(run.fixedStep)
     edited.nodes.values.forEach { node ->
       val id =
         with(run.local.host.world) {
@@ -190,7 +190,6 @@ class SceneGateTest {
     const val MOVED_X = -6f
     const val IVORY_Y = -1f
     const val TOLERANCE = 1e-3f
-    const val NANOS_PER_SECOND = 1_000_000_000f
     val IVORY = LocalId(0x1e0d_5eed_0000_0001)
   }
 }

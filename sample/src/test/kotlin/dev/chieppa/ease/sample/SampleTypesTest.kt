@@ -20,13 +20,14 @@ import org.junit.jupiter.api.io.TempDir
 class SampleTypesTest {
   @TempDir lateinit var folder: Path
 
-  private val agent by lazy { SampleAgent(folder) }
+  private val started = lazy { SampleAgent(folder) }
+  private val agent by started
   private val maxSpeed = Velocity.MAX_SPEED.toInt()
   private val maxPace = Courier.MAX_PACE.toInt()
 
   @AfterTest
   fun close() {
-    agent.close()
+    if (started.isInitialized()) agent.close()
   }
 
   /** The block of `ease.d.ts` that declares [serialName]. */

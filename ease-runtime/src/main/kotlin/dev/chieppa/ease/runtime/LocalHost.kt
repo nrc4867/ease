@@ -20,6 +20,7 @@ import dev.chieppa.ease.net.view.SpawnNaming
 import dev.chieppa.ease.net.view.ViewSettings
 import dev.chieppa.ease.render.RenderSnapshot
 import dev.chieppa.ease.runtime.loop.FixedStep
+import dev.chieppa.ease.scene.resolve.SceneProblem
 
 /**
  * A game as the player runs it, single-player included: the host's world, which holds authority,
@@ -83,6 +84,12 @@ public class LocalHost(
   public val snapshot: RenderSnapshot
     get() = client.world.snapshot
 
+  /**
+   * Where each problem of the host's scenes goes once, as the start scene is placed and at each
+   * reload, such as a log; it receives them at the end of the [step] they appeared in.
+   */
+  public var sceneProblems: (SceneProblem) -> Unit = {}
+
   /** The host's tick the next [step] runs. */
   public val tick: Long
     get() = host.tick
@@ -103,6 +110,7 @@ public class LocalHost(
     takeInputs(hostTick)
     host.step()
     session.send(hostTick)
+    host.sceneProblems.drain(sceneProblems)
   }
 
   /**
