@@ -24,9 +24,10 @@ import kotlinx.serialization.SerializationException
  * The mechanical fixes `ease check --fix` makes, none of which picks a side of a real disagreement:
  *
  * - A sidecar conflicted because two branches imported the same file keeps our GUID, and every
- *   reference to theirs is rewritten to it.
- * - A reference to an asset that is gone is pointed at the sidecar that now holds the GUID's path,
- *   or the deleted asset is restored from git's history.
+ *   reference to theirs is rewritten to it. A sidecar whose sides differ in more than the GUID is
+ *   left for a person.
+ * - A reference to an asset that is gone is pointed at the sidecar that now holds the GUID's path;
+ *   when nothing is at that path, the deleted asset is restored from git's history.
  * - Siblings with equal order keys get keys of their own.
  *
  * Whatever else is wrong is left for a person; run the check again to see it.
@@ -54,15 +55,13 @@ public class ProjectFixer(private val project: Path, private val git: Git = Git(
         val text = Files.readString(meta)
         val ours = metaOf(ConflictMarkers.ours(text)) ?: return@forEach
         val theirs = metaOf(ConflictMarkers.theirs(text)) ?: return@forEach
+        if (!differOnlyInGuid(ours, theirs)) return@forEach
         MetaFiles.write(meta, ours)
         stage(meta)
-        val name = ProjectLayout.display(project, meta)
-        if (ours.guid == theirs.guid) {
-          changes += "$name: settled a conflict with no difference"
-        } else {
-          mapping[theirs.guid] = ours.guid
-          changes += "$name: kept GUID ${ours.guid}, dropped ${theirs.guid}"
-        }
+        mapping[theirs.guid] = ours.guid
+        changes +=
+          "${ProjectLayout.display(project, meta)}: kept GUID ${ours.guid}, " +
+            "dropped ${theirs.guid}"
       }
     if (mapping.isNotEmpty()) changes += pointed(references.rewrite(mapping), mapping)
     return changes
@@ -78,8 +77,9 @@ public class ProjectFixer(private val project: Path, private val git: Git = Git(
       val sighting = history?.sighting(guid) ?: return@forEach
       val current = currentGuid(database, sighting.meta)
       when {
-        sighting.deleted -> restore(sighting.commit, sighting.meta)?.let { changes += it }
-        current != null && current != guid -> repoint[guid] = current
+        current != null -> repoint[guid] = current
+        sighting.deleted && isFree(sighting.meta) ->
+          restore(sighting.commit, sighting.meta)?.let { changes += it }
       }
     }
     if (repoint.isNotEmpty()) changes += pointed(references.rewrite(repoint), repoint)
@@ -92,10 +92,21 @@ public class ProjectFixer(private val project: Path, private val git: Git = Git(
       .at(MetaFiles.sourceOf(ProjectLayout.content(project).relativize(project.resolve(meta))))
       ?.guid
 
+  /** Whether neither the sidecar at [meta] nor its source is in the project now. */
+  private fun isFree(meta: String): Boolean =
+    !Files.exists(project.resolve(meta)) &&
+      !Files.exists(project.resolve(meta.removeSuffix(MetaFiles.SUFFIX)))
+
+  /** Whether the sidecars [ours] and [theirs] are the same but for the GUID. */
+  private fun differOnlyInGuid(ours: AssetMeta, theirs: AssetMeta): Boolean =
+    ours.guid != theirs.guid &&
+      MetaFiles.encode(AssetMeta(ours.formatVersion, theirs.guid)) == MetaFiles.encode(theirs)
+
   private fun restore(commit: String, meta: String): String? {
     val before = "$commit^"
     val source = meta.removeSuffix(MetaFiles.SUFFIX)
-    val paths = listOf(meta) + git.run("ls-tree", "-r", "--name-only", before, "--", source).lines
+    val paths =
+      listOf(meta) + git.run("ls-tree", "-r", "--name-only", "-z", before, "--", source).nulFields
     val result = git.run(listOf("checkout", before, "--") + paths)
     return if (result.succeeded) "restored ${paths.size} file(s) of $source from $before" else null
   }

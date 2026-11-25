@@ -5,6 +5,7 @@ import dev.chieppa.ease.assets.database.AssetDatabase
 import dev.chieppa.ease.assets.database.AssetRecord
 import dev.chieppa.ease.project.layout.ProjectLayout
 import dev.chieppa.ease.project.scene.GuidScan
+import dev.chieppa.ease.project.scene.SceneFileFault
 import dev.chieppa.ease.project.scene.SceneFolderFiles
 import dev.chieppa.ease.project.scene.SceneStructure
 import dev.chieppa.ease.scene.node.LocalId
@@ -12,6 +13,7 @@ import dev.chieppa.ease.scene.resolve.SceneProblem
 import dev.chieppa.ease.scene.resolve.SceneResolver
 import dev.chieppa.ease.scene.resolve.SceneSource
 import dev.chieppa.ease.scene.types.SceneTypes
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -40,6 +42,15 @@ internal class SceneRules(
     /** The report path of the node [id] when it is a node of this scene itself. */
     fun localFile(depth: Int, id: LocalId): String? =
       if (depth == 1) files.fileOf(id)?.let(::display) else null
+
+    /** The ids of the nodes in this scene's conflicted files, from either side's text. */
+    val conflictedIds: Set<String> by lazy {
+      files.unreadable
+        .map { folder.resolve(it.file) }
+        .filter { it in conflicted }
+        .flatMap { NODE_ID.findAll(Files.readString(it)).map { match -> match.groupValues[1] } }
+        .toSet()
+    }
   }
 
   fun findings(): List<Finding> {
@@ -59,8 +70,10 @@ internal class SceneRules(
     scene.files.unreadable.forEach { unreadable ->
       if (scene.folder.resolve(unreadable.file) !in conflicted) {
         val kind =
-          if (unreadable.reason.contains(REPEATED_ID)) FindingKind.DUPLICATE_NODE_ID
-          else FindingKind.UNREADABLE_SCENE_FILE
+          when (unreadable.fault) {
+            SceneFileFault.REPEATED_ID -> FindingKind.DUPLICATE_NODE_ID
+            SceneFileFault.UNREADABLE -> FindingKind.UNREADABLE_SCENE_FILE
+          }
         add(Severity.ERROR, kind, scene.display(unreadable.file), unreadable.reason)
       }
     }
@@ -101,20 +114,30 @@ internal class SceneRules(
     resolver.resolve(scene.record.guid).problems.forEach { problem ->
       when (problem) {
         is SceneProblem.MissingParent ->
-          scene.localFile(problem.node.depth, problem.node.id)?.let {
-            val message = "names a parent that is not in this scene; give it another parent"
-            add(Severity.ERROR, FindingKind.MISSING_PARENT, it, message)
-          }
+          scene
+            .localFile(problem.node.depth, problem.node.id)
+            ?.takeUnless {
+              scene.files.document[problem.node.id]?.parent?.text in scene.conflictedIds
+            }
+            ?.let {
+              val message = "names a parent that is not in this scene; give it another parent"
+              add(Severity.ERROR, FindingKind.MISSING_PARENT, it, message)
+            }
         is SceneProblem.Cycle ->
           scene.localFile(1, problem.node.idAt(0))?.let {
             val message = "places ${problem.asset}, which places this scene again"
             add(Severity.ERROR, FindingKind.PLACEMENT_CYCLE, it, message)
           }
         is SceneProblem.StaleOverride ->
-          scene.localFile(problem.instance.depth, problem.instance.id)?.let {
-            val message = "overrides ${problem.path}, which the placed asset does not have"
-            add(Severity.WARNING, FindingKind.STALE_OVERRIDE, it, message)
-          }
+          scene
+            .localFile(problem.instance.depth, problem.instance.id)
+            ?.takeUnless {
+              placedAssetConflicted(scene.files.document[problem.instance.id]?.instance?.asset)
+            }
+            ?.let {
+              val message = "overrides ${problem.path}, which the placed asset does not have"
+              add(Severity.WARNING, FindingKind.STALE_OVERRIDE, it, message)
+            }
         else -> Unit
       }
     }
@@ -147,7 +170,13 @@ internal class SceneRules(
     if (seen.add("$kind|$file|$message")) result += Finding(severity, kind, file, message)
   }
 
+  /** Whether the scene or prefab [asset] has a node file with conflict markers. */
+  private fun placedAssetConflicted(asset: Guid?): Boolean {
+    val path = asset?.let { database[it]?.path } ?: return false
+    return read(path).unreadable.any { database.root.resolve(path).resolve(it.file) in conflicted }
+  }
+
   private companion object {
-    const val REPEATED_ID = " as "
+    val NODE_ID = Regex("(?m)^id: ?\"?([0-9a-f]{16})")
   }
 }

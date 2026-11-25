@@ -10,7 +10,15 @@ public class GitResult(
   public val succeeded: Boolean
     get() = exitCode == 0
 
+  /** The fields of [output] written with `-z`, which ends each field with a zero byte. */
+  public val nulFields: List<String>
+    get() = output.split(NUL).filter { it.isNotEmpty() }
+
   /** The lines of [output], without empty ones. */
   public val lines: List<String>
     get() = output.lines().filter { it.isNotEmpty() }
+
+  private companion object {
+    const val NUL = '\u0000'
+  }
 }

@@ -9,8 +9,17 @@ import java.nio.file.Path
  * line-ending settings and templates there cannot change what a test sees.
  */
 object TestGit {
-  /** A git that runs in [directory] with a configuration of its own. */
-  fun isolated(directory: Path): Git {
+  private val INSTANT =
+    mapOf(
+      "GIT_AUTHOR_DATE" to "2001-02-03T04:05:06+00:00",
+      "GIT_COMMITTER_DATE" to "2001-02-03T04:05:06+00:00",
+    )
+
+  /**
+   * A git that runs in [directory] with a configuration of its own. With [oneInstant] every commit
+   * it makes has the same date, as commits made within one second do.
+   */
+  fun isolated(directory: Path, oneInstant: Boolean = false): Git {
     val config = Files.createTempFile("ease-git", ".config")
     return Git(
       directory,
@@ -18,7 +27,7 @@ object TestGit {
         "GIT_CONFIG_GLOBAL" to config.toString(),
         "GIT_CONFIG_NOSYSTEM" to "1",
         "GIT_TERMINAL_PROMPT" to "0",
-      ),
+      ) + if (oneInstant) INSTANT else emptyMap(),
       listOf(
         "user.name=Ease Test",
         "user.email=test@ease.invalid",

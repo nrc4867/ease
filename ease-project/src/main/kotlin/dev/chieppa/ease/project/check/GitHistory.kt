@@ -1,10 +1,14 @@
 package dev.chieppa.ease.project.check
 
 import dev.chieppa.ease.assets.Guid
+import dev.chieppa.ease.assets.meta.MetaFiles
 import dev.chieppa.ease.project.git.Git
 import dev.chieppa.ease.project.git.GitFailure
 
-/** Where git's history last had an asset: its sidecar, the commit and who made it. */
+/**
+ * Where git's history last had an asset: its sidecar, the commit and who made it. [meta] is the
+ * sidecar's path from the repository root, written with `/`.
+ */
 public class AssetSighting(
   /** The commit that last added, changed or deleted the sidecar. */
   public val commit: String,
@@ -28,7 +32,11 @@ public class AssetSighting(
 public class GitHistory(private val git: Git) {
   private val cache = HashMap<Guid, AssetSighting?>()
 
-  /** The newest commit that touched a sidecar holding [guid], or null when none did. */
+  /**
+   * The newest commit that touched a sidecar holding [guid], or null when none did. Newest means
+   * children before parents, so a deletion is found before the addition it undoes whatever the
+   * commit dates say.
+   */
   public fun sighting(guid: Guid): AssetSighting? = cache.getOrPut(guid) { search(guid) }
 
   private fun search(guid: Guid): AssetSighting? =
@@ -37,14 +45,20 @@ public class GitHistory(private val git: Git) {
         git.run(
           "log",
           "--all",
+          "--topo-order",
           "--no-renames",
+          "-z",
           "-S$guid",
-          "--format=$MARK%H%x09%an",
+          "--format=%x01%H%x00%an",
           "--name-status",
           "--",
-          "*.meta",
+          "*${MetaFiles.SUFFIX}",
         )
-      if (log.succeeded) parse(log.lines, guid) else null
+      if (log.succeeded)
+        entries(log.nulFields).take(MAX_COMMITS).firstNotNullOfOrNull {
+          sighting(it, guid)
+        }
+      else null
     } catch (_: GitFailure) {
       null
     }
@@ -54,17 +68,22 @@ public class GitHistory(private val git: Git) {
     val changes = mutableListOf<Pair<String, String>>()
   }
 
-  private fun parse(lines: List<String>, guid: Guid): AssetSighting? =
-    entries(lines).take(MAX_COMMITS).firstNotNullOfOrNull { sighting(it, guid) }
-
-  private fun entries(lines: List<String>): List<Entry> {
+  /**
+   * The commits of `log -z` output: a field starting with [START] opens one, followed by its
+   * author, then pairs of a status letter and a path.
+   */
+  private fun entries(fields: List<String>): List<Entry> {
     val entries = mutableListOf<Entry>()
-    lines.forEach { line ->
-      val fields = line.removePrefix(MARK).split(TAB, limit = 2)
-      if (line.startsWith(MARK)) {
-        entries += Entry(fields[0], fields.getOrElse(1) { "" })
-      } else if (fields.size == 2) {
-        entries.lastOrNull()?.changes?.add(fields[0] to fields[1])
+    var index = 0
+    while (index < fields.size) {
+      val field = fields[index]
+      if (field.startsWith(START)) {
+        entries += Entry(field.removePrefix(START), fields.getOrElse(index + 1) { "" })
+        index += HEADER_FIELDS
+      } else {
+        val path = fields.getOrNull(index + 1)
+        if (path != null) entries.lastOrNull()?.changes?.add(field.trim() to path)
+        index += CHANGE_FIELDS
       }
     }
     return entries
@@ -83,9 +102,10 @@ public class GitHistory(private val git: Git) {
     git.run("show", "$revision:$path").let { it.succeeded && it.output.contains(guid.toString()) }
 
   private companion object {
-    const val MARK = "commit "
+    const val START = "\u0001"
+    const val HEADER_FIELDS = 2
+    const val CHANGE_FIELDS = 2
     const val MAX_COMMITS = 40
-    const val TAB = '\t'
     const val DELETED = "D"
   }
 }

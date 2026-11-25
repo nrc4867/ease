@@ -16,6 +16,8 @@ public class UnreadableSceneFile(
   public val file: String,
   /** What is wrong with it. */
   public val reason: String,
+  /** What kind of fault it is. */
+  public val fault: SceneFileFault = SceneFileFault.UNREADABLE,
 )
 
 /**
@@ -61,7 +63,7 @@ private constructor(
     }
 
     private fun repeated(path: String, first: String, node: SceneNode) =
-      UnreadableSceneFile(path, "holds node ${node.id}, as $first does")
+      UnreadableSceneFile(path, "holds node ${node.id}, as $first does", SceneFileFault.REPEATED_ID)
 
     /** The header file's text, or the header of an empty scene after noting what is wrong. */
     private fun headerOf(folder: Path, problems: MutableList<UnreadableSceneFile>): String {

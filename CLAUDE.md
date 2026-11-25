@@ -46,7 +46,7 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | Game | `sample` | The sample game that keeps the engine free of any one game |
 | Host | `ease-player` | The generic launcher every game runs in; finds the game's `GameModule` on the classpath |
 | Host | `ease-agent` | The headless agent host: a game's world served to agents over MCP on 127.0.0.1 (`describe`, `query`, `capture`, `logs`, `test`) |
-| Host | `ease-cli` | The `ease` command line: `new` (a game from a project template, put in git unless `--no-git`), `generate` (a module, component or system), `templates`, `check` (`--fix` for the safe repairs) and `merge-driver` (run by git); the templates are folders in its resources, with hooks for what runs after `new` |
+| Host | `ease-cli` | The `ease` command line: `new` (a game from a project template, put in git unless `--no-git`), `generate` (a module, component or system), `templates`, `check` (`--fix` for the safe repairs, `--staged` for what git's index holds) and `merge-driver` (run by git); the templates are folders in its resources, with hooks for what runs after `new` |
 | Host | `viewport-spike` | The Phase 1 editor viewport check (engine on Stretch's device); never ships |
 | Runtime | `ease-runtime` | Hosted worlds, ticking, game modules, and the local host: a host world plus a local client world over the loopback transport, which the player always runs |
 | Render | `ease-render` | The extract snapshot, 2D cameras and the quad renderer |

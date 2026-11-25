@@ -20,6 +20,9 @@ public object Options {
   /** `--fix`: let `ease check` make the mechanical fixes. */
   public const val FIX: String = "fix"
 
+  /** `--staged`: let `ease check` look at what git's index holds. */
+  public const val STAGED: String = "staged"
+
   /** The options that take no value; naming one switches it on. */
-  public val FLAGS: Set<String> = setOf(NO_GIT, FIX)
+  public val FLAGS: Set<String> = setOf(NO_GIT, FIX, STAGED)
 }

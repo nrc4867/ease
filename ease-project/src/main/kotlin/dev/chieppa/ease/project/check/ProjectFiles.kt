@@ -1,5 +1,6 @@
 package dev.chieppa.ease.project.check
 
+import dev.chieppa.ease.project.layout.ProjectLayout
 import java.io.IOException
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
@@ -11,7 +12,16 @@ import java.nio.file.attribute.BasicFileAttributes
 public object ProjectFiles {
   /** Folders nothing of the project's own is in: git's, build output, tool caches. */
   public val SKIPPED_FOLDERS: Set<String> =
-    setOf(".git", ".gradle", ".kotlin", ".idea", "build", "out", "node_modules", ".ease")
+    setOf(
+      ProjectLayout.GIT_FOLDER,
+      ProjectLayout.EASE_FOLDER,
+      ".gradle",
+      ".kotlin",
+      ".idea",
+      "build",
+      "out",
+      "node_modules",
+    )
 
   /** The longest text file read for conflict markers, in bytes. */
   public const val MAX_TEXT_BYTES: Long = 8_388_608

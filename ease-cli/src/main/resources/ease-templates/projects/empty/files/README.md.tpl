@@ -15,12 +15,13 @@ The game's code is in `game/`. `ease generate component|system|module <Name>` ad
 
 `ease new` made this folder a git repository: `.gitignore` for build output and per-user state,
 `.gitattributes` with binary assets in Git LFS (lockable) and Ease's merge driver for scenes and
-prefabs, and a pre-commit hook that runs `ease check`. The merge driver and the hook are in this
+prefabs, and a pre-commit hook that runs `ease check --staged` (what is about to be committed). The merge driver and the hook are in this
 clone's `.git` folder, so another clone registers the driver itself with
 `git config merge.ease.driver "ease merge-driver %O %A %B %P"` and installs Git LFS.
 
 ```
 ease check          # sidecars, GUIDs, references, nodes, conflict markers, LFS coverage
+ease check --staged # the same rules over git's index
 ease check --fix    # the safe repairs: respace order keys, settle an add/add GUID, restore deleted assets
 ```
 

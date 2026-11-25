@@ -29,6 +29,10 @@ public class Git(
     return result.output
   }
 
+  /** This git with [extra] added to its environment. */
+  public fun withEnvironment(extra: Map<String, String>): Git =
+    Git(directory, environment + extra, settings)
+
   /** Whether a `git` program can be started at all. */
   public fun isInstalled(): Boolean =
     try {

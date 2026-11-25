@@ -157,8 +157,9 @@ private constructor(
   public companion object {
     /**
      * Reads every asset under [root] and watches it with [watcher]; [associations] names the
-     * folders that are single assets. Throws [AssetDatabaseRejected], naming each file, when a GUID
-     * is used twice, a meta file has no source or a source has no meta file.
+     * folders that are single assets. Watches only a project it accepts. Throws
+     * [AssetDatabaseRejected], naming each file, when a GUID is used twice, a meta file has no
+     * source or a source has no meta file.
      */
     public fun load(
       root: Path,
@@ -166,8 +167,9 @@ private constructor(
       guids: GuidSource = GuidSource.random,
       associations: FileAssociations = FileAssociationRegistry(),
     ): AssetDatabase {
-      val database = open(root, watcher, guids, associations)
+      val database = read(root, watcher, guids, associations)
       if (database.problems.isNotEmpty()) throw AssetDatabaseRejected(database.problems)
+      watcher.watch(database.root)
       return database
     }
 
@@ -182,9 +184,20 @@ private constructor(
       guids: GuidSource = GuidSource.random,
       associations: FileAssociations = FileAssociationRegistry(),
     ): AssetDatabase {
+      val database = read(root, watcher, guids, associations)
+      watcher.watch(database.root)
+      return database
+    }
+
+    /** The database of [root] after its first full look, not yet watched. */
+    private fun read(
+      root: Path,
+      watcher: FileWatcher,
+      guids: GuidSource,
+      associations: FileAssociations,
+    ): AssetDatabase {
       val database = AssetDatabase(root.toAbsolutePath().normalize(), watcher, guids, associations)
       database.scan()
-      watcher.watch(database.root)
       return database
     }
   }

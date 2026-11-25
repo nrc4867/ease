@@ -26,21 +26,8 @@ class ProjectMergeTest {
   @TempDir lateinit var work: Path
 
   private val root by lazy { work.resolve("moon") }
-  private val git by lazy { TestGit.isolated(root) }
+  private val git by lazy { TestGit.isolated(root, oneInstant = true) }
   private val project by lazy { TestProject(root) }
-
-  /** A script that runs this command line from the test's own classpath, as git runs `ease`. */
-  private fun launcher(): String {
-    val java = Path.of(System.getProperty("java.home"), "bin", "java").toString()
-    val script = work.resolve("ease-test.sh")
-    val classpath = System.getProperty("java.class.path").replace('\\', '/')
-    val text =
-      "#!/bin/sh\nexec '${java.replace('\\', '/')}' -cp '$classpath' " +
-        "dev.chieppa.ease.cli.MainKt \"\$@\"\n"
-    Files.writeString(script, text)
-    script.toFile().setExecutable(true)
-    return script.toString().replace('\\', '/')
-  }
 
   private fun checkOutput(vararg words: String): Pair<Int, String> {
     val harness = Harness(root)
@@ -70,7 +57,10 @@ class ProjectMergeTest {
 
   /** The game with its base commit: two assets and a scene with a lamp. */
   private fun createGame() {
-    val hook = GitInitHook(CliOutput(System.out, System.err), launcher()) { TestGit.isolated(it) }
+    val hook =
+      GitInitHook(CliOutput(System.out, System.err), TestLauncher.script(work)) {
+        TestGit.isolated(it, oneInstant = true)
+      }
     val created = Harness(work, listOf(hook))
     assertEquals(ExitCodes.OK, created.run("new", "empty", "--name", "Moon"), created.stderr)
     project.asset("a.txt", "a", guid(1))
