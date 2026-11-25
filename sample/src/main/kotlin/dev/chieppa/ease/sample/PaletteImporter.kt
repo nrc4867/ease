@@ -72,8 +72,10 @@ public object PaletteImporter : Importer {
     if (parts.size != 2 || value == null || value.length != HEX_DIGITS) {
       throw ImportException("Line $line: expected 'name rrggbb', got '$content'")
     }
-    val rgb =
-      value.toIntOrNull(HEX) ?: throw ImportException("Line $line: '$value' is not a hex color")
+    if (!value.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) {
+      throw ImportException("Line $line: '$value' is not a hex color")
+    }
+    val rgb = value.toInt(HEX)
     return parts[0] to rgb
   }
 }

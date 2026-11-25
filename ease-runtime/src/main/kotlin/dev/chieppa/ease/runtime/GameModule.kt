@@ -1,7 +1,7 @@
 package dev.chieppa.ease.runtime
 
 import dev.chieppa.ease.assets.Guid
-import dev.chieppa.ease.assets.associations.FileAssociations
+import dev.chieppa.ease.assets.associations.ContributorProvider
 import dev.chieppa.ease.commands.CommandRegistry
 import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.ecs.replication.PeerId
@@ -11,9 +11,10 @@ import dev.chieppa.ease.scene.types.SceneTypes
 /**
  * A game's code as hosts see it. A game lists its module in
  * `META-INF/services/dev.chieppa.ease.runtime.GameModule`, and a host finds it with [GameModules]
- * and builds a [HostedWorld] from it.
+ * and builds a [HostedWorld] from it. A game that registers importers also lists the module under
+ * `ContributorProvider` (see [registerContributors]).
  */
-public interface GameModule {
+public interface GameModule : ContributorProvider {
   /**
    * Registers the game's own command and component types, so worlds can log and send them. A
    * component type its scenes save goes in [registerSceneTypes] instead, which registers it here
@@ -26,14 +27,6 @@ public interface GameModule {
    * with the codec as well, so a world spawns them from files, saves them and sends them.
    */
   public fun registerSceneTypes(types: SceneTypes.Builder) {}
-
-  /**
-   * Registers the game's own importers, and any other contributors for its file types, with the
-   * file association service. The editor and `ease import` call this; the player has no registry
-   * and loads cooked assets. Everything registered through [associations] is removed together when
-   * the module is unloaded.
-   */
-  public fun registerContributors(associations: FileAssociations) {}
 
   /**
    * The GUID of the scene the host's world starts from, or null when the game builds its world in

@@ -44,14 +44,28 @@ internal class Choice(val importer: Importer?, val settings: JsonObject) {
       val named = meta.importer ?: presets.importer
       val importer =
         if (named != null) {
-          associations.contributors(Importer.kind).firstOrNull { it.id == named }
-            ?: throw ChoiceFailure("names the importer '$named', which no loaded module registers")
+          byId(associations, named)
         } else {
           associations
             .resolve(Importer.kind, ProjectFile.under(database.root, record.path))
             .firstOrNull()
         }
       return Choice(importer, settings)
+    }
+
+    /** The one registered importer called [id]; two with the same id is a failure naming both. */
+    private fun byId(associations: FileAssociations, id: String): Importer {
+      val found =
+        associations.registered(Importer.kind).filter { (it.contributor as Importer).id == id }
+      return when (found.size) {
+        1 -> found.single().contributor as Importer
+        0 -> throw ChoiceFailure("names the importer '$id', which no loaded module registers")
+        else ->
+          throw ChoiceFailure(
+            "names the importer '$id', which ${found.size} modules register: " +
+              found.joinToString { it.origin.ifEmpty { "an unnamed module" } }
+          )
+      }
     }
   }
 }

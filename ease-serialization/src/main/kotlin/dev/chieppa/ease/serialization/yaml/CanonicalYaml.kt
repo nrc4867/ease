@@ -3,6 +3,8 @@ package dev.chieppa.ease.serialization.yaml
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import org.snakeyaml.engine.v2.exceptions.YamlEngineException
 
 /**
@@ -30,6 +32,12 @@ public object CanonicalYaml {
   /** [value] as canonical YAML, through its [serializer]. */
   public fun <T> encode(serializer: KSerializer<T>, value: T): String =
     write(json.encodeToJsonElement(serializer, value))
+
+  /** [value] as canonical YAML like [encode], leaving out every top-level field that is null. */
+  public fun <T> encodeWithoutNulls(serializer: KSerializer<T>, value: T): String {
+    val tree = json.encodeToJsonElement(serializer, value) as JsonObject
+    return write(JsonObject(tree.filterValues { it !is JsonNull }))
+  }
 
   /** The value [text] holds, read through [serializer]. */
   public fun <T> decode(serializer: KSerializer<T>, text: String): T =

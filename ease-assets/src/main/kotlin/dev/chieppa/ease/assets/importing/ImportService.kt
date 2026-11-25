@@ -1,10 +1,13 @@
 package dev.chieppa.ease.assets.importing
 
+import dev.chieppa.ease.assets.ContentHash
 import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.assets.associations.FileAssociations
 import dev.chieppa.ease.assets.associations.Registration
 import dev.chieppa.ease.assets.database.AssetDatabase
+import dev.chieppa.ease.assets.database.AssetProblem
 import dev.chieppa.ease.assets.database.AssetRecord
+import dev.chieppa.ease.assets.meta.MetaFiles
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -27,7 +30,9 @@ public class ImportService(
   private val associations: FileAssociations,
 ) : AutoCloseable {
   private val cache = ImportCache(database.root)
-  private val listener: Registration = associations.onChange { if (it === Importer.kind) refresh() }
+  private val listener: Registration = associations.onChange {
+    if (it === Importer.kind) refreshAfterChange()
+  }
 
   /** What stops each source from importing right now, by source path. */
   public var problems: List<ImportProblem> = emptyList()
@@ -63,9 +68,41 @@ public class ImportService(
         }
       }
     }
-    cache.guids().filter { it !in keep }.forEach { cache.remove(it) }
+    val unreadable = unreadableSources()
+    for (guid in cache.guids().filter { it !in keep }) {
+      val source = cache.sourceOf(guid)
+      if (source != null && source in unreadable) {
+        found += ImportProblem(source, "cannot be read now; its last good result is kept")
+      } else {
+        cache.remove(guid)
+      }
+    }
     problems = found
     return ImportReport(imported, upToDate, found)
+  }
+
+  /** The sources whose meta file or contents the database could not read. */
+  private fun unreadableSources(): Set<Path> =
+    database.problems
+      .mapNotNull {
+        when (it) {
+          is AssetProblem.UnreadableMeta -> MetaFiles.sourceOf(it.meta)
+          is AssetProblem.UnreadableSource -> it.source
+          else -> null
+        }
+      }
+      .toSet()
+
+  /** Refreshes for a registration change; a failure becomes a problem, never an exception. */
+  @Suppress("TooGenericExceptionCaught") // The caller is a registration, which must not fail.
+  private fun refreshAfterChange() {
+    try {
+      refresh()
+    } catch (failure: IOException) {
+      problems = listOf(ImportProblem(Path.of(""), "refresh failed: ${failure.message}"))
+    } catch (failure: RuntimeException) {
+      problems = listOf(ImportProblem(Path.of(""), "refresh failed: ${failure.message}"))
+    }
   }
 
   override fun close() {
@@ -79,21 +116,41 @@ public class ImportService(
       Outcome.Failed(failure.message.orEmpty())
     }
 
-  private fun importChosen(record: AssetRecord, choice: Choice): Outcome {
-    val importer = choice.importer ?: return Outcome.Skipped
-    val key = ImportKey.of(importer, record.contentHash, choice.settings)
+  private fun importChosen(record: AssetRecord, choice: Choice): Outcome =
+    choice.importer?.let { readAndImport(record, it, choice.settings) } ?: Outcome.Skipped
+
+  private fun readAndImport(record: AssetRecord, importer: Importer, settings: JsonObject) =
+    try {
+      importBytes(record, importer, settings, database.read(record))
+    } catch (failure: IOException) {
+      Outcome.Failed("cannot be read: ${failure.message}")
+    }
+
+  private fun importBytes(
+    record: AssetRecord,
+    importer: Importer,
+    settings: JsonObject,
+    bytes: ByteArray,
+  ): Outcome {
+    val key = ImportKey.of(importer, ContentHash.of(bytes), settings)
     return if (cache.currentKey(record.guid) == key) {
       Outcome.Done(ran = false)
     } else {
-      run(record, importer, key, choice.settings)
+      run(record, importer, key, settings, bytes)
     }
   }
 
   @Suppress("TooGenericExceptionCaught") // An importer is contributor code; any failure is data.
-  private fun run(record: AssetRecord, importer: Importer, key: String, settings: JsonObject) =
+  private fun run(
+    record: AssetRecord,
+    importer: Importer,
+    key: String,
+    settings: JsonObject,
+    bytes: ByteArray,
+  ) =
     try {
-      val cooked = importer.import(database.read(record), settings)
-      cache.store(record.guid, key, cooked.sortedBy { it.name })
+      val cooked = importer.import(bytes, settings)
+      cache.store(record.guid, record.path, key, cooked.sortedBy { it.name })
       Outcome.Done(ran = true)
     } catch (failure: IOException) {
       Outcome.Failed("cannot be imported: ${failure.message}")

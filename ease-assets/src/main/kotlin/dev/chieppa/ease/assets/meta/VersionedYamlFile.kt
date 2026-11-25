@@ -9,17 +9,12 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.encodeToJsonElement
 
 /**
  * Reads and writes the small versioned YAML files next to assets: meta files and folder presets.
  */
 internal object VersionedYamlFile {
-  private val json = Json { encodeDefaults = true }
-
   /**
    * The file at [file] migrated by [migrations] and decoded, without touching the file. Failures
    * come back as the message of the exception [fail] makes.
@@ -51,8 +46,6 @@ internal object VersionedYamlFile {
   }
 
   /** [value] as canonical YAML, leaving out every field that is null. */
-  fun <T> encode(serializer: KSerializer<T>, value: T): String {
-    val tree = json.encodeToJsonElement(serializer, value) as JsonObject
-    return CanonicalYaml.write(JsonObject(tree.filterValues { it !is JsonNull }))
-  }
+  fun <T> encode(serializer: KSerializer<T>, value: T): String =
+    CanonicalYaml.encodeWithoutNulls(serializer, value)
 }

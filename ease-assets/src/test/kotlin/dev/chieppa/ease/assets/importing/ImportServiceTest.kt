@@ -14,6 +14,7 @@ import dev.chieppa.ease.platform.files.ManualFileWatcher
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -205,5 +206,72 @@ class ImportServiceTest {
     val report = service().use { it.refresh() }
 
     assertEquals(listOf(Path.of("a.txt")), report.imported)
+  }
+
+  @Test
+  fun `two importers with one id fail a sidecar that names it, naming both origins`() {
+    associations.register(Importer.kind, FileMatch.Extension("txt"), 0, Echo("same"), "module one")
+    associations.register(Importer.kind, FileMatch.Extension("bin"), 0, Echo("same"), "module two")
+    choose("a.txt", project.asset("a.txt", "x"), importer = "same")
+    service().use { service ->
+      val problem = service.refresh().problems.single()
+      val message = problem.message
+
+      assertTrue(message.contains("module one") && message.contains("module two"), message)
+    }
+  }
+
+  @Test
+  fun `a stray file in the import cache does not stop a refresh`() {
+    associations.register(Importer.kind, FileMatch.Extension("txt"), 0, Echo("echo"))
+    val guid = project.asset("a.txt", "x")
+    service().use { it.refresh() }
+    project.write(".ease/cache/imports/.DS_Store", "junk")
+
+    service().use { service ->
+      assertEquals(emptyList(), service.refresh().problems)
+      assertEquals(1, service.cooked(guid).size)
+    }
+  }
+
+  @Test
+  fun `an unreadable meta file keeps the last good result and reports a problem`() {
+    associations.register(Importer.kind, FileMatch.Extension("txt"), 0, Echo("echo"))
+    val guid = project.asset("a.txt", "x")
+    service().use { it.refresh() }
+    project.write("a.txt.meta", "formatVersion: 2\nguid: not-a-guid\n")
+
+    service().use { service ->
+      val report = service.refresh()
+
+      assertEquals(listOf(Path.of("a.txt")), report.problems.map { it.source })
+      assertEquals(1, service.cooked(guid).size)
+    }
+  }
+
+  @Test
+  fun `closing a module's registrations also removes the listeners it made`() {
+    val module = ModuleRegistrations(associations)
+    var calls = 0
+    module.onChange { calls++ }
+
+    module.close()
+    associations.register(Importer.kind, FileMatch.Extension("txt"), 0, Echo("echo"))
+
+    assertEquals(0, calls)
+  }
+
+  @Test
+  fun `closing a module closes every registration even when one throws`() {
+    val module = ModuleRegistrations(associations)
+    var armed = false
+    module.onChange { if (armed) error("listener failed") }
+    val first = module.register(Importer.kind, FileMatch.Extension("txt"), 0, Echo("a"))
+    val second = module.register(Importer.kind, FileMatch.Extension("bin"), 0, Echo("b"))
+    armed = true
+
+    assertFailsWith<IllegalStateException> { module.close() }
+
+    assertTrue(!first.isOpen && !second.isOpen)
   }
 }

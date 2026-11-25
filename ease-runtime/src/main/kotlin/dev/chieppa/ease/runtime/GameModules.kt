@@ -4,11 +4,6 @@ import java.util.ServiceLoader
 
 /** Finds the game a host runs: the one [GameModule] on its classpath. */
 public object GameModules {
-  /** Every [GameModule] [loader] lists as a service, for tools that work on any game. */
-  public fun loadAll(
-    loader: ClassLoader = checkNotNull(GameModules::class.java.classLoader)
-  ): List<GameModule> = ServiceLoader.load(GameModule::class.java, loader).toList()
-
   /**
    * The one [GameModule] [loader] lists as a service. Fails, naming what it found, when there is
    * none or more than one.
