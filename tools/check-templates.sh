@@ -5,6 +5,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 work="${1:-$(mktemp -d)}"
+mkdir -p "$work"
 cd "$root"
 
 ./gradlew --quiet :ease-cli:installDist
