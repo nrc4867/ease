@@ -6,7 +6,7 @@ import dev.chieppa.ease.build.types.AssembleEaseTypes
 // natives.
 plugins {
   id("ease.kotlin-module")
-  alias(libs.plugins.kotlinSerialization)
+  id("org.jetbrains.kotlin.plugin.serialization")
   id("com.google.devtools.ksp")
 }
 

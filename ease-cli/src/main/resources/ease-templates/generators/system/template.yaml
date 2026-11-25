@@ -1,0 +1,8 @@
+description: A system that runs every tick, added to the game
+formatVersion: 1
+insertions:
+  - file: "{{gameModuleDir}}/src/main/kotlin/{{packagePath}}/{{className}}.kt"
+    marker: "// ease:systems"
+    text: "systems.add(Phase.SIMULATION, {{Name}}System())"
+    imports:
+      - dev.chieppa.ease.ecs.Phase

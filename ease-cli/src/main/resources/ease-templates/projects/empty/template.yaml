@@ -1,0 +1,5 @@
+description: A game with one square on screen, a test and nothing else
+formatVersion: 1
+gameModule: game
+parts:
+  - wrapper

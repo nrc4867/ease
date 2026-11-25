@@ -1,0 +1,6 @@
+description: A serializable component, registered with the game
+formatVersion: 1
+insertions:
+  - file: "{{gameModuleDir}}/src/main/kotlin/{{packagePath}}/{{className}}.kt"
+    marker: "// ease:types"
+    text: "registry.component({{Name}}::class, {{Name}}.serializer())"

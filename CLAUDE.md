@@ -25,6 +25,9 @@ Gradle needs JDK 25 as `JAVA_HOME`. Stretch is found as `../stretch` or through 
 ./gradlew gpuTest                # the *GpuTest tests; need a WebGPU adapter
 ./gradlew generateNotice         # rewrite NOTICE after a dependency change; check fails while it is stale
 ./gradlew installGitHook         # the pre-commit hook; any compile installs it too
+./gradlew :ease-cli:installDist  # the ease command, under ease-cli/build/install/ease/bin
+./gradlew :ease-cli:runEase --args="new empty --name 'My Game'"   # ease new, from Gradle
+tools/check-templates.sh         # generate a game from every template, build it, run its tests; CI runs it
 ```
 
 While working, run only the tests for what changed (`./gradlew :<module>:test --tests '<TestClass>'`). CI runs the rest on the pull request.
@@ -42,6 +45,7 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | Game | `sample` | The sample game that keeps the engine free of any one game |
 | Host | `ease-player` | The generic launcher every game runs in; finds the game's `GameModule` on the classpath |
 | Host | `ease-agent` | The headless agent host: a game's world served to agents over MCP on 127.0.0.1 (`describe`, `query`, `capture`, `logs`, `test`) |
+| Host | `ease-cli` | The `ease` command line: `new` (a game from a project template), `generate` (a module, component or system), `templates`; the templates are folders in its resources, with hooks for what runs after `new` |
 | Host | `viewport-spike` | The Phase 1 editor viewport check (engine on Stretch's device); never ships |
 | Runtime | `ease-runtime` | Hosted worlds, ticking, game modules |
 | Render | `ease-render` | The extract snapshot, 2D cameras and the quad renderer |
@@ -58,7 +62,7 @@ A module depends only on modules in lower layers. Gradle fails a dependency that
 | Test support | `ease-testing` | The allocation harness (`AllocationBudget`); test configurations only (Java) |
 | Build tool | `ease-codegen` | The KSP processors: `@Replicated` components' serializers, and for every `@Serializable` type a JSON Schema and a TypeScript declaration under `META-INF/ease`; `ksp` configurations only, never shipped |
 
-`build-logic` holds the convention plugins (`ease.kotlin-module`, `ease.java-module`, `ease.root`, `ease.licenses`), `checkSources` and its rules, and the license check, each with a test.
+`build-logic` holds the convention plugins (`ease.kotlin-module`, `ease.java-module`, `ease.root`, `ease.licenses`, and for games `ease.game-settings`, `ease.game-root`, `ease.game-module`), `checkSources` and its rules, and the license check, each with a test.
 
 ## Rules the checks enforce
 

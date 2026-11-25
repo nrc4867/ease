@@ -5,7 +5,7 @@ import dev.chieppa.ease.build.WebgpuNatives
 plugins {
   id("ease.kotlin-module")
   // For the test game's own component.
-  alias(libs.plugins.kotlinSerialization)
+  id("org.jetbrains.kotlin.plugin.serialization")
   id("com.google.devtools.ksp")
   // A plain MCP client over HTTP for this module's and games' tests.
   `java-test-fixtures`

@@ -70,6 +70,8 @@ include(":ease-player")
 
 include(":ease-agent")
 
+include(":ease-cli")
+
 include(":sample")
 
 include(":viewport-spike")
