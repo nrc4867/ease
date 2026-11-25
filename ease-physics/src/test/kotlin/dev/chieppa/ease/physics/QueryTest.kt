@@ -10,6 +10,7 @@ import dev.chieppa.ease.physics.volume.TriggerVolume
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -33,6 +34,20 @@ class QueryTest {
     assertEquals(1f, hit.x, TOLERANCE)
     assertEquals(surfaces.indexOf(SAND), hit.surface)
     assertEquals(surfaces.indexOf(SAND), test.physics.surfaceBelow(0f, 1f, 0f, 2f))
+  }
+
+  @Test
+  fun `a raycast on a layer the game has not named is refused`() {
+    test.floor()
+    val hit = RayHit()
+
+    assertFailsWith<IllegalArgumentException> {
+      test.physics.raycast(0f, 5f, 0f, 0f, -1f, 0f, 6f, hit, layer = 1)
+    }
+    assertFailsWith<IllegalArgumentException> {
+      test.physics.raycast(0f, 5f, 0f, 0f, -1f, 0f, 6f, hit, layer = -2)
+    }
+    assertTrue(test.physics.raycast(0f, 5f, 0f, 0f, -1f, 0f, 6f, hit, layer = 0))
   }
 
   @Test

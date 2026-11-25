@@ -21,14 +21,19 @@ public fun Replication.mayWrite(entity: Entity): Boolean =
 
 /**
  * Runs the predicted systems alone for one more tick as long as the world's last update, as a
- * client replaying its input does; nothing else in the world moves. In a debug build the write
- * check runs after them.
+ * client replaying its input does; nothing else in the world moves, and [Replication.replaying] is
+ * true while they run. In a debug build the write check runs after them.
  */
 public fun Replication.stepPredicted() {
   val systems = predictedSystems
-  for (index in systems.indices) {
-    val system = systems[index]
-    if (system.enabled) system.onUpdate()
+  replaying = true
+  try {
+    for (index in systems.indices) {
+      val system = systems[index]
+      if (system.enabled) system.onUpdate()
+    }
+  } finally {
+    replaying = false
   }
 }
 

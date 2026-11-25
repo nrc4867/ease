@@ -1,4 +1,5 @@
 import dev.chieppa.ease.build.desktopApp
+import dev.chieppa.ease.build.headlessApp
 import dev.chieppa.ease.build.types.AssembleEaseTypes
 
 // The sample game: a second, unrelated consumer that keeps the engine free of any one game. It runs
@@ -60,6 +61,7 @@ tasks.register<JavaExec>("sampleHeadless") {
   mainClass = "dev.chieppa.ease.player.PlayerKt"
   args("--headless", "600")
   argumentProviders.add(contentArgs)
+  headlessApp(this)
 }
 
 tasks.register<JavaExec>("runAgentHost") {
@@ -69,7 +71,7 @@ tasks.register<JavaExec>("runAgentHost") {
   classpath = main.runtimeClasspath
   mainClass = "dev.chieppa.ease.agent.AgentMainKt"
   argumentProviders.add(contentArgs)
-  jvmArgs("--enable-native-access=ALL-UNNAMED")
+  headlessApp(this)
 }
 
 // `ease import` on the sample's content with the sample's own importers: the command line from

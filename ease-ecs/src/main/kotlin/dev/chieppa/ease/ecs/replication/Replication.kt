@@ -47,6 +47,14 @@ public class Replication internal constructor(settings: ReplicationSettings) {
   public var predicting: Boolean = false
     internal set
 
+  /**
+   * Whether a tick already run is being run again, as [stepPredicted] does after a correction. Code
+   * that reports what happened, such as events for sounds and effects, reports only on a tick's
+   * first run.
+   */
+  public var replaying: Boolean = false
+    internal set
+
   @PublishedApi internal lateinit var world: World
 
   /** Binds this to [world], once: entity hooks call it, since they can run during world setup. */

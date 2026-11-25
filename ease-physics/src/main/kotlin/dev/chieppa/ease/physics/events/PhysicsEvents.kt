@@ -3,46 +3,41 @@ package dev.chieppa.ease.physics.events
 import com.github.quillraven.fleks.Entity
 
 /**
- * The listeners a world's physics reports to, called in the order they were added. Reporting
- * allocates nothing.
+ * The listeners a world's physics reports to, called in the order they were added. Adding or
+ * removing a listener makes a new list, so a report already under way reaches exactly the listeners
+ * it started with, whatever they add or remove meanwhile. Reporting allocates nothing.
  */
 public class PhysicsEvents {
-  private var listeners = Array<PhysicsListener>(INITIAL_LISTENERS) { Silent }
-  private var count = 0
+  private var listeners: Array<PhysicsListener> = emptyArray()
 
   /** Adds [listener], which hears every report from now until it is [remove]d. */
   public fun add(listener: PhysicsListener) {
-    if (count == listeners.size) listeners = Array(count * 2) { listeners.getOrElse(it) { Silent } }
-    listeners[count++] = listener
+    listeners += listener
   }
 
   /** Removes [listener]; nothing happens when it was not added. */
   public fun remove(listener: PhysicsListener) {
-    val index = (0 until count).firstOrNull { listeners[it] === listener } ?: return
-    System.arraycopy(listeners, index + 1, listeners, index, count - index - 1)
-    listeners[--count] = Silent
+    val index = listeners.indexOfFirst { it === listener }
+    if (index >= 0) listeners = listeners.filterIndexed { at, _ -> at != index }.toTypedArray()
   }
 
   internal fun triggerEntered(trigger: Entity, sensor: Entity) {
-    for (index in 0 until count) listeners[index].triggerEntered(trigger, sensor)
+    val current = listeners
+    for (index in current.indices) current[index].triggerEntered(trigger, sensor)
   }
 
   internal fun triggerExited(trigger: Entity, sensor: Entity) {
-    for (index in 0 until count) listeners[index].triggerExited(trigger, sensor)
+    val current = listeners
+    for (index in current.indices) current[index].triggerExited(trigger, sensor)
   }
 
   internal fun footstep(character: Entity, surface: Int) {
-    for (index in 0 until count) listeners[index].footstep(character, surface)
+    val current = listeners
+    for (index in current.indices) current[index].footstep(character, surface)
   }
 
   internal fun groundSurfaceChanged(character: Entity, surface: Int) {
-    for (index in 0 until count) listeners[index].groundSurfaceChanged(character, surface)
-  }
-
-  /** Fills the unused places of the listener array. */
-  private object Silent : PhysicsListener
-
-  private companion object {
-    const val INITIAL_LISTENERS = 4
+    val current = listeners
+    for (index in current.indices) current[index].groundSurfaceChanged(character, surface)
   }
 }

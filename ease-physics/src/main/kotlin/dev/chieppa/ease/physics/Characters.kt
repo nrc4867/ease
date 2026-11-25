@@ -24,6 +24,7 @@ internal class Characters(private val physics: PhysicsWorld) : AutoCloseable {
   private var twins = arrayOfNulls<ConstShape>(INITIAL_ENTITIES)
   private var steps = arrayOfNulls<ExtendedUpdateSettings>(INITIAL_ENTITIES)
   private var layers = IntArray(INITIAL_ENTITIES)
+  private var signatures = IntArray(INITIAL_ENTITIES)
 
   /** [entity]'s character, or null when it has none. */
   operator fun get(entity: Entity): CharacterVirtual? = virtuals.getOrNull(entity.id)
@@ -44,11 +45,19 @@ internal class Characters(private val physics: PhysicsWorld) : AutoCloseable {
   fun stepsOf(entity: Entity): ExtendedUpdateSettings =
     checkNotNull(steps[entity.id]) { "Entity ${entity.id} has no character" }
 
+  /** The signature of the controller fields [entity]'s character was built from. */
+  fun signatureOf(entity: Entity): Int = signatures[entity.id]
+
   /** The collision layer [entity]'s character moves on. */
   fun layerOf(entity: Entity): Int = layers[entity.id]
 
   /** Adds a character for [entity], shaped by [controller], at [transform]'s position. */
-  fun add(entity: Entity, controller: CharacterController, transform: LocalTransform) {
+  fun add(
+    entity: Entity,
+    controller: CharacterController,
+    transform: LocalTransform,
+    signature: Int,
+  ) {
     remove(entity)
     grow(entity.id)
     val shape = JoltShapes.standingCapsule(controller.radius, controller.height)
@@ -70,6 +79,7 @@ internal class Characters(private val physics: PhysicsWorld) : AutoCloseable {
         .setWalkStairsStepUp(Vec3(0f, controller.stepHeight, 0f))
         .setStickToFloorStepDown(Vec3(0f, -controller.stepHeight, 0f))
     layers[entity.id] = physics.layers.resolve(controller.layer)
+    signatures[entity.id] = signature
   }
 
   /** Removes [entity]'s character, if it has one. */
@@ -98,6 +108,7 @@ internal class Characters(private val physics: PhysicsWorld) : AutoCloseable {
     twins = twins.copyOf(size)
     steps = steps.copyOf(size)
     layers = layers.copyOf(size)
+    signatures = signatures.copyOf(size)
   }
 
   private companion object {

@@ -2,6 +2,7 @@
 // it. A game has one; its other modules apply ease.game-module alone.
 import dev.chieppa.ease.build.desktopApp
 import dev.chieppa.ease.build.game.GameDependencies
+import dev.chieppa.ease.build.headlessApp
 import dev.chieppa.ease.build.types.AssembleEaseTypes
 
 plugins { id("ease.game-module") }
@@ -24,6 +25,7 @@ tasks.register<JavaExec>("runHeadless") {
   classpath = main.runtimeClasspath
   mainClass = GameDependencies.PLAYER_MAIN
   args("--headless", "600")
+  headlessApp(this)
 }
 
 // The game's ease.d.ts: its own types joined with every engine module's, for scripts and tests.

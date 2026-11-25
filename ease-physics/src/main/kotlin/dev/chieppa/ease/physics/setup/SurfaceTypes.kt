@@ -19,8 +19,16 @@ public class SurfaceTypes private constructor(types: List<SurfaceType>) {
   /** The index of the surface type named [name], or -1 when none is. */
   public fun indexOf(name: String): Int = indices[name] ?: -1
 
-  /** The index of the surface type named [name]; the default for an empty or unknown name. */
-  public fun resolve(name: String): Int = indexOf(name).coerceAtLeast(DEFAULT_INDEX)
+  /**
+   * The index of the surface type named [name], or the default's for an empty name. A name no
+   * surface type has is refused with [IllegalArgumentException].
+   */
+  public fun resolve(name: String): Int {
+    if (name.isEmpty()) return DEFAULT_INDEX
+    val index = indexOf(name)
+    require(index >= 0) { "No surface type is named \"$name\"; they are ${indices.keys}" }
+    return index
+  }
 
   public companion object {
     /** The index of the default surface. */

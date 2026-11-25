@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
 /** Collision layers and surface types resolve names, and refuse what is named twice. */
 class CollisionLayersTest {
   @Test
-  fun `every pair collides unless ignored, and unknown names are the first layer`() {
+  fun `pairs collide unless ignored, an empty name is the first layer, an unknown one fails`() {
     val layers = CollisionLayers.build {
       layer("A")
       layer("B")
@@ -25,7 +25,8 @@ class CollisionLayersTest {
     assertFalse(layers.collide(0, 2))
     assertFalse(layers.collide(2, 0))
     assertEquals(1, layers.resolve("B"))
-    assertEquals(0, layers.resolve("missing"))
+    assertEquals(0, layers.resolve(""))
+    assertFailsWith<IllegalArgumentException> { layers.resolve("missing") }
     assertEquals(-1, layers.indexOf("missing"))
     assertFailsWith<IllegalArgumentException> {
       CollisionLayers.build {
@@ -42,12 +43,13 @@ class CollisionLayersTest {
   }
 
   @Test
-  fun `surface types follow the default, which unknown names resolve to`() {
+  fun `surface types follow the default, which an empty name means, and unknown names fail`() {
     val surfaces = SurfaceTypes.of(SurfaceType("mud"))
 
     assertEquals(SurfaceTypes.DEFAULT, surfaces[0].name)
     assertEquals(1, surfaces.resolve("mud"))
-    assertEquals(0, surfaces.resolve("lava"))
+    assertEquals(0, surfaces.resolve(""))
+    assertFailsWith<IllegalArgumentException> { surfaces.resolve("lava") }
     assertFailsWith<IllegalArgumentException> {
       SurfaceTypes.of(SurfaceType("mud"), SurfaceType("mud"))
     }

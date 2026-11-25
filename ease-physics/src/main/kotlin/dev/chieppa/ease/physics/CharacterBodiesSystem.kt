@@ -11,26 +11,30 @@ import dev.chieppa.ease.physics.character.CharacterMotion
 
 /**
  * Gives each entity with a `CharacterController`, a `CharacterMotion` and a `LocalTransform` its
- * Jolt character in [physics], for the `CharacterMover`, and frees it with the entity. It does
- * nothing per tick: characters move only when a mover moves them.
+ * Jolt character in [physics], for the `CharacterMover`, builds it again when the controller's
+ * fields change, and frees it with the entity. Characters move only when a mover moves them.
  */
 public class CharacterBodiesSystem(private val physics: PhysicsWorld) :
   IteratingSystem(family { all(CharacterController, CharacterMotion, LocalTransform) }),
   FamilyOnAdd,
   FamilyOnRemove {
   override fun onAddEntity(entity: Entity) {
-    physics.characters.add(entity, entity[CharacterController], entity[LocalTransform])
+    val controller = entity[CharacterController]
+    physics.characters.add(entity, controller, entity[LocalTransform], signature(controller))
   }
+
+  private fun signature(controller: CharacterController): Int =
+    BodySignatures.controller(controller)
 
   override fun onRemoveEntity(entity: Entity) {
     physics.characters.remove(entity)
   }
 
-  override fun onTick() {
-    // Characters move only when a mover moves them.
-  }
-
   override fun onTickEntity(entity: Entity) {
-    // Never called: onTick visits no entity.
+    val controller = entity[CharacterController]
+    val signature = signature(controller)
+    if (signature != physics.characters.signatureOf(entity)) {
+      physics.characters.add(entity, controller, entity[LocalTransform], signature)
+    }
   }
 }

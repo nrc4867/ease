@@ -43,8 +43,8 @@ class TriggerTest {
         }
     }
 
-  private fun sensingCharacter(z: Float = 0f, layer: String = PLAYER): Entity =
-    test.character(0f, z = z, layer = layer) { world, entity ->
+  private fun sensingCharacter(z: Float = 0f, layer: String = PLAYER, x: Float = 0f): Entity =
+    test.character(x, z = z, layer = layer) { world, entity ->
       with(world) { entity.configure { it += VolumeSensor().apply { offsetY = 0.5f } } }
     }
 
@@ -104,7 +104,57 @@ class TriggerTest {
     assertFalse(events.exited.any { it.second == npc })
   }
 
+  @Test
+  fun `a sensor leaving the world while inside exits the trigger`() {
+    test.floor()
+    val trigger = trigger(once = false)
+    val character = sensingCharacter(x = INSIDE)
+    test.step()
+    assertEquals(listOf(trigger to character), events.entered)
+
+    test.world -= character
+    test.step()
+
+    assertEquals(listOf(trigger to character), events.exited)
+  }
+
+  @Test
+  fun `a trigger removed or no longer a trigger while a sensor is inside is exited`() {
+    test.floor()
+    val removed = trigger(once = false)
+    val character = sensingCharacter(x = INSIDE)
+    test.step()
+
+    test.world -= removed
+    test.step()
+    assertEquals(listOf(removed to character), events.exited)
+
+    val unmade = trigger(once = false)
+    test.step()
+    with(test.world) { unmade.configure { it -= TriggerVolume } }
+    test.step()
+
+    assertEquals(listOf(removed to character, unmade to character), events.entered)
+    assertEquals(listOf(removed to character, unmade to character), events.exited)
+  }
+
+  @Test
+  fun `a trigger taking a removed trigger's id reports its own entry`() {
+    test.floor()
+    val first = trigger(once = false)
+    val character = sensingCharacter(x = INSIDE)
+    test.step()
+    test.world -= first
+
+    val second = trigger(once = false)
+    test.step()
+
+    assertEquals(first.id, second.id, "the id is reused")
+    assertEquals(listOf(first to character, second to character), events.entered)
+  }
+
   private companion object {
+    const val INSIDE = 3f
     const val PLAYER = "Player"
     const val NPC = "Npc"
     const val SECONDS_2 = 120

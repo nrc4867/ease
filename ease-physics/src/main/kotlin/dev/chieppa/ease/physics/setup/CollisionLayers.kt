@@ -3,8 +3,8 @@ package dev.chieppa.ease.physics.setup
 /**
  * The collision layers a game names (`Player`, `Npc`, `Projectile`) and which pairs of them
  * collide. Every pair collides unless [Builder.ignore] separates it, so a player-only wall is a
- * layer the player collides with and the NPCs ignore. A name nothing declared resolves to the first
- * layer.
+ * layer the player collides with and the NPCs ignore. An empty name means the first layer; a name
+ * nothing declared is refused.
  */
 public class CollisionLayers private constructor(names: List<String>, ignored: Set<Long>) {
   private val names: List<String> = names.toList()
@@ -22,8 +22,16 @@ public class CollisionLayers private constructor(names: List<String>, ignored: S
   /** The index of the layer named [name], or -1 when none is. */
   public fun indexOf(name: String): Int = indices[name] ?: -1
 
-  /** The index of the layer named [name]; the first layer for an empty or unknown name. */
-  public fun resolve(name: String): Int = indexOf(name).coerceAtLeast(0)
+  /**
+   * The index of the layer named [name], or the first layer for an empty name. A name no layer has
+   * is refused with [IllegalArgumentException], so a typo never quietly changes what collides.
+   */
+  public fun resolve(name: String): Int {
+    if (name.isEmpty()) return 0
+    val index = indexOf(name)
+    require(index >= 0) { "No collision layer is named \"$name\"; the layers are $names" }
+    return index
+  }
 
   /** Whether layers [a] and [b] collide. */
   public fun collide(a: Int, b: Int): Boolean = pair(a, b) !in ignored

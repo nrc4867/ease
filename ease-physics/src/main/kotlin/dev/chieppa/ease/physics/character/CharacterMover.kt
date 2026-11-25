@@ -24,9 +24,12 @@ import kotlin.math.sqrt
  * Every move starts from the entity's `LocalTransform` and `CharacterMotion` alone: Jolt's
  * character is placed there and its contacts found again before it moves, so restoring those two
  * components and moving again with the same input gives the same result, bit for bit, as a client
- * replaying its input needs. Each move writes both, reports a footstep every stride walked on the
- * ground and a change of the ground's surface type through the world's physics events. Make it
- * where [world] is current, as inside a system. Nothing here allocates.
+ * replaying its input needs. Each move writes both, and reports through the world's physics events
+ * a footstep for every stride walked and each change of the ground's surface type. Only the walking
+ * asked for counts toward a stride, and only on ground it can walk on, so being carried, sliding
+ * off steep ground or falling takes no steps. Events are reported on a tick's first run only, never
+ * while `Replication.replaying`. Make it where [world] is current, as inside a system. Nothing here
+ * allocates.
  */
 public class CharacterMover(private val world: World) : Mover {
   private val replication: Replication = world.replication
@@ -55,7 +58,9 @@ public class CharacterMover(private val world: World) : Mover {
     val surface =
       if (character.isSupported) BodyUserData.surface(character.groundUserData)
       else CharacterMotion.NO_SURFACE
-    val walked = if (surface == CharacterMotion.NO_SURFACE) 0f else walked(transform)
+    character.getGroundNormal(ground)
+    val walkable = character.isSupported && !character.isSlopeTooSteep(ground.x, ground.y, ground.z)
+    val walked = if (walkable) sqrt(velocityX * velocityX + velocityZ * velocityZ) * seconds else 0f
     write(entity, physics, motion, surface, walked)
     return true
   }
@@ -124,13 +129,6 @@ public class CharacterMover(private val world: World) : Mover {
     )
   }
 
-  /** How far the character moved across the ground from [from] to where it is now. */
-  private fun walked(from: LocalTransform): Float {
-    val dx = position.x() - from.x
-    val dz = position.z() - from.z
-    return sqrt(dx * dx + dz * dz)
-  }
-
   private fun write(
     entity: Entity,
     physics: PhysicsWorld,
@@ -140,9 +138,9 @@ public class CharacterMover(private val world: World) : Mover {
   ) {
     val stride = with(world) { entity[CharacterController] }.strideLength
     val lastSurface = motion.groundSurface
-    var strides = motion.stride + walked
-    val stepped = strides >= stride
-    if (stepped) strides %= stride
+    val total = motion.stride + walked
+    val steps = (total / stride).toInt()
+    val strides = total - steps * stride
     replication.write(entity, LocalTransform) {
       x = position.x()
       y = position.y()
@@ -155,8 +153,9 @@ public class CharacterMover(private val world: World) : Mover {
       this.stride = strides
       groundSurface = surface
     }
+    if (replication.replaying) return
     if (surface != lastSurface) physics.events.groundSurfaceChanged(entity, surface)
-    if (stepped) physics.events.footstep(entity, surface)
+    repeat(steps) { physics.events.footstep(entity, surface) }
   }
 
   private companion object {

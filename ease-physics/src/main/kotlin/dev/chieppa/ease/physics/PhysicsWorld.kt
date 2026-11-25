@@ -21,6 +21,7 @@ import dev.chieppa.ease.physics.query.RayHit
 import dev.chieppa.ease.physics.setup.CollisionLayers
 import dev.chieppa.ease.physics.setup.PhysicsSettings
 import dev.chieppa.ease.physics.setup.SurfaceTypes
+import dev.chieppa.ease.physics.volume.TriggerTracker
 import kotlin.math.sqrt
 
 /**
@@ -51,8 +52,8 @@ public class PhysicsWorld(public val settings: PhysicsSettings = PhysicsSettings
       .init(
         settings.maxBodies,
         0,
-        settings.maxBodies,
-        settings.maxBodies,
+        settings.maxBodyPairs,
+        settings.maxContactConstraints,
         joltLayers.broadPhase,
         joltLayers.objectVsBroadPhase,
         joltLayers.pairs,
@@ -75,6 +76,7 @@ public class PhysicsWorld(public val settings: PhysicsSettings = PhysicsSettings
 
   internal val bodies = PhysicsBodies(this)
   internal val characters = Characters(this)
+  internal val triggers = TriggerTracker(this)
   private var closed = false
 
   /** How many bodies the world holds, characters not included. */
@@ -84,8 +86,9 @@ public class PhysicsWorld(public val settings: PhysicsSettings = PhysicsSettings
   /**
    * Casts a ray from ([originX], [originY], [originZ]) along ([directionX], [directionY],
    * [directionZ]) for up to [maxDistance], against the solid colliders [layer] collides with, or
-   * every solid collider when [layer] is -1. Fills [hit] with the closest and returns true, or
-   * returns false when nothing is hit. Triggers are never hit.
+   * every solid collider when [layer] is [ANY_LAYER]. Fills [hit] with the closest and returns
+   * true, or returns false when nothing is hit. Triggers are never hit. A [layer] that is neither
+   * [ANY_LAYER] nor one of the game's layers is refused with [IllegalArgumentException].
    */
   @Suppress("LongParameterList") // A ray is six numbers; boxing them would allocate.
   public fun raycast(
@@ -100,6 +103,9 @@ public class PhysicsWorld(public val settings: PhysicsSettings = PhysicsSettings
     layer: Int = ANY_LAYER,
   ): Boolean {
     val length = sqrt(directionX * directionX + directionY * directionY + directionZ * directionZ)
+    require(layer == ANY_LAYER || layer in 0 until layers.size) {
+      "Layer $layer is not one of the ${layers.size} collision layers, nor ANY_LAYER"
+    }
     var found = length > 0f && maxDistance > 0f
     if (found) {
       val reach = maxDistance / length
