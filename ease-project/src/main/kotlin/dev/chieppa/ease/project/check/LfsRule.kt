@@ -93,7 +93,7 @@ internal class LfsRule(
   }
 
   private fun stagedSize(path: String): Long =
-    git.run("cat-file", "-s", ":$path").output.trim().toLongOrNull() ?: 0L
+    git.run("cat-file", "-s", ":$path").output.let { it.trim().toLongOrNull() ?: 0L }
 
   /** The paths among [paths] whose `filter` attribute is `lfs`. */
   private fun lfsTracked(paths: List<String>): List<String> {

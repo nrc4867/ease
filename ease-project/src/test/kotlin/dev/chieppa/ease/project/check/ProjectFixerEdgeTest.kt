@@ -51,8 +51,8 @@ class ProjectFixerEdgeTest {
     assertTrue(report.changes.single().contains("pointed references"), "${report.changes}")
     assertEquals("new rock", Files.readString(folder.resolve("content/rock.txt")))
     assertEquals(emptyList(), check().findings)
-    val node = project.readScene("main.scene").nodes.values.single()
-    val slot = node.components["test.Slot"]
+    val nodes = project.readScene("main.scene").nodes
+    val slot = nodes.values.single().components["test.Slot"]
     assertTrue(slot.toString().contains(guid(7).toString()), "$slot")
   }
 
