@@ -7,4 +7,4 @@ The Phase 1 check that the editor viewport works: Ease's triangle drawn with Eas
 ./gradlew :viewport-spike:measureReadback             # per-frame readback cost at 1080p and 4K, headless
 ```
 
-The readouts show the engine's and the UI's frames per second. What was measured is in `docs/hld/editor/viewport-and-play.md`.
+The readouts show the engine's and the UI's frames per second. What was measured is in the design doc's Plan tab (Phase 1 result), and the design is in its Editor tab under Viewport and play-in-editor.

@@ -7,10 +7,11 @@ A game engine and its editor: Kotlin by default, Java for the hot core (`ease-ma
 | What | Where |
 | --- | --- |
 | The design and the plan (source of truth) | Ease: Engine Architecture: https://claude.ai/artifact/SYVVq4ZBz5Khy5XfYTwNpk (read the step's row, then every tab on its phase's Design line) |
-| An offline mirror of the design, regenerated from the doc; may lag, never edit by hand | `docs/hld/` |
-| The code rules and how each is enforced | Code quality tab (mirrored in `docs/hld/code-quality/`) |
+| The code rules and how each is enforced | The doc's Code quality and setup tab |
+| Module layers, ranks and the core types | The doc's Engine tab |
+| Agent tools and what the editor shows | The doc's Editor tab |
 
-Before starting engine work, name the plan phase and the game need it serves. When the doc and `docs/hld/` differ, the doc wins. If building shows the design is wrong or missing something, change the doc's tab first (or comment on it when the change needs a decision), then the code. After a step, record what was decided in the phase's Decisions or Result notes and set the step's Status.
+Before starting engine work, name the plan phase and the game need it serves. If building shows the design is wrong or missing something, change the doc's tab first (or comment on it when the change needs a decision), then the code. After a step, record what was decided in the phase's Decisions or Result notes and set the step's Status.
 
 ## Build and test
 
@@ -35,7 +36,7 @@ While working, run only the tests for what changed (`./gradlew :<module>:test --
 
 Native libraries (wgpu-native from webgpu-native-ffm, SDL3 from LWJGL) resolve only this machine's natives jar. `-Pnatives=<platform>` (`windows-x64`, `linux-x64`, `linux-arm64`, `macos-x64`, `macos-arm64`) picks another, for packaging. A library module takes the bindings with `implementation` and the natives only for its tests or smoke apps; hosts such as `ease-player` take the natives with `runtimeOnly` (see `NativePlatform`, `WebgpuNatives` and `LwjglNatives` in `build-logic`).
 
-Programs that open real windows are smoke apps, never tests: `./gradlew :ease-platform:windowSmoke` opens, resizes and closes a window; `:sample:sampleSmoke` runs the sample game in the player for 120 frames and resizes halfway. `:sample:runSample` runs it until its window is closed. `:sample:sampleHeadless` runs it in the player with no window or GPU for 600 ticks (`--headless <ticks>`), host and local client as in every run; CI's check job runs it. The sample starts from its saved scene in `sample/content` (`playfield.scene`, written with `SceneFolder`, never by hand); its run tasks pass that folder to the player and the agent host as `--content <folder>`, and CI's check job runs `ease check` on it (`./gradlew :ease-cli:runEase --args="check --dir sample"`). `:sample:assembleEaseTypes` joins every module's TypeScript declarations into the sample's `ease.d.ts`. `:sample:runAgentHost` serves the sample world to agents over MCP until stopped and prints the `claude mcp add` line (see `docs/hld/editor/agent-access.md`); it is not part of `check`. CI runs the smoke apps; run one locally only when changing what it covers. The player runs whichever one `GameModule` is on its classpath, so a game, not the player, owns the run tasks: it takes `ease-player` with `runtimeOnly`.
+Programs that open real windows are smoke apps, never tests: `./gradlew :ease-platform:windowSmoke` opens, resizes and closes a window; `:sample:sampleSmoke` runs the sample game in the player for 120 frames and resizes halfway. `:sample:runSample` runs it until its window is closed. `:sample:sampleHeadless` runs it in the player with no window or GPU for 600 ticks (`--headless <ticks>`), host and local client as in every run; CI's check job runs it. The sample starts from its saved scene in `sample/content` (`playfield.scene`, written with `SceneFolder`, never by hand); its run tasks pass that folder to the player and the agent host as `--content <folder>`, and CI's check job runs `ease check` on it (`./gradlew :ease-cli:runEase --args="check --dir sample"`). `:sample:assembleEaseTypes` joins every module's TypeScript declarations into the sample's `ease.d.ts`. `:sample:runAgentHost` serves the sample world to agents over MCP until stopped and prints the `claude mcp add` line (see the Editor tab's Agent access section); it is not part of `check`. CI runs the smoke apps; run one locally only when changing what it covers. The player runs whichever one `GameModule` is on its classpath, so a game, not the player, owns the run tasks: it takes `ease-player` with `runtimeOnly`.
 
 ## Modules
 

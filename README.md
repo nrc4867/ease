@@ -2,7 +2,7 @@
 
 A game engine and editor for the JVM. The engine is a set of libraries in Kotlin and Java that render through WebGPU (wgpu-native over the Foreign Function & Memory API); the editor is a [Stretch](https://github.com/nrc4867/stretch) app that opens game projects; any game runs in the editor, as a standalone player, or headless.
 
-The design lives in [`docs/hld/`](docs/hld/README.md).
+The design and the plan live in the design doc, [Ease: Engine Architecture](https://claude.ai/artifact/SYVVq4ZBz5Khy5XfYTwNpk).
 
 ## Build
 
