@@ -2,6 +2,7 @@ package dev.chieppa.ease.runtime
 
 import dev.chieppa.ease.commands.CommandRegistry
 import dev.chieppa.ease.ecs.PhasedSystems
+import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.render.Camera2D
 
 /**
@@ -20,14 +21,21 @@ public interface GameModule {
   public fun systems(systems: PhasedSystems) {}
 
   /**
-   * Creates the game's starting entities in [world], through [HostedWorld.execute] so the history
-   * and the command log hold them.
+   * Creates the game's starting entities in the host's [world], through [HostedWorld.execute] so
+   * the history and the command log hold them. Clients receive them as spawns.
    */
   public fun populate(world: HostedWorld) {}
 
   /**
+   * Gives the peer [peer], whose join the host's world [world] just accepted, what it starts with,
+   * such as a character it owns, through [HostedWorld.execute]. Runs on the host only, before the
+   * tick the peer joined at.
+   */
+  public fun peerJoined(world: HostedWorld, peer: PeerId) {}
+
+  /**
    * The game's scripted input, for demos and headless runs, or null when it has none. Hosts choose
-   * whether to attach it to a [HostedWorld].
+   * whether to attach it to a [ClientWorld], where it sends commands to the host.
    */
   public fun inputScript(): InputScript? = null
 

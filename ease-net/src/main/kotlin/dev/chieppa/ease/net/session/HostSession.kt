@@ -117,9 +117,12 @@ public class HostSession(
     }
   }
 
-  /** Takes the first message from [peer] as its hello, closing the connection when it differs. */
+  /**
+   * Takes the first message from [peer] as its join hello, closing the connection with the reason
+   * when it does not match.
+   */
   private fun greet(peer: HostPeer, length: Int) {
-    if (Hello.matches(codec, buffer, length)) peer.greeted = true
-    else peer.close(CloseReason.TYPES_MISMATCH)
+    val refusal = JoinHello.refusal(buffer, length, codec.typesHash, settings.content)
+    if (refusal == null) peer.greeted = true else peer.close(refusal)
   }
 }

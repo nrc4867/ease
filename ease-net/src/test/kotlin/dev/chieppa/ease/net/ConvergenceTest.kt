@@ -1,8 +1,8 @@
 package dev.chieppa.ease.net
 
 import dev.chieppa.ease.ecs.replication.PeerId
-import dev.chieppa.ease.net.channel.LocalLink
 import dev.chieppa.ease.net.session.ClientSession
+import dev.chieppa.ease.net.transport.LoopbackTransport
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -88,7 +88,7 @@ class ConvergenceTest {
     session.moveOnHost(1, 3f)
     repeat(SETTLE) { session.step() }
     val late = PeerId(2)
-    val link = LocalLink(clientPeer = late)
+    val link = LoopbackTransport().connect(late)
     val world = session.lateClient(late)
     session.hostSession.connect(link.hostEnd)
     val client = ClientSession(world.first, session.codec, link.clientEnd, session.settings)

@@ -13,7 +13,6 @@ import dev.chieppa.ease.ecs.replication.networkIdOf
 import dev.chieppa.ease.ecs.replication.replication
 import dev.chieppa.ease.ecs.replication.spawnEntity
 import dev.chieppa.ease.net.channel.Connection
-import dev.chieppa.ease.net.channel.LocalLink
 import dev.chieppa.ease.net.command.CommandExecutor
 import dev.chieppa.ease.net.command.CommandLayer
 import dev.chieppa.ease.net.command.CommandRefusals
@@ -22,13 +21,14 @@ import dev.chieppa.ease.net.session.ClientSession
 import dev.chieppa.ease.net.session.HostPeer
 import dev.chieppa.ease.net.session.HostSession
 import dev.chieppa.ease.net.session.NetSettings
+import dev.chieppa.ease.net.transport.LoopbackTransport
 import dev.chieppa.ease.net.view.ViewSettings
 
 /**
  * A host world holding [entities] entities with a transform, the client owning the first [owned],
- * and an empty client world connected to it over a [LocalLink]: the host's spawns bring the
+ * and an empty client world connected to it over a [LoopbackTransport]: the host's spawns bring the
  * entities into the client's world. [clientEnd] may wrap the client's end, to lose or reorder what
- * it receives.
+ * it receives, and the [link]'s conditions may simulate a worse network.
  */
 internal class Session(
   entities: Int,
@@ -45,7 +45,8 @@ internal class Session(
   val host: World = world(PeerId.HOST)
   val client: World = world(CLIENT)
   val refused = mutableListOf<Pair<CommandLayer, String>>()
-  val link = LocalLink(clientPeer = CLIENT)
+  val transport = LoopbackTransport(seed = SEED)
+  val link = transport.connect(CLIENT)
   private val refusals = CommandRefusals { peer, layer, reason ->
     check(peer == CLIENT)
     refused += layer to reason
@@ -73,8 +74,12 @@ internal class Session(
   var tick = 0L
     private set
 
-  /** One tick: the client sends input, the host takes it and steps, then sends snapshots. */
+  /**
+   * One tick: the transport moves on, the client sends input, the host takes it and steps, then
+   * sends snapshots.
+   */
   fun step() {
+    transport.update()
     clientSession.sendInput(tick, input)
     hostSession.receive(tick)
     peer.inputs.take(tick)
@@ -129,5 +134,6 @@ internal class Session(
   companion object {
     val CLIENT = PeerId(1)
     const val DELTA = 1f / 60f
+    const val SEED = 7L
   }
 }

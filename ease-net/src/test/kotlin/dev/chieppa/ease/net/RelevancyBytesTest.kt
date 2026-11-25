@@ -15,7 +15,6 @@ import dev.chieppa.ease.ecs.replication.networkIdOf
 import dev.chieppa.ease.ecs.replication.replicatedSchema
 import dev.chieppa.ease.ecs.replication.replication
 import dev.chieppa.ease.ecs.replication.spawnEntity
-import dev.chieppa.ease.net.channel.LocalLink
 import dev.chieppa.ease.net.relevancy.AlwaysRelevant
 import dev.chieppa.ease.net.relevancy.AlwaysRelevantFilter
 import dev.chieppa.ease.net.relevancy.Area
@@ -26,6 +25,7 @@ import dev.chieppa.ease.net.relevancy.TeamFilter
 import dev.chieppa.ease.net.relevancy.registerRelevancyComponents
 import dev.chieppa.ease.net.session.ClientSession
 import dev.chieppa.ease.net.session.HostSession
+import dev.chieppa.ease.net.transport.LoopbackTransport
 import dev.chieppa.ease.net.view.ViewSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -72,7 +72,7 @@ class RelevancyBytesTest {
 
   private inner class Client(val peer: PeerId) {
     val world = world(peer)
-    private val link = LocalLink(clientPeer = peer)
+    private val link = LoopbackTransport().connect(peer)
     val hostPeer = hostSession.connect(link.hostEnd)
     val bytes = RecordingConnection(link.clientEnd)
     val session = ClientSession(world, codec, bytes)

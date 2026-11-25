@@ -10,7 +10,7 @@ import dev.chieppa.ease.ecs.replication.DecodeStatus
 import dev.chieppa.ease.ecs.replication.NetworkIdentity
 import dev.chieppa.ease.ecs.replication.ReplicatedFields
 import dev.chieppa.ease.ecs.replication.ReplicatedSerializer
-import dev.chieppa.ease.runtime.HostedWorld
+import dev.chieppa.ease.runtime.LocalHost
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -19,7 +19,8 @@ import kotlin.test.assertTrue
  * Every component the sample's entities carry replicates, and round-trips through its serializer.
  */
 class SampleReplicationTest {
-  private val world = HostedWorld(SampleGame(), SampleWorld().fixedStep, input = CourierScript())
+  private val local = LocalHost(SampleGame(), SampleWorld().fixedStep, input = CourierScript())
+  private val world = local.host
   private val writer = BitWriter(CAPACITY)
   private val reader = BitReader()
 
@@ -49,7 +50,7 @@ class SampleReplicationTest {
 
   @Test
   fun `the sample registers a serializer for every component its entities carry`() {
-    repeat(TICKS) { world.step() }
+    repeat(TICKS) { local.step() }
     val serializers = world.codec.replicated
     val replicated = serializers.map { it.name }.toSet()
 
@@ -65,7 +66,7 @@ class SampleReplicationTest {
 
   @Test
   fun `every sample component round-trips, quantized fields to the same step`() {
-    repeat(TICKS) { world.step() }
+    repeat(TICKS) { local.step() }
     var checked = 0
 
     with(world.world) {

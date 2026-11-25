@@ -9,10 +9,11 @@ import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.ecs.replication.spawnEntity
 import dev.chieppa.ease.net.channel.ChannelKind
 import dev.chieppa.ease.net.channel.Channels
-import dev.chieppa.ease.net.channel.LocalLink
+import dev.chieppa.ease.net.join.ContentManifest
 import dev.chieppa.ease.net.session.ClientSession
 import dev.chieppa.ease.net.session.CloseReason
-import dev.chieppa.ease.net.session.Hello
+import dev.chieppa.ease.net.session.JoinHello
+import dev.chieppa.ease.net.transport.LoopbackTransport
 import dev.chieppa.ease.net.view.ReplicaContent
 import dev.chieppa.ease.net.view.SceneReplicas
 import dev.chieppa.ease.net.view.ViewRefusal
@@ -63,9 +64,9 @@ class HostileViewMessagesTest {
     content: ReplicaContent,
     bytes: ByteArray,
   ): ClientSession {
-    val link = LocalLink(clientPeer = Session.CLIENT)
+    val link = LoopbackTransport().connect(Session.CLIENT)
     val client = ClientSession(world, codec, link.clientEnd, content = content)
-    Hello.send(codec, link.hostEnd)
+    JoinHello.send(link.hostEnd, codec.typesHash, ContentManifest.EMPTY)
     link.hostEnd.send(ChannelKind.RELIABLE_ORDERED, bytes, 0, bytes.size)
     val before = world.numEntities
     if (!client.receive()) {

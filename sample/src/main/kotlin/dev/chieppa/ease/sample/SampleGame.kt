@@ -4,14 +4,16 @@ import dev.chieppa.ease.commands.CommandRegistry
 import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.PhasedSystems
+import dev.chieppa.ease.ecs.replication.Authority
+import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.render.Camera2D
 import dev.chieppa.ease.runtime.GameModule
 import dev.chieppa.ease.runtime.HostedWorld
 import dev.chieppa.ease.runtime.InputScript
 
 /**
- * The sample game: a few colored squares bouncing around the [Playfield], and with its input script
- * a courier square steered by commands.
+ * The sample game: a few colored squares bouncing around the [Playfield], and for each peer that
+ * joins a courier square it owns, which its input script steers by commands.
  */
 public class SampleGame : GameModule {
   override fun registerTypes(registry: CommandRegistry) {
@@ -28,6 +30,12 @@ public class SampleGame : GameModule {
 
   override fun populate(world: HostedWorld) {
     SQUARES.forEach { world.execute(Spawn(it.components())) }
+  }
+
+  /** Gives [peer] a courier it owns, at the center, moving right. */
+  override fun peerJoined(world: HostedWorld, peer: PeerId) {
+    val courier = CourierScript.COURIER.components() + Courier() + Authority(PeerId.HOST, peer)
+    world.execute(Spawn(courier))
   }
 
   override fun inputScript(): InputScript = CourierScript()

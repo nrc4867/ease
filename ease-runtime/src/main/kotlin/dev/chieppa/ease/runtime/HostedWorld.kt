@@ -13,6 +13,7 @@ import dev.chieppa.ease.commands.worldCodec
 import dev.chieppa.ease.ecs.DEFAULT_ENTITY_CAPACITY
 import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.phasedWorld
+import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.ecs.replication.ReplicationSettings
 import dev.chieppa.ease.render.ExtractSystem
 import dev.chieppa.ease.render.Quad
@@ -23,18 +24,19 @@ import dev.chieppa.ease.runtime.loop.FixedStep
 private const val NANOS_PER_SECOND = 1_000_000_000f
 
 /**
- * One world a host runs: a Fleks world with [module]'s systems and the engine's [ExtractSystem],
- * the codec and command history every outside change goes through, the [snapshot] rendering reads,
- * and the current [tick]. Building it registers [module]'s types and lets it populate the world.
- * With an [input] script, each [step] first sends the commands the script has due. With [assets],
- * each [step] begins by applying the asset file changes waiting since the last one, as
- * `ReloadAsset` commands in the history, so a changed file reloads in the running world.
+ * One world a host runs, as [peer]: a Fleks world with [module]'s systems and the engine's
+ * [ExtractSystem], the codec and command history every outside change goes through, the [snapshot]
+ * rendering reads, and the current [tick]. Building it registers [module]'s types and, in the
+ * host's own world, lets the module populate it; a client's world starts empty and receives the
+ * host's entities. With [assets], each [step] begins by applying the asset file changes waiting
+ * since the last one, as `ReloadAsset` commands in the history, so a changed file reloads in the
+ * running world.
  */
 public class HostedWorld(
   module: GameModule,
   public val fixedStep: FixedStep,
   entityCapacity: Int = DEFAULT_ENTITY_CAPACITY,
-  private val input: InputScript? = null,
+  public val peer: PeerId = PeerId.HOST,
   assets: AssetStore? = null,
 ) {
   /** What the last tick's extract copied out for rendering. */
@@ -53,7 +55,7 @@ public class HostedWorld(
    * outside only through [execute].
    */
   public val world: World =
-    phasedWorld(entityCapacity, ReplicationSettings(serializers = codec.replicated)) {
+    phasedWorld(entityCapacity, ReplicationSettings(peer, codec.replicated)) {
       module.systems(this)
       assets?.let { add(Phase.INPUT, AssetReloadSystem(it)) }
       add(Phase.EXTRACT, ExtractSystem(snapshot))
@@ -71,16 +73,12 @@ public class HostedWorld(
   private val stepSeconds = fixedStep.stepNanos / NANOS_PER_SECOND
 
   init {
-    module.populate(this)
+    if (peer == PeerId.HOST) module.populate(this)
   }
 
-  /**
-   * Runs one tick: the asset reloads, the input script's commands, then every system, phase by
-   * phase, with one fixed step as the delta.
-   */
+  /** Runs one tick: the asset reloads, then every system, phase by phase, one fixed step long. */
   public fun step() {
     assetSync?.beforeTick(tick)
-    input?.send(this)
     world.update(stepSeconds)
     tick++
   }

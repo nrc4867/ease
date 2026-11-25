@@ -2,38 +2,32 @@ package dev.chieppa.ease.sample
 
 import com.github.quillraven.fleks.Family
 import com.github.quillraven.fleks.World.Companion.family
-import dev.chieppa.ease.commands.CommandOrigin
-import dev.chieppa.ease.commands.builtin.Spawn
 import dev.chieppa.ease.ecs.replication.NetworkId
 import dev.chieppa.ease.ecs.replication.networkIdOf
-import dev.chieppa.ease.runtime.HostedWorld
+import dev.chieppa.ease.runtime.ClientWorld
 import dev.chieppa.ease.runtime.InputScript
 
 /**
- * The sample's scripted input: on the first tick it spawns a white courier square at the center,
- * then every [STEER_EVERY] ticks it steers the courier a quarter turn, so the courier traces a
- * square loop moved only by commands.
+ * The sample's scripted input, run on a client: every [STEER_EVERY] ticks it sends the host a
+ * command steering the client's courier a quarter turn, so the courier traces a square loop moved
+ * only by commands. The courier is the one the game gave the client when it joined (see
+ * [SampleGame.peerJoined]); until its spawn arrives, the script waits.
  */
 public class CourierScript : InputScript {
   private var couriers: Family? = null
 
-  override fun send(world: HostedWorld) {
-    val tick = world.tick
-    if (tick == 0L) {
-      world.execute(Spawn(COURIER.components() + Courier()), CommandOrigin.SCRIPT)
-      return
-    }
-    if (tick % STEER_EVERY != 0L) return
+  override fun send(client: ClientWorld) {
+    val tick = client.tick
+    if (tick == 0L || tick % STEER_EVERY != 0L) return
+    val courier = courier(client) ?: return
     val turn = (tick / STEER_EVERY % TURNS).toInt()
-    world.execute(
-      Steer(courier(world), DIRECTION_X[turn] * SPEED, DIRECTION_Y[turn] * SPEED),
-      CommandOrigin.SCRIPT,
-    )
+    client.send(Steer(courier, DIRECTION_X[turn] * SPEED, DIRECTION_Y[turn] * SPEED))
   }
 
-  private fun courier(world: HostedWorld): NetworkId {
-    val family = couriers ?: world.world.family { all(Courier) }.also { couriers = it }
-    return world.world.networkIdOf(family.first())
+  private fun courier(client: ClientWorld): NetworkId? {
+    val world = client.world.world
+    val family = couriers ?: world.family { all(Courier) }.also { couriers = it }
+    return if (family.isEmpty) null else world.networkIdOf(family.first())
   }
 
   public companion object {

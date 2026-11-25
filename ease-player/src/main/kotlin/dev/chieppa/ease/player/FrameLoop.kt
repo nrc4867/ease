@@ -14,9 +14,10 @@ private const val RESIZED_WIDTH = 1440
 private const val RESIZED_HEIGHT = 810
 
 /**
- * Runs [runner]'s world and draws [window]'s frames with [gpu]: each frame runs the ticks due, then
- * draws the world's snapshot through [camera], blended between the last two ticks. Presenting waits
- * for the display, and while the window is minimized it waits for window events, so it never spins.
+ * Runs [runner]'s host and client and draws [window]'s frames with [gpu]: each frame runs the ticks
+ * due, then draws the client world's snapshot through [camera], blended between the last two ticks.
+ * Presenting waits for the display, and while the window is minimized it waits for window events,
+ * so it never spins.
  */
 internal class FrameLoop(
   private val windowing: Windowing,
@@ -64,7 +65,7 @@ internal class FrameLoop(
       return false
     }
     val encoder = CommandEncoder.on(gpu)
-    renderer.render(runner.world.snapshot, runner.alpha, camera, target, encoder)
+    renderer.render(runner.local.snapshot, runner.alpha, camera, target, encoder)
     encoder.submit()
     surface.present()
     gpu.checkErrors()
