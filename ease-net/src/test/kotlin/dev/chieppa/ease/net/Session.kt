@@ -6,9 +6,9 @@ import dev.chieppa.ease.commands.worldCodec
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.phasedWorld
 import dev.chieppa.ease.ecs.replication.Authority
-import dev.chieppa.ease.ecs.replication.NetworkIdentity
 import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.ecs.replication.ReplicationSettings
+import dev.chieppa.ease.ecs.replication.entityOf
 import dev.chieppa.ease.ecs.replication.networkIdOf
 import dev.chieppa.ease.ecs.replication.replication
 import dev.chieppa.ease.ecs.replication.spawnEntity
@@ -22,19 +22,20 @@ import dev.chieppa.ease.net.session.ClientSession
 import dev.chieppa.ease.net.session.HostPeer
 import dev.chieppa.ease.net.session.HostSession
 import dev.chieppa.ease.net.session.NetSettings
+import dev.chieppa.ease.net.view.ViewSettings
 
 /**
- * A host world and one client world over a [LocalLink], holding [entities] entities under the same
- * network ids: the host holds them all, the client owns the first [owned], and after them come
- * [bare] entities with no replicated component. The client connects once they all exist.
- * [clientEnd] may wrap the client's end, to lose or reorder what it receives.
+ * A host world holding [entities] entities with a transform, the client owning the first [owned],
+ * and an empty client world connected to it over a [LocalLink]: the host's spawns bring the
+ * entities into the client's world. [clientEnd] may wrap the client's end, to lose or reorder what
+ * it receives.
  */
 internal class Session(
   entities: Int,
   owned: Int = entities,
   val settings: NetSettings = NetSettings(),
   executor: CommandExecutor? = null,
-  bare: Int = 0,
+  view: ViewSettings = ViewSettings(),
   clientEnd: (Connection) -> Connection = { it },
 ) {
   val codec = worldCodec {
@@ -50,8 +51,11 @@ internal class Session(
     refused += layer to reason
   }
   val hostSession =
-    if (executor == null) HostSession(host, codec, settings, refusals = refusals)
-    else HostSession(host, codec, settings, executor, refusals)
+    if (executor == null) {
+      HostSession(host, codec, settings, refusals = refusals, viewSettings = view)
+    } else {
+      HostSession(host, codec, settings, executor, refusals, view)
+    }
   val held: List<Entity> =
     List(entities) { index ->
       val owner = if (index < owned) CLIENT else PeerId.HOST
@@ -60,23 +64,7 @@ internal class Session(
         it += Authority(PeerId.HOST, owner)
       }
     }
-  val mirrored: List<Entity> = held.mapIndexed { index, entity ->
-    val owner = if (index < owned) CLIENT else PeerId.HOST
-    client.entity {
-      it += LocalTransform()
-      it += Authority(PeerId.HOST, owner)
-      it += NetworkIdentity(host.networkIdOf(entity))
-    }
-  }
 
-  /** Entities with no replicated component, on both sides under the same network ids. */
-  val bareHeld: List<Entity> = List(bare) { host.spawnEntity() }
-  val bareMirrored: List<Entity> = bareHeld.map { entity ->
-    client.entity {
-      it += Authority(PeerId.HOST, PeerId.HOST)
-      it += NetworkIdentity(host.networkIdOf(entity))
-    }
-  }
   val peer: HostPeer = hostSession.connect(link.hostEnd)
   val clientSession = ClientSession(client, codec, clientEnd(link.clientEnd), settings)
   val input = InputFrame(settings.input)
@@ -100,6 +88,9 @@ internal class Session(
   /** The network id of the [index]th entity. */
   fun idOf(index: Int) = host.networkIdOf(held[index])
 
+  /** The client's copy of the [index]th entity, or [Entity.NONE] while it has none. */
+  fun mirror(index: Int): Entity = client.entityOf(idOf(index))
+
   /** Moves the host's [index]th entity to [x], as the host's own systems would. */
   fun moveOnHost(index: Int, x: Float) {
     host.replication.write(held[index], LocalTransform) { this.x = x }
@@ -107,33 +98,29 @@ internal class Session(
 
   /** The [index]th entity's x on the host and on the client. */
   fun xs(index: Int): Pair<Float, Float> =
-    with(host) { held[index][LocalTransform].x } to
-      with(client) { mirrored[index][LocalTransform].x }
+    with(host) { held[index][LocalTransform].x } to with(client) { mirror(index)[LocalTransform].x }
 
   /** Every entity's transform fields, host and client, as text to compare whole worlds. */
-  fun states(): Pair<String, String> = describe(host, held) to describe(client, mirrored)
+  fun states(): Pair<String, String> = describe(host, held) to describe(client, held, ::mirror)
 
-  /**
-   * A world for another client, [peer], mirroring the host's entities, and a way to describe it as
-   * [states] describes the others.
-   */
+  /** A world for another client, [peer], and a way to describe it as [states] describes others. */
   fun lateClient(peer: PeerId): Pair<World, () -> String> {
     val world = world(peer)
-    val entities = held.map { entity ->
-      val owner = with(host) { entity[Authority].owner }
-      world.entity {
-        it += LocalTransform()
-        it += Authority(PeerId.HOST, owner)
-        it += NetworkIdentity(host.networkIdOf(entity))
-      }
-    }
-    return world to { describe(world, entities) }
+    return world to { describe(world, held) { world.entityOf(idOf(it)) } }
   }
 
-  private fun describe(world: World, entities: List<Entity>): String =
-    entities.joinToString { entity ->
-      val t = with(world) { entity[LocalTransform] }
-      "${t.x},${t.y},${t.z},${t.rotationW},${t.scaleX}"
+  private fun describe(
+    world: World,
+    entities: List<Entity>,
+    find: (Int) -> Entity = { entities[it] },
+  ): String =
+    entities.indices.joinToString { index ->
+      val entity = find(index)
+      if (entity == Entity.NONE) "missing"
+      else {
+        val t = with(world) { entity[LocalTransform] }
+        "${t.x},${t.y},${t.z},${t.rotationW},${t.scaleX}"
+      }
     }
 
   private fun world(peer: PeerId): World =

@@ -1,26 +1,52 @@
 package dev.chieppa.ease.net
 
+import com.github.quillraven.fleks.Entity
 import dev.chieppa.ease.net.channel.ChannelKind
 import dev.chieppa.ease.net.channel.Channels
 import dev.chieppa.ease.net.command.CommandExecutor
 import dev.chieppa.ease.net.command.RateLimit
 import dev.chieppa.ease.net.command.RateLimits
+import dev.chieppa.ease.net.relevancy.AlwaysRelevantFilter
+import dev.chieppa.ease.net.relevancy.AreaFilter
+import dev.chieppa.ease.net.relevancy.DistanceFilter
+import dev.chieppa.ease.net.relevancy.Team
+import dev.chieppa.ease.net.relevancy.TeamFilter
 import dev.chieppa.ease.net.session.NetSettings
+import dev.chieppa.ease.net.view.ViewSettings
 import dev.chieppa.ease.testing.AllocationBudget
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A session's hot paths allocate nothing once warm: building, sending and applying snapshots, and
- * sending and taking input. Commands allocate only what their own objects need: the boxes the
- * serialization plugin makes around a `NetworkId` field, the command decoded, and its targets.
+ * A session's hot paths allocate nothing once warm: relevancy, priority, building, sending and
+ * applying snapshots, and sending and taking input. The session runs every built-in filter, with a
+ * quarter of its entities on a team the client is not on, so they stay out of its view. Commands
+ * allocate only what their own objects need: the boxes the serialization plugin makes around a
+ * `NetworkId` field, the command decoded, and its targets.
  */
 class NetAllocationTest {
   private val unlimited = RateLimit(commands = Int.MAX_VALUE / 2, burst = Int.MAX_VALUE / 2)
   private val settings = NetSettings(rateLimits = RateLimits(unlimited, unlimited))
   private var executed = 0
+  private val view =
+    ViewSettings(listOf(DistanceFilter(RADIUS), TeamFilter, AreaFilter, AlwaysRelevantFilter))
   private val session =
-    Session(ENTITIES, settings = settings, executor = CommandExecutor { _, _, _ -> executed++ })
+    Session(
+      ENTITIES,
+      owned = ENTITIES / 2,
+      settings = settings,
+      executor = CommandExecutor { _, _, _ -> executed++ },
+      view = view,
+    )
+
+  init {
+    for (index in ENTITIES * 3 / 4 until ENTITIES) {
+      with(session.host) { session.held[index].configure { it += Team(OTHER_TEAM) } }
+    }
+    session.step()
+  }
+
   private val scratch = ByteArray(Channels.MAX_RELIABLE_BYTES)
 
   @Test
@@ -33,6 +59,15 @@ class NetAllocationTest {
     }
 
     AllocationBudget.assertWithin(0, tick, WARMUP, MEASURED)
+  }
+
+  @Test
+  fun `entities out of view stay out, and their changes are never sent`() {
+    session.moveOnHost(ENTITIES - 1, 1f)
+    session.step()
+
+    assertEquals(Entity.NONE, session.mirror(ENTITIES - 1))
+    assertEquals(0f to 0f, session.xs(0))
   }
 
   @Test
@@ -65,6 +100,8 @@ class NetAllocationTest {
 
   private companion object {
     const val ENTITIES = 64
+    const val RADIUS = 1e9f
+    const val OTHER_TEAM = 9
     const val WARMUP = 2_000
     const val MEASURED = 2_000
 

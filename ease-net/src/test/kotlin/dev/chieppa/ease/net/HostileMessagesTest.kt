@@ -1,6 +1,5 @@
 package dev.chieppa.ease.net
 
-import dev.chieppa.ease.ecs.replication.DecodeStatus
 import dev.chieppa.ease.net.channel.ChannelKind
 import dev.chieppa.ease.net.channel.Channels
 import dev.chieppa.ease.net.channel.LocalLink
@@ -50,15 +49,18 @@ class HostileMessagesTest {
     }
   }
 
-  /** Feeds [bytes] to a fresh client session over the session's client world. */
-  private fun feedClient(bytes: ByteArray): DecodeStatus {
+  /**
+   * Feeds [bytes] to a fresh client session over the session's client world, after the spawns the
+   * session's client applied, and returns whether it took them.
+   */
+  private fun feedClient(bytes: ByteArray): Boolean {
     val link = LocalLink(clientPeer = Session.CLIENT)
     val client = ClientSession(session.client, session.codec, link.clientEnd, session.settings)
     Hello.send(session.codec, link.hostEnd)
     link.hostEnd.send(ChannelKind.UNRELIABLE, bytes, 0, bytes.size)
-    val status = client.receive()
-    if (status != DecodeStatus.OK) assertEquals(CloseReason.MALFORMED_SNAPSHOT, client.closeReason)
-    return status
+    val open = client.receive()
+    if (!open) assertEquals(CloseReason.MALFORMED_SNAPSHOT, client.closeReason)
+    return open
   }
 
   private fun variants(real: ByteArray): List<ByteArray> {
@@ -122,16 +124,20 @@ class HostileMessagesTest {
     session.moveOnHost(0, 2f)
     session.hostSession.send(HOST_TICK)
     val real = scratch.copyOf(session.link.clientEnd.receive(ChannelKind.UNRELIABLE, scratch))
+    // A fresh client has applied no spawns, so the header's spawn count goes to 0 for the variants.
+    real[SEQUENCE_BYTE] = 0
 
     variants(real).forEach { bytes ->
       val before = session.states().second
-      val status = feedClient(bytes)
-      if (status != DecodeStatus.OK) assertEquals(before, session.states().second)
+      if (!feedClient(bytes)) assertEquals(before, session.states().second)
     }
   }
 
   private companion object {
     const val SEED = 90_210L
+
+    /** The spawn count's byte in a snapshot header whose tick and input tick take one byte each. */
+    const val SEQUENCE_BYTE = 2
     const val HOST_TICK = 40L
     const val FLIPS = 1_000
     const val MAX_FLIPS = 4

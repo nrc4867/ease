@@ -3,7 +3,6 @@ package dev.chieppa.ease.scene.runtime
 import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.assets.meta.AssetMeta
 import dev.chieppa.ease.assets.meta.MetaFiles
-import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.platform.files.FileChangeKind
 import dev.chieppa.ease.scene.Scenes
 import dev.chieppa.ease.scene.Scenes.document
@@ -19,13 +18,14 @@ import dev.chieppa.ease.scene.node.NodeName
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.io.TempDir
 
 /**
- * A scene changed on disk reaches a running host at the tick boundary as commands, and the same
- * commands bring a client to the same nodes.
+ * A scene changed on disk reaches a running host at the tick boundary as commands. Clients receive
+ * the nodes as spawns, tested in `ease-net`.
  */
 class SceneReloadTest {
   @TempDir lateinit var folder: Path
@@ -68,32 +68,28 @@ class SceneReloadTest {
     peer.watcher.publish(path, FileChangeKind.MODIFIED)
 
   @Test
-  fun `placing a scene spawns its nodes on the host, and its commands spawn them on a client`() {
+  fun `placing a scene spawns its nodes, prefab instances included`() {
     project()
     val host = ScenePeer(folder)
-    val client = ScenePeer(folder, PeerId(1))
 
     host.scenes.place(caveGuid, tick = 0)
-    client.receiveFrom(host)
 
     val expected =
       listOf(key(1), key(2), key(3), key(4), key(4, 10), key(4, 11), key(5), key(5, 10), key(5, 11))
         .map { it.text }
         .sorted()
     assertEquals(expected, host.keys())
-    assertEquals(expected, client.keys())
-    assertEquals(8f, client.x(key(5, 11)))
+    assertEquals(8f, host.x(key(5, 11)))
     val placed = host.scenes.scenes.single()
     assertEquals(emptyList(), placed.problems)
+    assertEquals(placed, host.scenes.placementOf(key(5, 11)))
   }
 
   @Test
-  fun `reloading the scene and its prefab changes both host and client, overrides kept`() {
+  fun `reloading the scene and its prefab changes the nodes, overrides kept`() {
     project()
     val host = ScenePeer(folder)
-    val client = ScenePeer(folder, PeerId(1))
     host.scenes.place(caveGuid, tick = 0)
-    client.receiveFrom(host)
 
     val scene = SceneFolder.read(cave)
     val edited =
@@ -107,15 +103,13 @@ class SceneReloadTest {
     (written.written + written.deleted).forEach { changed(host, cave.resolve(it)) }
     crateSave.written.forEach { changed(host, crate.resolve(it)) }
     host.beforeTick(1)
-    client.receiveFrom(host)
 
-    for (peer in listOf(host, client)) {
-      assertEquals(6f, peer.x(key(2)))
-      assertTrue(key(3).text !in peer.keys())
-      assertEquals("Banner", with(peer.world) { peer.node(key(7))[NodeName].name })
-      assertEquals(3f, peer.x(key(4, 11)))
-      assertEquals(8f, peer.x(key(5, 11)))
-    }
+    assertEquals(6f, host.x(key(2)))
+    assertTrue(key(3).text !in host.keys())
+    assertNull(host.scenes.placementOf(key(3)))
+    assertEquals("Banner", with(host.world) { host.node(key(7))[NodeName].name })
+    assertEquals(3f, host.x(key(4, 11)))
+    assertEquals(8f, host.x(key(5, 11)))
   }
 
   @Test

@@ -9,7 +9,6 @@ import dev.chieppa.ease.assets.reload.AssetReloadSystem
 import dev.chieppa.ease.assets.reload.AssetSync
 import dev.chieppa.ease.assets.reload.registerAssetCommands
 import dev.chieppa.ease.commands.CommandHistory
-import dev.chieppa.ease.commands.CommandOrigin
 import dev.chieppa.ease.commands.worldCodec
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.Phase
@@ -27,7 +26,7 @@ import java.nio.file.Path
 /**
  * One peer running a world over a project folder, wired as a host wires it: the asset database and
  * store with scenes registered, asset and scene systems, the history, and the per-tick asset and
- * scene syncs. Commands another peer logged can be applied here as received from the network.
+ * scene syncs.
  */
 class ScenePeer(root: Path, peer: PeerId = PeerId.HOST) {
   val watcher = ManualFileWatcher()
@@ -51,21 +50,11 @@ class ScenePeer(root: Path, peer: PeerId = PeerId.HOST) {
   private val assetSync = AssetSync(database, store, history)
   val scenes = SceneSync(world, store, history)
   private val index = world.system<SceneNodes>().index
-  private var forwarded = 0
 
   /** The tick boundary: asset reloads, then scene changes. */
   fun beforeTick(tick: Long) {
     assetSync.beforeTick(tick)
     scenes.beforeTick(tick)
-  }
-
-  /** Applies every command [host] logged since the last call, as received from the network. */
-  fun receiveFrom(host: ScenePeer) {
-    val entries = host.history.log.all
-    while (forwarded < entries.size) {
-      val entry = entries[forwarded++]
-      history.execute(host.history.log.commandOf(entry), entry.tick, CommandOrigin.NETWORK)
-    }
   }
 
   /** The live entity of the node with [key], or [Entity.NONE]. */

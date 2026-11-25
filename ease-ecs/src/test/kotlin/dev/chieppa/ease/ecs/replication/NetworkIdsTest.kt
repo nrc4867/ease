@@ -47,6 +47,20 @@ class NetworkIdsTest {
   }
 
   @Test
+  fun `a client issues its own ids from the local range, apart from the host's`() {
+    val client = ReplicationWorlds.world(PeerId(2))
+    val own = client.entity {}
+    val received = client.entity { it += NetworkIdentity(NetworkId(RECEIVED)) }
+    val next = client.entity {}
+
+    assertEquals(NetworkId(NetworkId.LOCAL_START), client.networkIdOf(own))
+    assertEquals(NetworkId(RECEIVED), client.networkIdOf(received))
+    assertEquals(NetworkId(NetworkId.LOCAL_START + 1), client.networkIdOf(next))
+    assertFalse(client.networkIdOf(own).isShared)
+    assertTrue(NetworkId(RECEIVED).isShared)
+  }
+
+  @Test
   fun `an entity held by another peer is a replica here`() {
     val replica = ReplicationWorlds.lanternEntity(world, holder = PeerId(3))
 

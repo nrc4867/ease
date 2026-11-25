@@ -25,7 +25,7 @@ public class Replication internal constructor(settings: ReplicationSettings) {
   public val debugChecks: Boolean = settings.debugChecks
 
   /** The network id of every live entity. */
-  public val entities: NetworkEntities = NetworkEntities()
+  public val entities: NetworkEntities = NetworkEntities(localPeer == PeerId.HOST)
 
   /** The component types that replicate in this world. */
   public val types: ReplicatedTypes = ReplicatedTypes(settings.serializers)
