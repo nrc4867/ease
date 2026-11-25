@@ -10,11 +10,11 @@ import java.lang.foreign.MemorySegment
  * A [MeshData]'s vertex and index buffers on one device, uploaded straight from the mesh's native
  * memory. Buffers are made again only when the mesh outgrows them.
  */
-internal class GpuMesh(val context: GpuContext) : AutoCloseable {
-  var vertexBuffer: MemorySegment = MemorySegment.NULL
+internal class GpuMesh(val context: GpuContext) : MeshBuffers, AutoCloseable {
+  override var vertexBuffer: MemorySegment = MemorySegment.NULL
     private set
 
-  var indexBuffer: MemorySegment = MemorySegment.NULL
+  override var indexBuffer: MemorySegment = MemorySegment.NULL
     private set
 
   private var vertexRoom = 0L
@@ -22,14 +22,14 @@ internal class GpuMesh(val context: GpuContext) : AutoCloseable {
   private var version = -1L
 
   /** Bytes of vertices and indices uploaded. */
-  var vertexBytes = 0L
+  override var vertexBytes = 0L
     private set
 
-  var indexBytes = 0L
+  override var indexBytes = 0L
     private set
 
   /** Indices uploaded, three per triangle. */
-  var indexCount = 0
+  override var indexCount = 0
     private set
 
   /** Uploads [mesh] when this holds an older version of it. */

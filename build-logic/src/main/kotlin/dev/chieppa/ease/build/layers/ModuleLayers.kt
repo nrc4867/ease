@@ -22,6 +22,7 @@ val moduleLayers: Map<String, Layer> =
     "ease-net" to Layer.NET,
     "ease-gpu" to Layer.GPU,
     "ease-render" to Layer.RENDER,
+    "ease-sdf" to Layer.RENDER,
     "ease-runtime" to Layer.RUNTIME,
     "ease-player" to Layer.HOST,
     "ease-agent" to Layer.HOST,

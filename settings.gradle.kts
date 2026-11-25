@@ -70,6 +70,8 @@ include(":ease-gpu")
 
 include(":ease-render")
 
+include(":ease-sdf")
+
 include(":ease-runtime")
 
 include(":ease-player")

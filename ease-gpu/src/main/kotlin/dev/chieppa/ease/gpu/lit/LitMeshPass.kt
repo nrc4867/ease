@@ -15,6 +15,7 @@ import dev.chieppa.ease.gpu.ffi.createBufferBindGroup
 import dev.chieppa.ease.gpu.ffi.createDepthPipeline
 import dev.chieppa.ease.gpu.ffi.createShaderModule
 import dev.chieppa.ease.gpu.mesh.GpuMesh
+import dev.chieppa.ease.gpu.mesh.MeshBuffers
 import dev.chieppa.ease.gpu.mesh.NORMAL_OFFSET
 import dev.chieppa.ease.gpu.mesh.POSITION_OFFSET
 import dev.chieppa.ease.gpu.mesh.UV_OFFSET
@@ -46,10 +47,11 @@ private val MESH_VERTICES =
  * an ambient term in a forward pass with a depth buffer: the target cleared, then each draw's mesh
  * drawn with its transforms and material. Uniforms and per-draw data are written through generated
  * struct writers into the context's frame arena and handed to the queue from there; meshes upload
- * from their own native memory when they change. Its buffers, pass descriptor and depth texture are
- * made once (the depth texture again when the target's size changes), so recording a steady frame
- * allocates nothing on the heap. Its host calls [GpuContext.beginFrame] before each frame it
- * records, and opens the context with room in its frame arena for [capacity] draws.
+ * from their own native memory when they change, and computed meshes draw from their own buffers.
+ * Its buffers, pass descriptor and depth texture are made once (the depth texture again when the
+ * target's size changes), so recording a steady frame allocates nothing on the heap. Its host calls
+ * [GpuContext.beginFrame] before each frame it records, and opens the context with room in its
+ * frame arena for [capacity] draws.
  */
 public class LitMeshPass(
   private val context: GpuContext,
@@ -80,7 +82,7 @@ public class LitMeshPass(
   private val passDescriptor = DepthPassDescriptor(arena, LABEL)
   private val pipelines = arrayOfNulls<MemorySegment>(TextureFormat.entries.size)
   private val bindGroups = Array(TextureFormat.entries.size) { arrayOfNulls<MemorySegment>(GROUPS) }
-  private val gpuMeshes = arrayOfNulls<GpuMesh>(capacity)
+  private val gpuMeshes = arrayOfNulls<MeshBuffers>(capacity)
   private val depth = DepthBuffer(context)
   private val writer = NativeWriter()
   private val uploads = FrameUploads(context, writer)
@@ -91,7 +93,7 @@ public class LitMeshPass(
     require(count <= capacity) { "$count draws do not fit a pass for $capacity" }
     val format = target.format.ordinal
     val pipeline = pipelines[format] ?: createPipeline(target.format)
-    for (index in 0 until count) gpuMeshes[index] = GpuMesh.of(context, frame.mesh(index))
+    for (index in 0 until count) gpuMeshes[index] = buffersOf(frame, index)
     uploads.frame(frameBuffer, frame)
     uploads.view(viewBuffer, frame)
     uploads.draws(materialBuffer, objectBuffer, frame)
@@ -102,6 +104,12 @@ public class LitMeshPass(
     for (group in 0 until GROUPS) FrameCalls.setBindGroup(pass, group, checkNotNull(groups[group]))
     for (index in 0 until count) draw(pass, index)
     FrameCalls.endPass(pass)
+  }
+
+  private fun buffersOf(frame: MeshFrame, index: Int): MeshBuffers {
+    val computed = frame.computed[index]
+    if (computed != null) return computed.buffers
+    return GpuMesh.of(context, checkNotNull(frame.meshes[index]) { "No draw $index" })
   }
 
   private fun draw(pass: Long, index: Int) {

@@ -5,11 +5,10 @@ import com.github.stephengold.joltjni.BodyCreationSettings
 import com.github.stephengold.joltjni.Jolt
 import com.github.stephengold.joltjni.enumerate.EActivation
 import com.github.stephengold.joltjni.enumerate.EMotionType
+import com.github.stephengold.joltjni.readonly.ConstShape
 import dev.chieppa.ease.ecs.LocalTransform
-import dev.chieppa.ease.physics.body.Collider
 import dev.chieppa.ease.physics.jolt.BodyPoses
 import dev.chieppa.ease.physics.jolt.BodyUserData
-import dev.chieppa.ease.physics.jolt.JoltShapes
 
 /**
  * The Jolt body of each entity with a collider, by entity id, and how it moves: static and
@@ -44,36 +43,35 @@ internal class PhysicsBodies(private val physics: PhysicsWorld) : AutoCloseable 
   }
 
   /**
-   * Adds a body for [entity]'s [collider] at its [transform], moving as [motion], on the collider's
-   * layer, or, for a [trigger] volume, as a sensor on the trigger layer. A dynamic body starts
-   * kinematic, until [simulate] finds its world has authority over it.
+   * Adds a body of [shape] for [entity] at its [transform], moving as [motion], on Jolt object
+   * layer [layer] with surface type [surfaceIndex], a sensor when [trigger]. Jolt keeps its own
+   * reference to the shape, so the caller closes it. A dynamic body starts kinematic, until
+   * [simulate] finds its world has authority over it.
    */
+  @Suppress("LongParameterList") // A body's every setting, for both kinds of collider.
   fun add(
     entity: Entity,
-    collider: Collider,
+    shape: ConstShape,
     transform: LocalTransform,
     motion: Int,
+    layer: Int,
+    surfaceIndex: Int,
     trigger: Boolean,
   ) {
     remove(entity)
     grow(entity.id)
-    val layer = if (trigger) physics.joltLayers.trigger else physics.layers.resolve(collider.layer)
-    val surfaceIndex = physics.surfaces.resolve(collider.surface)
     val surface = physics.surfaces[surfaceIndex]
     poses.load(transform)
     val id =
-      JoltShapes.of(collider).use { shape ->
-        BodyCreationSettings(shape, poses.position, poses.rotation, motionType(motion), layer)
-          .use { settings ->
-            settings.setAllowDynamicOrKinematic(motion == DYNAMIC)
-            settings.setUserData(BodyUserData.of(entity.id, surfaceIndex))
-            settings.setFriction(surface.friction)
-            settings.setRestitution(surface.restitution)
-            settings.setIsSensor(trigger)
-            val activation =
-              if (motion == STATIC) EActivation.DontActivate else EActivation.Activate
-            physics.bodyInterface.createAndAddBody(settings, activation)
-          }
+      BodyCreationSettings(shape, poses.position, poses.rotation, motionType(motion), layer).use {
+        settings ->
+        settings.setAllowDynamicOrKinematic(motion == DYNAMIC)
+        settings.setUserData(BodyUserData.of(entity.id, surfaceIndex))
+        settings.setFriction(surface.friction)
+        settings.setRestitution(surface.restitution)
+        settings.setIsSensor(trigger)
+        val activation = if (motion == STATIC) EActivation.DontActivate else EActivation.Activate
+        physics.bodyInterface.createAndAddBody(settings, activation)
       }
     check(id != Jolt.cInvalidBodyId) { "Jolt holds no more bodies (${physics.settings.maxBodies})" }
     bodyOf[entity.id] = id

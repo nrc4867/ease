@@ -1,6 +1,7 @@
 package dev.chieppa.ease.gpu.lit
 
 import dev.chieppa.ease.gpu.Color
+import dev.chieppa.ease.gpu.mesh.ComputedMesh
 import dev.chieppa.ease.gpu.mesh.MeshData
 import dev.chieppa.ease.memory.MAT4_FLOATS
 
@@ -45,6 +46,7 @@ public class MeshFrame(public val capacity: Int) {
   /** Each draw's material, packed as [MaterialFloats] says. */
   public val materials: FloatArray = FloatArray(capacity * MaterialFloats.COUNT)
   internal val meshes = arrayOfNulls<MeshData>(capacity)
+  internal val computed = arrayOfNulls<ComputedMesh>(capacity)
 
   /** How many draws the frame holds. */
   public var count: Int = 0
@@ -53,6 +55,7 @@ public class MeshFrame(public val capacity: Int) {
   /** Removes every draw. */
   public fun clearDraws() {
     meshes.fill(null, 0, count)
+    computed.fill(null, 0, count)
     count = 0
   }
 
@@ -66,8 +69,21 @@ public class MeshFrame(public val capacity: Int) {
     return count++
   }
 
-  /** The mesh of draw [index]. */
-  public fun mesh(index: Int): MeshData = checkNotNull(meshes[index]) { "No draw $index" }
+  /**
+   * Adds a draw of [mesh], which must live on the device of the pass drawing this frame, and
+   * returns its index, as [add] does for a [MeshData].
+   */
+  public fun add(mesh: ComputedMesh): Int {
+    check(count < capacity) { "More than $capacity draws; make the frame larger" }
+    computed[count] = mesh
+    return count++
+  }
+
+  /** The mesh of draw [index], or null when the draw is of a [ComputedMesh]. */
+  public fun mesh(index: Int): MeshData? {
+    require(index in 0 until count) { "No draw $index among $count" }
+    return meshes[index]
+  }
 
   /**
    * Sets draw [index]'s lit material: linear base color, roughness and metallic from 0 to 1, and
