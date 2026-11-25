@@ -120,9 +120,30 @@ class SceneGateTest {
         with(run.local.host.world) {
           networkIdOf(run.node(this, NodeKey.of(emptyList(), node.id))).value
         }
-      val x =
-        field(node, "ease.LocalTransform", "x") + field(node, "sample.Velocity", "x") * seconds
-      assertTrue(near(hostAt(reload, id), x, null), "${node.name} starts again from its file")
+      val step = abs(field(node, "sample.Velocity", "x")) * seconds
+      val at = hostAt(reload, id)
+      when (node.name) {
+        "Coral square" ->
+          assertTrue(
+            abs(at.x - MOVED_X) <= step + TOLERANCE,
+            "Coral square gets only its edited field",
+          )
+        "Ivory square" ->
+          assertTrue(
+            near(
+              at,
+              field(node, "ease.LocalTransform", "x") +
+                field(node, "sample.Velocity", "x") * seconds,
+              null,
+            ),
+            "Ivory square starts from its file",
+          )
+        else ->
+          assertTrue(
+            abs(at.x - hostAt(reload - 1, id).x) <= step + TOLERANCE,
+            "${node.name} keeps moving where it was",
+          )
+      }
     }
     run.settle()
     run.step(SETTLE_TICKS)
