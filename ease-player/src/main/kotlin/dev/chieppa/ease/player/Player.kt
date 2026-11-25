@@ -12,9 +12,6 @@ import dev.chieppa.ease.runtime.LocalHost
 import dev.chieppa.ease.runtime.WorldRunner
 import dev.chieppa.ease.runtime.loop.FixedStep
 
-private const val WIDTH = 960
-private const val HEIGHT = 540
-
 /**
  * Runs the one game on the classpath as a host world plus a local client world, with its input
  * script attached to the client, over the game's content folder when `--content` names one: in a
@@ -32,7 +29,7 @@ public fun main(args: Array<String>) {
   if (ticks != null) {
     runHeadless(local, ticks)
   } else {
-    runWindowed(game, local, options.frames)
+    runWindowed(game, local, options)
   }
 }
 
@@ -61,15 +58,18 @@ private fun runHeadless(local: LocalHost, ticks: Int) {
   )
 }
 
-private fun runWindowed(game: GameModule, local: LocalHost, frames: Int?) {
+private fun runWindowed(game: GameModule, local: LocalHost, options: PlayerOptions) {
   val runner = WorldRunner(local, SystemClock)
   SdlWindowing().use { windowing ->
-    val window = windowing.open(WindowSpec("Ease", WIDTH, HEIGHT))
+    val window = windowing.open(WindowSpec("Ease", options.width, options.height))
     GpuContext.open(window.surface).use { gpu ->
       println("Ease player running ${game.javaClass.simpleName} on ${gpu.description}")
       WorldRenderer(gpu).use { renderer ->
-        val drawn = FrameLoop(windowing, window, gpu, runner, renderer, game.camera()).run(frames)
-        println("Drew $drawn frames over ${local.tick} ticks")
+        val stats = FrameStats(SystemClock)
+        val loop = FrameLoop(windowing, window, gpu, runner, renderer, stats)
+        val drawn = loop.run(options.frames)
+        println("Drew $drawn frames over ${local.tick} ticks at ${window.pixelSize}")
+        println(stats.summary())
       }
     }
   }

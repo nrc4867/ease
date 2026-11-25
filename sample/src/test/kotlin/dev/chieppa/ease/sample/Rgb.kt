@@ -25,5 +25,14 @@ internal object Rgb {
   /** [rgb] written as `#rrggbb`. */
   fun hex(rgb: Int): String = "#" + rgb.toString(HEX).padStart(HEX_DIGITS, '0')
 
+  /** Which channel of [rgb] is brightest: 0 red, 1 green, 2 blue. */
+  fun brightest(rgb: Int): Int {
+    val channels = listOf(RED_SHIFT, GREEN_SHIFT, 0).map { rgb shr it and CHANNEL }
+    return channels.indexOf(channels.max())
+  }
+
+  /** Which of [color]'s red, green and blue is largest. */
+  fun brightest(color: FloatArray): Int = color.indexOfFirst { it == color.max() }
+
   private fun byte(channel: Float): Int = (channel * CHANNEL_MAX).roundToInt()
 }

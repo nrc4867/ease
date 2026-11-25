@@ -6,6 +6,7 @@ import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.replication.Authority
 import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.net.transport.LinkConditions
+import dev.chieppa.ease.render.TRANSFORM_FLOATS
 import dev.chieppa.ease.runtime.loop.FixedStep
 import kotlin.math.abs
 import kotlin.test.Test
@@ -67,12 +68,14 @@ class PredictionTest {
   fun `corrections from the host are replayed, smoothed while drawn, and the walker converges`() {
     repeat(WARMUP) { step(0f) }
     var drawnY = Float.NaN
+    val drawnTransform = FloatArray(TRANSFORM_FLOATS)
     var largestDrawnStep = 0f
     repeat(RUN) {
       step(walkPattern(client.tick))
       val id = walker(client.world).id
       val snapshot = client.world.snapshot
-      val drawn = snapshot.currentY[id]
+      snapshot.transformInto(id, 1f, drawnTransform, 0)
+      val drawn = drawnTransform[1]
       if (!drawnY.isNaN()) largestDrawnStep = maxOf(largestDrawnStep, abs(drawn - drawnY))
       drawnY = drawn
     }

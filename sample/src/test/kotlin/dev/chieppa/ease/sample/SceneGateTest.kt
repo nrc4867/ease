@@ -22,7 +22,7 @@ import org.junit.jupiter.api.io.TempDir
 
 /**
  * The Phase 2b gate: the sample runs as host plus client from its saved scene, over a link with
- * latency, jitter, loss and duplication ([GateRun.BAD]). The scene's squares spawn on both worlds,
+ * latency, jitter, loss and duplication ([GateRun.BAD]). The scene's nodes spawn on both worlds,
  * the courier moves by the client's predicted input and its pace by a client command, the client
  * world matches the host's (see [WorldMatch]), a scene edited on disk reloads into both through the
  * asset watcher, and the host's log replays to the same host world.
@@ -33,7 +33,7 @@ class SceneGateTest {
   private val run by lazy { GateRun(folder) }
 
   @Test
-  fun `the saved scene's squares spawn on host and client, the client's built from its files`() {
+  fun `the saved scene's nodes spawn on host and client, the client's built from its files`() {
     run.step(SPAWN_TICKS)
 
     val scene = run.content.playfield()
@@ -45,7 +45,7 @@ class SceneGateTest {
       val replica = run.node(client, NodeKey.of(emptyList(), node.id))
       assertEquals(node.name, with(client) { replica[NodeName].name }, "named from its file")
     }
-    assertEquals(scene.nodes.size + 1, client.numEntities, "the squares and the courier")
+    assertEquals(scene.nodes.size + 1, client.numEntities, "the nodes and the courier")
   }
 
   @Test
@@ -115,7 +115,8 @@ class SceneGateTest {
     val log = host.history.log
     val reload = log.all.single { log.commandOf(it) is ReloadAsset }.tick
     val seconds = stepSeconds(run.fixedStep)
-    edited.nodes.values.forEach { node ->
+    val cubes = edited.nodes.values.filter { "sample.Velocity" in it.components }
+    cubes.forEach { node ->
       val id =
         with(run.local.host.world) {
           networkIdOf(run.node(this, NodeKey.of(emptyList(), node.id))).value
@@ -180,19 +181,19 @@ class SceneGateTest {
     AllocationBudget.assertWithin(0, { run.local.step() }, WARMUP_TICKS, MEASURED_TICKS)
   }
 
-  /** [document] with the coral square moved, an ivory square added and the moss square gone. */
+  /** [document] with the coral cube moved, an ivory cube added and the moss cube gone. */
   private fun edit(document: SceneDocument): SceneDocument {
-    val coral = document.nodes.values.single { it.name == "Coral square" }
-    val moss = document.nodes.values.single { it.name == "Moss square" }
+    val coral = document.nodes.values.single { it.name == "Coral cube" }
+    val moss = document.nodes.values.single { it.name == "Moss cube" }
     val moved = coral.withField("ease.LocalTransform", "x", JsonPrimitive(MOVED_X))
     val ivory =
-      SceneNode(IVORY, "Ivory square", null, document.nextOrder(null), coral.components)
+      SceneNode(IVORY, "Ivory cube", null, document.nextOrder(null), coral.components)
         .withField("ease.LocalTransform", "y", JsonPrimitive(IVORY_Y))
-        .withField("ease.Quad", "blue", JsonPrimitive(1f))
+        .withField("ease.Material", "blue", JsonPrimitive(1f))
     return document.with(moved).with(ivory).without(moss.id)
   }
 
-  /** The host's courier or square [id] after tick [tick], as recorded. */
+  /** The host's courier or cube [id] after tick [tick], as recorded. */
   private fun hostAt(tick: Long, id: Long): LocalTransform {
     val entity = checkNotNull(run.hostAt(tick)[id]) { "#$id is not on the host at tick $tick" }
     return entity.components.getValue("ease.LocalTransform") as LocalTransform

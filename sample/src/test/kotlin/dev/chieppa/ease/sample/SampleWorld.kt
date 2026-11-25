@@ -2,7 +2,7 @@ package dev.chieppa.ease.sample
 
 import com.github.quillraven.fleks.Entity
 import dev.chieppa.ease.ecs.LocalTransform
-import dev.chieppa.ease.render.Quad
+import dev.chieppa.ease.render.scene.Material
 import dev.chieppa.ease.runtime.GameModules
 import dev.chieppa.ease.runtime.HostedWorld
 import dev.chieppa.ease.runtime.loop.FixedStep
@@ -19,8 +19,11 @@ internal class SampleWorld(root: Path) {
   val hosted = HostedWorld(module, fixedStep, assets = content.assets)
   val stepSeconds: Float = stepSeconds(fixedStep)
 
-  /** The world's entities in id order: the playfield scene's squares. */
-  val entities: List<Entity> = with(hosted.world) { asEntityBag().map { it }.sortedBy { it.id } }
+  /** The world's entities in id order: the playfield scene's nodes. */
+  val nodes: List<Entity> = with(hosted.world) { asEntityBag().map { it }.sortedBy { it.id } }
+
+  /** The scene's cubes, the entities with a velocity, in id order. */
+  val entities: List<Entity> = with(hosted.world) { nodes.filter { it.has(Velocity) } }
 
   fun step(ticks: Int) = repeat(ticks) { hosted.step() }
 
@@ -32,10 +35,12 @@ internal class SampleWorld(root: Path) {
   fun velocity(entity: Entity): Pair<Float, Float> =
     with(hosted.world) { entity[Velocity].x to entity[Velocity].y }
 
-  /** [entity]'s color as `0xRRGGBB`, its quad's channels rounded to bytes. */
-  fun rgb(entity: Entity): Int =
+  fun z(entity: Entity): Float = with(hosted.world) { entity[LocalTransform].z }
+
+  /** [entity]'s material base color, red, green and blue. */
+  fun color(entity: Entity): FloatArray =
     with(hosted.world) {
-      val quad = entity[Quad]
-      Rgb.of(quad.red, quad.green, quad.blue)
+      val material = entity[Material]
+      floatArrayOf(material.red, material.green, material.blue)
     }
 }

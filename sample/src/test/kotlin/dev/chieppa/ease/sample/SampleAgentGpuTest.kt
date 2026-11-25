@@ -37,10 +37,10 @@ class SampleAgentGpuTest {
     assertEquals(listOf("describe", "query", "capture", "logs", "test"), tools)
 
     val names = agent.json(agent.call("describe")).list("components").map { it.text("title") }
-    assertTrue(names.containsAll(listOf("ease.LocalTransform", "ease.Quad", "sample.Velocity")))
+    assertTrue(names.containsAll(listOf("ease.LocalTransform", "ease.Mesh", "sample.Velocity")))
 
     val world = agent.json(agent.call("query")).list("entities")
-    assertEquals(agent.content.squares().size, world.size)
+    assertEquals(agent.content.nodes().size, world.size)
 
     val capture =
       agent.call(
@@ -56,29 +56,28 @@ class SampleAgentGpuTest {
     val frame = ImageIO.read(ByteArrayInputStream(png))
     assertEquals(WIDTH, frame.width)
     assertEquals(HEIGHT, frame.height)
-    val pixelsPerUnit = HEIGHT / Playfield.VISIBLE_HEIGHT
-    agent.content.squares().forEach { square ->
-      val x = field(square, "ease.LocalTransform", "x")
-      val y = field(square, "ease.LocalTransform", "y")
-      val column = (WIDTH / 2f + x * pixelsPerUnit).toInt()
-      val row = (HEIGHT / 2f - y * pixelsPerUnit).toInt()
-      val found = frame.getRGB(column, row)
-      assertTrue(Rgb.close(found, rgb(square)), "${square.name} at ($x, $y)")
+    val projection = CameraProjection(agent.content.camera(), WIDTH, HEIGHT)
+    agent.content.cubes().forEach { cube ->
+      val x = field(cube, "ease.LocalTransform", "x")
+      val y = field(cube, "ease.LocalTransform", "y")
+      val z = field(cube, "ease.LocalTransform", "z")
+      val (column, row) = projection.pixel(x, y, z)
+      val found = frame.getRGB(column, row) and RGB
+      assertEquals(Rgb.brightest(color(cube)), Rgb.brightest(found), "${cube.name} at ($x, $y)")
     }
   }
 
-  /** The number [field] of [square]'s component [component], as its node file holds it. */
-  private fun field(square: SceneNode, component: String, field: String): Float =
-    SampleContent.field(square, component, field)
+  /** The number [field] of [node]'s component [component], as its node file holds it. */
+  private fun field(node: SceneNode, component: String, field: String): Float =
+    SampleContent.field(node, component, field)
 
-  /** [square]'s quad color as `0xRRGGBB`, as its node file holds it. */
-  private fun rgb(square: SceneNode): Int {
-    fun channel(name: String) = field(square, "ease.Quad", name)
-    return Rgb.of(channel("red"), channel("green"), channel("blue"))
-  }
+  /** [cube]'s material base color, as its node file holds it. */
+  private fun color(cube: SceneNode): FloatArray =
+    listOf("red", "green", "blue").map { field(cube, "ease.Material", it) }.toFloatArray()
 
   private companion object {
     const val WIDTH = 320
     const val HEIGHT = 180
+    const val RGB = 0xFFFFFF
   }
 }

@@ -1,0 +1,30 @@
+components:
+  ease.LocalTransform:
+    rotationW: 1.0
+    rotationX: 0.0
+    rotationY: 0.0
+    rotationZ: 0.0
+    scaleX: 1.5
+    scaleY: 1.5
+    scaleZ: 1.5
+    x: 0.0
+    "y": 0.0
+    z: 0.0
+  ease.Material:
+    blue: 0.04777576
+    emissiveBlue: 0.0
+    emissiveGreen: 0.0
+    emissiveRed: 0.0
+    green: 0.6120656
+    metallic: 0.0
+    red: 0.89126205
+    roughness: 0.6
+  ease.Mesh:
+    shape: CUBE
+  sample.Velocity:
+    x: 1.5
+    "y": -3.0
+formatVersion: 1
+id: "9473ae63e9b90f5b"
+name: "Amber cube"
+order: x

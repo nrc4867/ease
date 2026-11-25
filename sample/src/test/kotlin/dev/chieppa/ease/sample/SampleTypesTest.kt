@@ -79,7 +79,7 @@ class SampleTypesTest {
   @Test
   fun `ease dot d dot ts holds the engine's types beside the sample's`() {
     assertTrue("@minimum -1" in declaration("ease.LocalTransform"))
-    assertTrue("Red channel" in declaration("ease.Quad"))
+    assertTrue("Base color red" in declaration("ease.Material"))
     assertTrue("type: \"ease.Destroy\"" in declaration("ease.Destroy"))
   }
 

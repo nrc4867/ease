@@ -8,18 +8,18 @@ import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.ecs.replication.Authority
 import dev.chieppa.ease.ecs.replication.PeerId
-import dev.chieppa.ease.render.Camera2D
 import dev.chieppa.ease.runtime.GameModule
 import dev.chieppa.ease.runtime.HostedWorld
 import dev.chieppa.ease.runtime.InputScript
 import dev.chieppa.ease.scene.types.SceneTypes
 
 /**
- * The sample game: the colored squares of its saved playfield scene bouncing around the
- * [Playfield], and for each peer that joins a courier square it owns, which its input moves,
- * predicted on its own client. The scene is the game's content, `content/playfield.scene`; editing
- * it while the game runs changes the running squares. Couriers are not in the scene: one exists per
- * joined peer, owned by that peer, which a scene shared by every peer cannot say.
+ * The sample game: the colored cubes of its saved playfield scene bouncing around the [Playfield]
+ * over a floor, seen by the scene's camera and lit by its sun, and for each peer that joins a
+ * courier cube it owns, which its input moves, predicted on its own client. The scene is the game's
+ * content, `content/playfield.scene`; editing it while the game runs changes the running cubes.
+ * Couriers are not in the scene: one exists per joined peer, owned by that peer, which a scene
+ * shared by every peer cannot say.
  */
 public class SampleGame : GameModule {
   override fun registerSceneTypes(types: SceneTypes.Builder) {
@@ -55,12 +55,8 @@ public class SampleGame : GameModule {
 
   override fun inputScript(): InputScript = CourierScript()
 
-  override fun camera(): Camera2D = Camera2D(visibleHeight = Playfield.VISIBLE_HEIGHT)
-
   public companion object {
-    /**
-     * The playfield scene the game starts from: its squares, as `playfield.scene.meta` names it.
-     */
+    /** The playfield scene the game starts from: its cubes, as `playfield.scene.meta` names it. */
     public val PLAYFIELD: Guid = Guid.parse("f98b920b-b589-4932-b442-424c23eedb69")
   }
 }

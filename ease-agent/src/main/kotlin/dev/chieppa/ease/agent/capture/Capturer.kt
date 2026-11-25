@@ -1,13 +1,11 @@
 package dev.chieppa.ease.agent.capture
 
 import dev.chieppa.ease.agent.tools.ToolRefusal
-import dev.chieppa.ease.gpu.CommandEncoder
 import dev.chieppa.ease.gpu.GpuContext
 import dev.chieppa.ease.gpu.GpuException
 import dev.chieppa.ease.gpu.OffscreenTarget
 import dev.chieppa.ease.gpu.Pixels
 import dev.chieppa.ease.platform.PixelSize
-import dev.chieppa.ease.render.Camera2D
 import dev.chieppa.ease.render.RenderSnapshot
 import dev.chieppa.ease.render.WorldRenderer
 import dev.chieppa.ease.render.extractFrom
@@ -24,21 +22,20 @@ public class Capturer(private val open: () -> GpuContext = { GpuContext.open() }
   private var unavailable: String? = null
   private val snapshot = RenderSnapshot()
 
-  /**
-   * [world] as [camera] sees it, [size] pixels: every quad where it is now, the world only read.
-   */
-  public fun capture(world: HostedWorld, camera: Camera2D, size: PixelSize): Pixels {
+  /** [world] through its camera, [size] pixels: every mesh where it is now, the world only read. */
+  public fun capture(world: HostedWorld, size: PixelSize): Pixels {
     val context = gpu ?: start()
     val drawer = checkNotNull(renderer)
     snapshot.extractFrom(world.world)
     if (snapshot.count > drawer.capacity) {
       throw ToolRefusal(
-        "${snapshot.count} quads are more than a capture draws (${drawer.capacity})"
+        "${snapshot.count} meshes are more than a capture draws (${drawer.capacity})"
       )
     }
     return OffscreenTarget(context, size).use { offscreen ->
-      val encoder = CommandEncoder.on(context)
-      drawer.render(snapshot, 1f, camera, offscreen.target, encoder)
+      context.beginFrame()
+      val encoder = context.frameEncoder()
+      drawer.render(snapshot, 1f, offscreen.target, encoder)
       encoder.submit()
       offscreen.read()
     }

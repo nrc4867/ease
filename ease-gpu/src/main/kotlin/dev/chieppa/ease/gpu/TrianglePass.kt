@@ -2,6 +2,7 @@ package dev.chieppa.ease.gpu
 
 import dev.chieppa.ease.gpu.ffi.BufferBinding
 import dev.chieppa.ease.gpu.ffi.Flags
+import dev.chieppa.ease.gpu.ffi.FrameCalls
 import dev.chieppa.ease.gpu.ffi.beginColorPass
 import dev.chieppa.ease.gpu.ffi.createBuffer
 import dev.chieppa.ease.gpu.ffi.createBufferBindGroup
@@ -47,12 +48,11 @@ public class TrianglePass(private val context: GpuContext, public val clear: Col
       target.size.width.toFloat() / target.size.height,
     )
     wgpu_h.wgpuQueueWriteBuffer(context.queue, params, 0, bytes, PARAMS_BYTES)
-    val pass = beginColorPass(encoder.handle, target.view, clear, "triangle")
-    wgpu_h.wgpuRenderPassEncoderSetPipeline(pass, pipeline)
-    wgpu_h.wgpuRenderPassEncoderSetBindGroup(pass, 0, bindGroup, 0, MemorySegment.NULL)
-    wgpu_h.wgpuRenderPassEncoderDraw(pass, VERTICES, 1, 0, 0)
-    wgpu_h.wgpuRenderPassEncoderEnd(pass)
-    wgpu_h.wgpuRenderPassEncoderRelease(pass)
+    val pass = beginColorPass(context.frames, encoder.address, target.view, clear)
+    FrameCalls.setPipeline(pass, pipeline)
+    FrameCalls.setBindGroup(pass, 0, bindGroup)
+    FrameCalls.draw(pass, VERTICES, 1)
+    FrameCalls.endPass(pass)
   }
 
   override fun close() {

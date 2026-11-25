@@ -105,7 +105,7 @@ class RefusalsTest {
     assertEquals(ExitCodes.FAILED, harness.run("new", "empty", "--name", "Game Module"))
     assertEquals(ExitCodes.FAILED, harness.run("new", "empty", "--name", "Spawn"))
     game()
-    for (name in listOf("Quad", "Local Transform", "Phase", "Iterating")) {
+    for (name in listOf("Mesh", "Local Transform", "Phase", "Iterating")) {
       val generator = if (name == "Iterating") "system" else "component"
       assertEquals(
         ExitCodes.FAILED,
@@ -114,7 +114,7 @@ class RefusalsTest {
       )
     }
     assertFalse(
-      work.resolve("moon-garden/game/src/main/kotlin/example/moongarden/Quad.kt").exists()
+      work.resolve("moon-garden/game/src/main/kotlin/example/moongarden/Mesh.kt").exists()
     )
   }
 }

@@ -1,100 +1,140 @@
 package dev.chieppa.ease.render
 
 import dev.chieppa.ease.ecs.DEFAULT_ENTITY_CAPACITY
+import dev.chieppa.ease.gpu.lit.MaterialFloats
+import dev.chieppa.ease.gpu.mesh.MeshData
+import dev.chieppa.ease.math.Quats
+import dev.chieppa.ease.render.scene.MeshShape
 
 /** Marks an id no extract has written yet. */
 private const val NEVER = -1L
 
+/** Marks a camera or light the extract did not find. */
+internal const val NONE = -1
+
+/** Floats of one transform: position x, y, z, rotation x, y, z, w, scale x, y, z. */
+public const val TRANSFORM_FLOATS: Int = 10
+
+/** Where the rotation starts within a transform's floats. */
+public const val ROTATION_AT: Int = 3
+
+/** Where the scale starts within a transform's floats. */
+public const val SCALE_AT: Int = 7
+
 /**
  * The read-only view of a world that rendering works from, written once per tick by
- * [ExtractSystem]. For each quad drawn this tick it holds the position at the previous and the
- * current tick, so a frame between ticks can blend them, plus the quad's size and color. Columns
- * are indexed by entity id and grow only when an id passes their capacity; a steady world writes it
- * without allocating.
+ * [ExtractSystem]. For every entity with a transform and a mesh, camera or light it holds the
+ * transform at the previous and the current tick, so a frame between ticks can blend them; for each
+ * mesh drawn this tick its shape or runtime mesh and its material; and the [camera] and [light] the
+ * world is seen through and lit by. Arrays are indexed by entity id and grow only when an id passes
+ * their capacity; a steady world writes it without allocating.
  */
 public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
   init {
     require(initialCapacity > 0) { "Needs room for at least 1 entity, got $initialCapacity" }
   }
 
-  /** Each entity's x at the previous tick; its current x when it first appeared this tick. */
-  public val previousX: SnapshotColumn = SnapshotColumn(initialCapacity)
-
-  /** Each entity's y at the previous tick; its current y when it first appeared this tick. */
-  public val previousY: SnapshotColumn = SnapshotColumn(initialCapacity)
-
-  /** Each entity's x at this tick. */
-  public val currentX: SnapshotColumn = SnapshotColumn(initialCapacity)
-
-  /** Each entity's y at this tick. */
-  public val currentY: SnapshotColumn = SnapshotColumn(initialCapacity)
-
-  /** The side length of each entity's quad. */
-  public val size: SnapshotColumn = SnapshotColumn(initialCapacity)
-
-  /** The red channel of each entity's quad. */
-  public val red: SnapshotColumn = SnapshotColumn(initialCapacity)
-
-  /** The green channel of each entity's quad. */
-  public val green: SnapshotColumn = SnapshotColumn(initialCapacity)
-
-  /** The blue channel of each entity's quad. */
-  public val blue: SnapshotColumn = SnapshotColumn(initialCapacity)
-
-  private val columns = listOf(previousX, previousY, currentX, currentY, size, red, green, blue)
+  internal var previous = FloatArray(initialCapacity * TRANSFORM_FLOATS)
+  internal var current = FloatArray(initialCapacity * TRANSFORM_FLOATS)
+  internal var materials = FloatArray(initialCapacity * MaterialFloats.COUNT)
+  internal var shapes = arrayOfNulls<MeshShape>(initialCapacity)
+  internal var customMeshes = arrayOfNulls<MeshData>(initialCapacity)
   private var writtenAt = LongArray(initialCapacity) { NEVER }
   private var drawn = IntArray(initialCapacity)
+
+  /** The camera found this tick. */
+  public val camera: SnapshotCamera = SnapshotCamera()
+
+  /** The light found this tick. */
+  public val light: SnapshotLight = SnapshotLight()
 
   /** How many extracts have run; the one under way while [ExtractSystem] writes. */
   public var extracts: Long = 0
     private set
 
-  /** How many quads the last extract found. */
+  /** How many meshes the last extract found. */
   public var count: Int = 0
     private set
 
-  /** The entity id of the [index]th quad, from 0 until [count]. */
+  /** The entity id of the [index]th mesh, from 0 until [count]. */
   public fun entityAt(index: Int): Int {
-    require(index in 0 until count) { "No quad $index among $count" }
+    require(index in 0 until count) { "No mesh $index among $count" }
     return drawn[index]
   }
 
-  /** Entity [id]'s x blended [alpha] of the way from the previous tick to this one. */
-  public fun x(id: Int, alpha: Float): Float = lerp(previousX[id], currentX[id], alpha)
+  /** The built-in shape entity [id] draws, or null when it draws a runtime mesh. */
+  public fun shape(id: Int): MeshShape? = shapes[id]
 
-  /** Entity [id]'s y blended [alpha] of the way from the previous tick to this one. */
-  public fun y(id: Int, alpha: Float): Float = lerp(previousY[id], currentY[id], alpha)
+  /** The runtime mesh entity [id] draws, or null when it draws a built-in shape. */
+  public fun customMesh(id: Int): MeshData? = customMeshes[id]
 
-  /** Starts a new extract: the quads written after it are the ones drawn this tick. */
+  /** Material float [field] of entity [id], packed as [MaterialFloats] says. */
+  public fun material(id: Int, field: Int): Float = materials[id * MaterialFloats.COUNT + field]
+
+  /**
+   * Writes entity [id]'s transform blended [alpha] of the way from the previous tick to this one
+   * into [dst] at [at], [TRANSFORM_FLOATS] floats: positions and scales blended linearly, the
+   * rotation along the shortest arc.
+   */
+  public fun transformInto(id: Int, alpha: Float, dst: FloatArray, at: Int) {
+    val base = id * TRANSFORM_FLOATS
+    for (axis in 0 until ROTATION_AT) dst[at + axis] = lerp(base + axis, alpha)
+    for (axis in SCALE_AT until TRANSFORM_FLOATS) dst[at + axis] = lerp(base + axis, alpha)
+    Quats.slerp(
+      previous,
+      base + ROTATION_AT,
+      current,
+      base + ROTATION_AT,
+      alpha,
+      dst,
+      at + ROTATION_AT,
+    )
+  }
+
+  /** Starts a new extract: what is written after it is what is drawn this tick. */
   internal fun begin() {
     extracts++
     count = 0
+    camera.entity = NONE
+    light.entity = NONE
   }
 
-  /** Writes entity [id] at ([x], [y]) with [quad]'s look, moving its last position to previous. */
-  internal fun write(id: Int, x: Float, y: Float, quad: Quad) {
+  /**
+   * Writes entity [id]'s transform, [transform] holding [TRANSFORM_FLOATS] floats, moving the last
+   * one it wrote to previous; an entity not written at the last extract starts where it is.
+   */
+  internal fun writeTransform(id: Int, transform: FloatArray) {
     ensureCapacity(maxOf(id, count) + 1)
-    val seenLastTick = writtenAt[id] == extracts - 1
-    previousX[id] = if (seenLastTick) currentX[id] else x
-    previousY[id] = if (seenLastTick) currentY[id] else y
-    currentX[id] = x
-    currentY[id] = y
-    size[id] = quad.size
-    red[id] = quad.red
-    green[id] = quad.green
-    blue[id] = quad.blue
+    val base = id * TRANSFORM_FLOATS
+    if (writtenAt[id] == extracts - 1) {
+      System.arraycopy(current, base, previous, base, TRANSFORM_FLOATS)
+    } else {
+      System.arraycopy(transform, 0, previous, base, TRANSFORM_FLOATS)
+    }
+    System.arraycopy(transform, 0, current, base, TRANSFORM_FLOATS)
     writtenAt[id] = extracts
+  }
+
+  /** Lists entity [id] among this tick's meshes, drawing [shape] or [custom]. */
+  internal fun addMesh(id: Int, shape: MeshShape?, custom: MeshData?) {
+    shapes[id] = shape
+    customMeshes[id] = custom
     drawn[count++] = id
   }
 
   private fun ensureCapacity(needed: Int) {
     if (needed <= writtenAt.size) return
     val grown = maxOf(needed, writtenAt.size * 2)
-    columns.forEach { it.grow(grown) }
+    previous = previous.copyOf(grown * TRANSFORM_FLOATS)
+    current = current.copyOf(grown * TRANSFORM_FLOATS)
+    materials = materials.copyOf(grown * MaterialFloats.COUNT)
+    shapes = shapes.copyOf(grown)
+    customMeshes = customMeshes.copyOf(grown)
     val old = writtenAt.size
     writtenAt = writtenAt.copyOf(grown).also { it.fill(NEVER, old) }
     drawn = drawn.copyOf(grown)
   }
 
-  private fun lerp(from: Float, to: Float, alpha: Float): Float = from + (to - from) * alpha
+  private fun lerp(at: Int, alpha: Float): Float =
+    previous[at] + (current[at] - previous[at]) * alpha
 }

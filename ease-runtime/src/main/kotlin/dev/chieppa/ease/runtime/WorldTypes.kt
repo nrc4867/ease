@@ -3,8 +3,14 @@ package dev.chieppa.ease.runtime
 import dev.chieppa.ease.assets.reload.registerAssetCommands
 import dev.chieppa.ease.commands.WorldCodec
 import dev.chieppa.ease.commands.worldCodec
-import dev.chieppa.ease.render.Quad
-import dev.chieppa.ease.render.QuadReplicated
+import dev.chieppa.ease.render.scene.Camera
+import dev.chieppa.ease.render.scene.CameraReplicated
+import dev.chieppa.ease.render.scene.DirectionalLight
+import dev.chieppa.ease.render.scene.DirectionalLightReplicated
+import dev.chieppa.ease.render.scene.Material
+import dev.chieppa.ease.render.scene.MaterialReplicated
+import dev.chieppa.ease.render.scene.Mesh
+import dev.chieppa.ease.render.scene.MeshReplicated
 import dev.chieppa.ease.scene.commands.registerSceneCommands
 import dev.chieppa.ease.scene.types.SceneTypes
 
@@ -23,10 +29,16 @@ internal class WorldTypes(module: GameModule) {
   val codec: WorldCodec = worldCodec {
     registerAssetCommands()
     registerSceneCommands()
-    replicated(QuadReplicated)
+    replicated(MeshReplicated)
+    replicated(MaterialReplicated)
+    replicated(CameraReplicated)
+    replicated(DirectionalLightReplicated)
     scene =
       SceneTypes.build(this) {
-        component(Quad, Quad.serializer())
+        component(Mesh, Mesh.serializer())
+        component(Material, Material.serializer())
+        component(Camera, Camera.serializer())
+        component(DirectionalLight, DirectionalLight.serializer())
         module.registerSceneTypes(this)
       }
     module.registerTypes(this)

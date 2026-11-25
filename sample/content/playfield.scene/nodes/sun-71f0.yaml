@@ -1,0 +1,22 @@
+components:
+  ease.DirectionalLight:
+    ambient: 0.2
+    blue: 1.0
+    green: 1.0
+    intensity: 3.0
+    red: 1.0
+  ease.LocalTransform:
+    rotationW: 0.95972705
+    rotationX: 0.2193728
+    rotationY: -0.17549823
+    rotationZ: 0.0
+    scaleX: 1.0
+    scaleY: 1.0
+    scaleZ: 1.0
+    x: 0.0
+    "y": 0.0
+    z: 0.0
+formatVersion: 1
+id: "71f0c2d94ab3e05d"
+name: Sun
+order: zx

@@ -39,7 +39,10 @@ internal fun KSAnnotation.enumArgument(name: String): String? =
     else -> value?.toString()?.substringAfterLast('.')
   }
 
-/** Names of the annotations the readers know, as `ease-ecs` and `ease-annotations` declare them. */
+/**
+ * Names of the annotations the readers know, as `ease-ecs`, `ease-annotations` and `ease-memory`
+ * declare them.
+ */
 internal object AnnotationNames {
   private const val REPLICATION = "dev.chieppa.ease.ecs.replication"
   const val REPLICATED = "$REPLICATION.Replicated"
@@ -55,4 +58,6 @@ internal object AnnotationNames {
   const val DOC = "$ANNOTATIONS.Doc"
   const val RANGE = "$ANNOTATIONS.Range"
   const val SERIALIZED_AS = "$ANNOTATIONS.SerializedAs"
+
+  const val GPU_STRUCT = "dev.chieppa.ease.memory.GpuStruct"
 }

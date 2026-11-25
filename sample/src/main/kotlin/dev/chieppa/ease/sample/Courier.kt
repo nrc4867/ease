@@ -8,7 +8,7 @@ import dev.chieppa.ease.ecs.replication.Replicated
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-@Doc("A courier: the square its owner's input moves, at up to its pace.")
+@Doc("A courier: the cube its owner's input moves, at up to its pace.")
 @Replicated
 @Serializable
 @SerialName("sample.Courier")

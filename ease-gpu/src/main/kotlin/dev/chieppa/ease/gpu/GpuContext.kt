@@ -5,6 +5,8 @@ import dev.chieppa.ease.gpu.ffi.createSurface
 import dev.chieppa.ease.gpu.ffi.readString
 import dev.chieppa.ease.gpu.ffi.requestAdapter
 import dev.chieppa.ease.gpu.ffi.requestDevice
+import dev.chieppa.ease.memory.FrameArena
+import dev.chieppa.ease.memory.MemoryChecks
 import dev.chieppa.ease.platform.SurfaceHandle
 import dev.chieppa.webgpu.WgpuNative
 import dev.chieppa.webgpu.ffi.WGPUAdapterInfo
@@ -13,9 +15,11 @@ import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 
 /**
- * A wgpu device with the instance and adapter it came from, and the window surface it presents to
- * when it has one. Use it from one thread at a time.
+ * A wgpu device with the instance and adapter it came from, the window surface it presents to when
+ * it has one, and the [frames] arena per-frame descriptors and uploads are written into. A host
+ * calls [beginFrame] before recording each frame. Use it from one thread at a time.
  */
+@Suppress("LongParameterList") // A private constructor the factories fill in.
 public class GpuContext
 private constructor(
   internal val instance: MemorySegment,
@@ -25,12 +29,27 @@ private constructor(
   public val description: String,
   surfaceHandle: MemorySegment?,
   private val errors: ErrorLog,
+  /** Native memory for what a frame hands to wgpu, valid until the next [beginFrame]. */
+  public val frames: FrameArena,
 ) : AutoCloseable {
   internal val queue: MemorySegment = wgpu_h.wgpuDeviceGetQueue(device)
 
   /** The surface of the window this context was opened for, or null when it has none. */
   public val surface: WindowSurface? = surfaceHandle?.let {
     WindowSurface(this, it, checkNotNull(adapter))
+  }
+
+  private val reusableEncoder = CommandEncoder(0L, this)
+
+  /**
+   * A new encoder on this device held in the one object this context reuses for it, so a frame loop
+   * records without allocating. Submit it before asking for the next.
+   */
+  public fun frameEncoder(): CommandEncoder = reusableEncoder.restart()
+
+  /** Starts a frame: the slices of [frames] taken for an earlier frame go stale. */
+  public fun beginFrame() {
+    frames.beginFrame()
   }
 
   /** Throws the first error wgpu reported for this device outside a call, if there was one. */
@@ -56,21 +75,27 @@ private constructor(
     adapter?.let(wgpu_h::wgpuAdapterRelease)
     wgpu_h.wgpuInstanceRelease(instance)
     errors.close()
+    frames.close()
   }
 
   public companion object {
     /**
      * A new device on the best adapter, able to present to [window] when one is given; that
-     * window's surface is [surface].
+     * window's surface is [surface]. With [frameChecks], slices of [frames] throw when used after
+     * their frame; the default follows the build.
      */
-    public fun open(window: SurfaceHandle? = null): GpuContext {
+    public fun open(
+      window: SurfaceHandle? = null,
+      frameChecks: Boolean = MemoryChecks.enabled,
+    ): GpuContext {
       WgpuNative.load()
       val instance = createInstance()
       val surface = window?.let { createSurface(instance, it) }
       val adapter = requestAdapter(instance, surface)
       val errors = ErrorLog(Arena.ofShared())
       val device = requestDevice(instance, adapter, checkNotNull(errors.callbacks), errors::report)
-      return GpuContext(instance, adapter, device, describe(adapter), surface, errors)
+      val frames = FrameArena(checked = frameChecks)
+      return GpuContext(instance, adapter, device, describe(adapter), surface, errors, frames)
     }
 
     /**
@@ -92,6 +117,7 @@ private constructor(
         description,
         null,
         ErrorLog(callbacks = null),
+        FrameArena(),
       )
     }
 

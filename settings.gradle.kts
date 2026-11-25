@@ -46,6 +46,8 @@ include(":ease-math")
 
 include(":ease-annotations")
 
+include(":ease-memory")
+
 include(":ease-ecs")
 
 include(":ease-serialization")

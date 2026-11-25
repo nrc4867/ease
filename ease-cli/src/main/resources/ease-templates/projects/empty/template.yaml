@@ -1,4 +1,4 @@
-description: A game with one square on screen, a test and nothing else
+description: A game with one lit cube on screen, a test and nothing else
 formatVersion: 1
 gameModule: game
 parts:

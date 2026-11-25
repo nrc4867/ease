@@ -9,6 +9,7 @@ plugins {
 dependencies {
   api(project(":ease-gpu"))
   api(project(":ease-ecs"))
+  testImplementation(project(":ease-testing"))
   ksp(project(":ease-codegen"))
   testRuntimeOnly(
     project.dependencies.variantOf(libs.webgpu.native.ffm) {

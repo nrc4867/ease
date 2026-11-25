@@ -38,9 +38,7 @@ class SceneProblemsTest {
   fun `a node naming a component type the game does not register stops a debug build`() {
     val glimmer = JsonObject(mapOf("shine" to JsonPrimitive(1)))
     val content =
-      withNode(
-        SceneNode(LocalId(EXTRA_ID), "Glimmer square", null, LAST, mapOf(UNKNOWN to glimmer))
-      )
+      withNode(SceneNode(LocalId(EXTRA_ID), "Glimmer cube", null, LAST, mapOf(UNKNOWN to glimmer)))
 
     val failure =
       assertFailsWith<IllegalStateException> {
@@ -61,7 +59,7 @@ class SceneProblemsTest {
 
     repeat(QUIET_TICKS) { local.step() }
     val atStart = reported.toList()
-    val coral = content.squares().single { it.name == "Coral square" }
+    val coral = content.cubes().single { it.name == "Coral cube" }
     content.edit(content.playfield().with(coral.withField(TRANSFORM, "x", JsonPrimitive(1f))))
     repeat(QUIET_TICKS) { local.step() }
 

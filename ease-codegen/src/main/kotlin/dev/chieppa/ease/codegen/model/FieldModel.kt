@@ -19,6 +19,8 @@ internal data class FieldModel(
   val audience: FieldAudience = FieldAudience.EVERYONE,
   /** Whether generated code can set the property: its setter is not private or protected. */
   val settable: Boolean = true,
+  /** Whether the property's type is an enum class. */
+  val isEnum: Boolean = false,
 ) {
   /** How the field goes on the wire, or null for a type that cannot replicate. */
   val kind: FieldKind?
@@ -30,6 +32,7 @@ internal data class FieldModel(
         typeName == FLOAT -> FieldKind.FLOAT
         typeName == INT -> FieldKind.INT
         typeName == BOOLEAN -> FieldKind.BOOLEAN
+        isEnum -> FieldKind.ENUM
         else -> null
       }
 

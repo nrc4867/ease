@@ -30,7 +30,7 @@ class SampleAgentReplicaTest {
   @Test
   fun `the replay check passes on the scene and leaves pending file changes to the live world`() {
     val content = agent.content
-    val coral = content.squares().single { it.name == "Coral square" }
+    val coral = content.cubes().single { it.name == "Coral cube" }
     content.edit(content.playfield().without(coral.id))
 
     val result = agent.json(agent.call("test", buildJsonObject { put("check", "replay") }))

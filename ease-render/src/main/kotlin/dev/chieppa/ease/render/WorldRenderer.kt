@@ -3,54 +3,76 @@ package dev.chieppa.ease.render
 import dev.chieppa.ease.gpu.Color
 import dev.chieppa.ease.gpu.CommandEncoder
 import dev.chieppa.ease.gpu.GpuContext
-import dev.chieppa.ease.gpu.InstancedQuadPass
-import dev.chieppa.ease.gpu.QuadInstances
 import dev.chieppa.ease.gpu.RenderTarget
-import dev.chieppa.ease.gpu.View2D
+import dev.chieppa.ease.gpu.lit.LitMeshPass
+import dev.chieppa.ease.gpu.lit.MaterialFloats
+import dev.chieppa.ease.gpu.lit.MeshFrame
+import dev.chieppa.ease.gpu.mesh.MeshData
+import dev.chieppa.ease.render.scene.MeshShape
 
-/** Quads a renderer draws at most unless told otherwise. */
-public const val DEFAULT_QUAD_CAPACITY: Int = 4096
+/** Meshes a renderer draws at most unless told otherwise. */
+public const val DEFAULT_DRAW_CAPACITY: Int = 4096
 
 /**
- * Draws a [RenderSnapshot] through a camera: the target cleared to [clear], then one quad per
- * entity the snapshot holds, placed between its previous and current tick. Holds room for
- * [capacity] quads, made once, so drawing a frame allocates no Kotlin objects.
+ * Draws a [RenderSnapshot]: the target cleared to [clear], then every mesh the snapshot holds,
+ * placed between its previous and current tick, seen through the snapshot's camera and lit by its
+ * light, in the lit material template with a depth buffer. With no camera it only clears. Holds
+ * room for [capacity] meshes and the built-in shapes' meshes, made once, so drawing a frame
+ * allocates nothing on the heap.
  */
 public class WorldRenderer(
   context: GpuContext,
-  public val capacity: Int = DEFAULT_QUAD_CAPACITY,
-  clear: Color = InstancedQuadPass.DEFAULT_CLEAR,
+  public val capacity: Int = DEFAULT_DRAW_CAPACITY,
+  clear: Color = MeshFrame.DEFAULT_CLEAR,
 ) : AutoCloseable {
-  private val pass = InstancedQuadPass(context, capacity, clear)
-  private val quads = QuadInstances(capacity)
-  private val view = View2D()
+  private val pass = LitMeshPass(context, capacity)
+  private val frame = MeshFrame(capacity).also { it.clear = clear }
+  private val shapes = MeshShape.entries.map(Primitives::build).toTypedArray()
+  private val view = CameraView()
+  private val transform = FloatArray(TRANSFORM_FLOATS)
+  private val draws = DrawTransforms()
 
   /**
-   * Records into [encoder] a frame of [snapshot] seen by [camera] in [target], each quad [alpha] of
-   * the way from its previous tick's position to its current one. Fails when the snapshot holds
-   * more than [capacity] quads.
+   * Records into [encoder] a frame of [snapshot] in [target], each entity [alpha] of the way from
+   * its previous tick's transform to its current one. Fails when the snapshot holds more than
+   * [capacity] meshes.
    */
   public fun render(
     snapshot: RenderSnapshot,
     alpha: Float,
-    camera: Camera2D,
     target: RenderTarget,
     encoder: CommandEncoder,
   ) {
     check(snapshot.count <= capacity) {
-      "${snapshot.count} quads do not fit a renderer for $capacity"
+      "${snapshot.count} meshes do not fit a renderer for $capacity"
     }
-    quads.clear()
-    for (index in 0 until snapshot.count) {
-      val id = snapshot.entityAt(index)
-      val quad = quads.add(snapshot.x(id, alpha), snapshot.y(id, alpha), snapshot.size[id])
-      quads.setColor(quad, snapshot.red[id], snapshot.green[id], snapshot.blue[id])
+    frame.clearDraws()
+    val camera = snapshot.camera
+    if (camera.present) {
+      snapshot.transformInto(camera.entity, alpha, transform, 0)
+      view.write(transform, camera, target.size, frame)
+      LightSetup.write(snapshot, alpha, transform, frame)
+      for (index in 0 until snapshot.count) addDraw(snapshot, snapshot.entityAt(index), alpha)
     }
-    camera.applyTo(view, target.size)
-    pass.record(encoder, target, view, quads)
+    pass.record(encoder, target, frame)
+  }
+
+  private fun addDraw(snapshot: RenderSnapshot, id: Int, alpha: Float) {
+    val mesh: MeshData = snapshot.customMesh(id) ?: shapes[checkNotNull(snapshot.shape(id)).ordinal]
+    val index = frame.add(mesh)
+    snapshot.transformInto(id, alpha, transform, 0)
+    draws.write(transform, frame.models, frame.normals, index)
+    System.arraycopy(
+      snapshot.materials,
+      id * MaterialFloats.COUNT,
+      frame.materials,
+      index * MaterialFloats.COUNT,
+      MaterialFloats.COUNT,
+    )
   }
 
   override fun close() {
     pass.close()
+    shapes.forEach(MeshData::close)
   }
 }

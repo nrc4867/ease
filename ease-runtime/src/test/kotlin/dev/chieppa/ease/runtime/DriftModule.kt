@@ -9,16 +9,17 @@ import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.ecs.replication.replication
-import dev.chieppa.ease.render.Quad
+import dev.chieppa.ease.render.scene.Mesh
+import dev.chieppa.ease.render.scene.MeshShape
 
-/** A game whose one quad drifts one unit along x every tick, moved by a host system. */
+/** A game whose one cube drifts one unit along x every tick, moved by a host system. */
 internal class DriftModule : GameModule {
   override fun hostSystems(systems: PhasedSystems) {
     systems.add(Phase.SIMULATION, DriftSystem())
   }
 
   override fun populate(world: HostedWorld) {
-    world.execute(Spawn(listOf<Component<out Any>>(LocalTransform(), Quad.of(1f, 1f, 1f, 1f))))
+    world.execute(Spawn(listOf<Component<out Any>>(LocalTransform(), Mesh.of(MeshShape.CUBE))))
   }
 
   private class DriftSystem : IteratingSystem(family { all(LocalTransform) }) {

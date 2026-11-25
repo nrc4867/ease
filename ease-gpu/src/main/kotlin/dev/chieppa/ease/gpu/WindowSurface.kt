@@ -1,6 +1,7 @@
 package dev.chieppa.ease.gpu
 
 import dev.chieppa.ease.gpu.ffi.Flags
+import dev.chieppa.ease.gpu.ffi.FrameCalls
 import dev.chieppa.ease.platform.PixelSize
 import dev.chieppa.webgpu.ffi.WGPUSurfaceCapabilities
 import dev.chieppa.webgpu.ffi.WGPUSurfaceConfiguration
@@ -9,6 +10,11 @@ import dev.chieppa.webgpu.ffi.wgpu_h
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout
+
+private const val ACQUIRE_SITE = "WindowSurface.acquire"
+
+/** No texture: the null address. */
+private const val NONE = 0L
 
 /**
  * A window's surface: [configure] it for the window's pixel size, then each frame [acquire] a
@@ -25,8 +31,11 @@ internal constructor(
   public val format: TextureFormat = supportedFormats().first()
 
   private var size = PixelSize(0, 0)
-  private var current: MemorySegment? = null
-  private var currentView: MemorySegment? = null
+  private var current = NONE
+  private var currentView = NONE
+
+  /** The one target [acquire] hands out, pointed at each frame's texture in turn. */
+  private val target = RenderTarget(NONE, size, format)
 
   /**
    * Sizes the surface's frames to [size]; call it again whenever the window's pixel size changes.
@@ -48,46 +57,46 @@ internal constructor(
   }
 
   /**
-   * The next frame to draw into, or null when there is none to draw: the window is minimized, or
-   * the surface is out of date and needs [configure] with the window's size.
+   * The next frame to draw into, valid until [present], or null when there is none to draw: the
+   * window is minimized, or the surface is out of date and needs [configure] with the window's
+   * size.
    */
   public fun acquire(): RenderTarget? {
-    check(current == null) { "The last frame was not presented" }
+    check(current == NONE) { "The last frame was not presented" }
     if (size.isEmpty) return null
-    return Arena.ofConfined().use { arena ->
-      val frame = arena.allocate(WGPUSurfaceTexture.layout())
-      wgpu_h.wgpuSurfaceGetCurrentTexture(handle, frame)
-      val texture = WGPUSurfaceTexture.texture(frame)
-      when (WGPUSurfaceTexture.status(frame)) {
-        wgpu_h.WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal(),
-        wgpu_h.WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal() -> {
-          val view = wgpu_h.wgpuTextureCreateView(texture, MemorySegment.NULL)
-          current = texture
-          currentView = view
-          RenderTarget(view, size, format)
-        }
-        wgpu_h.WGPUSurfaceGetCurrentTextureStatus_Error() ->
-          throw GpuException("The surface failed")
-        else -> {
-          if (texture != MemorySegment.NULL) wgpu_h.wgpuTextureRelease(texture)
-          null
-        }
+    val frame = context.frames.take(WGPUSurfaceTexture.layout().byteSize(), ACQUIRE_SITE).segment
+    wgpu_h.wgpuSurfaceGetCurrentTexture(handle, frame)
+    val texture = frame.get(ValueLayout.JAVA_LONG, WGPUSurfaceTexture.`texture$offset`())
+    return when (WGPUSurfaceTexture.status(frame)) {
+      wgpu_h.WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal(),
+      wgpu_h.WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal() -> {
+        val view = FrameCalls.createView(texture)
+        current = texture
+        currentView = view
+        target.view = view
+        target.size = size
+        target
+      }
+      wgpu_h.WGPUSurfaceGetCurrentTextureStatus_Error() -> throw GpuException("The surface failed")
+      else -> {
+        if (texture != NONE) FrameCalls.releaseTexture(texture)
+        null
       }
     }
   }
 
   /** Shows the frame [acquire] last returned, once the commands drawing it are submitted. */
   public fun present() {
-    val texture = checkNotNull(current) { "No frame was acquired" }
+    check(current != NONE) { "No frame was acquired" }
     wgpu_h.wgpuSurfacePresent(handle)
-    currentView?.let(wgpu_h::wgpuTextureViewRelease)
-    wgpu_h.wgpuTextureRelease(texture)
-    current = null
-    currentView = null
+    FrameCalls.releaseView(currentView)
+    FrameCalls.releaseTexture(current)
+    current = NONE
+    currentView = NONE
   }
 
   override fun close() {
-    if (current != null) present()
+    if (current != NONE) present()
     wgpu_h.wgpuSurfaceRelease(handle)
   }
 

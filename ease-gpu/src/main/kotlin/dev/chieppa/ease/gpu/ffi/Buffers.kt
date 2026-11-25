@@ -20,15 +20,16 @@ internal fun createBuffer(device: MemorySegment, bytes: Long, usage: Long): Memo
 internal class BufferBinding(val buffer: MemorySegment, val bytes: Long)
 
 /**
- * A bind group on [device] for group 0 of [pipeline]'s layout, binding each of [buffers] at the
- * binding numbered by its position.
+ * A bind group on [device] for group [group] of [pipeline]'s layout, binding each of [buffers] at
+ * the binding numbered by its position.
  */
 internal fun createBufferBindGroup(
   device: MemorySegment,
   pipeline: MemorySegment,
   buffers: List<BufferBinding>,
+  group: Int = 0,
 ): MemorySegment {
-  val layout = wgpu_h.wgpuRenderPipelineGetBindGroupLayout(pipeline, 0)
+  val layout = wgpu_h.wgpuRenderPipelineGetBindGroupLayout(pipeline, group)
   val bindGroup =
     Arena.ofConfined().use { arena ->
       val entries = arena.allocate(WGPUBindGroupEntry.layout(), buffers.size.toLong())

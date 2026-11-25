@@ -32,7 +32,16 @@ public class CourierScript : InputScript {
     }
 
     /** The courier as it spawns: white, at the center, standing still. */
-    public val COURIER: Square =
-      Square(x = 0f, y = 0f, speedX = 0f, speedY = 0f, size = 0.7f, rgb = 0xF2F2F2)
+    public val COURIER: Cube =
+      Cube(
+        x = 0f,
+        y = 0f,
+        speedX = 0f,
+        speedY = 0f,
+        size = 0.7f,
+        red = 0.9f,
+        green = 0.9f,
+        blue = 0.9f,
+      )
   }
 }
