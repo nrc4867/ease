@@ -87,6 +87,7 @@ class ActionInputTest {
   @Test
   fun `a blocking context hides the actions below it`() {
     input.contexts.push(menu)
+    input.update()
     keyboard.set("key.space")
     keyboard.set("key.enter")
     input.update()
@@ -95,6 +96,10 @@ class ActionInputTest {
     assertTrue(input.pressed(confirm))
 
     input.contexts.pop()
+    keyboard.release("key.space")
+    keyboard.release("key.enter")
+    input.update()
+    keyboard.set("key.space")
     input.update()
     assertTrue(input.pressed(jump))
   }
@@ -148,6 +153,90 @@ class ActionInputTest {
     keyboard.set("key.w")
     input.update()
     assertTrue(input.pressed(jump))
+  }
+
+  @Test
+  fun `rebinding one direction of an axis keeps the other`() {
+    gameplay.rebind("move_x", "key.l")
+    gameplay.rebind("move_x", "key.j", -1f)
+
+    val keys = gameplay.bindings.filter { it.action == "move_x" }.map { it.control to it.scale }
+    assertEquals(setOf("gamepad.left_x" to 1f, "key.l" to 1f, "key.j" to -1f), keys.toSet())
+  }
+
+  @Test
+  fun `a button held while a context is pushed fires nothing in it until let go`() {
+    pad.set("gamepad.south")
+    input.update()
+    assertTrue(input.justPressed(jump))
+    input.update()
+
+    input.contexts.push(menu)
+    input.update()
+    assertFalse(input.justPressed(confirm))
+    assertFalse(input.pressed(confirm))
+    assertFalse(input.justReleased(jump))
+
+    pad.release("gamepad.south")
+    input.update()
+    pad.set("gamepad.south")
+    input.update()
+    assertTrue(input.justPressed(confirm))
+  }
+
+  @Test
+  fun `a button held across a pop does not fire in the context below`() {
+    input.contexts.push(menu)
+    pad.set("gamepad.south")
+    input.update()
+    assertTrue(input.justPressed(confirm))
+
+    input.contexts.pop()
+    input.update()
+
+    assertFalse(input.justPressed(jump))
+    assertFalse(input.justReleased(confirm))
+  }
+
+  @Test
+  fun `a held button stays held when a context that does not touch it is pushed`() {
+    keyboard.set("key.space")
+    input.update()
+    input.contexts.push(InputContext("overlay").bind("confirm", "key.enter"))
+    input.update()
+
+    assertTrue(input.pressed(jump))
+    assertFalse(input.justPressed(jump))
+  }
+
+  @Test
+  fun `polling a desktop input and a recorded input allocate nothing`() {
+    val pads =
+      object : GamepadProvider {
+        val pad =
+          object : GamepadHandle {
+            override val name = "pad"
+
+            override fun isDown(button: Int) = button == 0
+
+            override fun axis(axis: Int) = 0.3f
+          }
+        val list = listOf(pad)
+
+        override fun update() = Unit
+
+        override fun scan(): List<GamepadHandle> = list
+      }
+    val desktop = DesktopInput({ it == 7 }, pads)
+    val recorded = RecordedInput(listOf(mapOf("key.d" to 1f), emptyMap()))
+    val scripted =
+      ScriptedInput(ScriptedDevice(DeviceKind.GAMEPAD).also { it.set("gamepad.south") })
+
+    AllocationBudget.assertNoAllocation {
+      desktop.poll()
+      recorded.poll()
+      scripted.poll()
+    }
   }
 
   @Test

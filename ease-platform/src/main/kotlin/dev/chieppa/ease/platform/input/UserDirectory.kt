@@ -19,9 +19,9 @@ public object UserDirectory {
     val root =
       when {
         os.startsWith("windows") ->
-          environment("APPDATA")?.let(Path::of) ?: home.resolve("AppData/Roaming")
+          absolute(environment("APPDATA")) ?: home.resolve("AppData/Roaming")
         os.startsWith("mac") -> home.resolve("Library/Application Support")
-        else -> environment("XDG_CONFIG_HOME")?.let(Path::of) ?: home.resolve(".config")
+        else -> absolute(environment("XDG_CONFIG_HOME")) ?: home.resolve(".config")
       }
     return root.resolve(game)
   }
@@ -32,4 +32,8 @@ public object UserDirectory {
     player: String = "default",
     directory: Path = of(game),
   ): Path = directory.resolve("bindings-$player.yaml")
+
+  /** [value] as a path when it is set, not blank and absolute; otherwise null. */
+  private fun absolute(value: String?): Path? =
+    value?.takeIf { it.isNotBlank() }?.let(Path::of)?.takeIf { it.isAbsolute }
 }

@@ -30,6 +30,9 @@ private val CONTROLS =
   BUTTONS.mapIndexed { number, id -> GamepadControl("gamepad.$id", false, number, 1f) } +
     AXES.mapIndexed { number, (id, sign) -> GamepadControl("gamepad.$id", true, number, sign) }
 
+/** The id of every control a [GamepadDevice] reads. */
+internal val GAMEPAD_CONTROLS: List<String> = CONTROLS.map { it.id }
+
 /**
  * One gamepad. Buttons: `gamepad.south`, `east`, `west`, `north` (the face buttons by position, so
  * glyphs can follow the model), `back`, `guide`, `start`, `left_stick`, `right_stick`,
@@ -37,8 +40,7 @@ private val CONTROLS =
  * `left_x`, `left_y`, `right_x` and `right_y` (up and right positive), `left_trigger` and
  * `right_trigger`.
  */
-public class GamepadDevice(private val handle: GamepadHandle) :
-  SampledDevice(CONTROLS.map { it.id }) {
+public class GamepadDevice(private val handle: GamepadHandle) : SampledDevice(GAMEPAD_CONTROLS) {
   override val kind: DeviceKind = DeviceKind.GAMEPAD
   override val name: String
     get() = handle.name

@@ -23,6 +23,9 @@ public class ActionInput(
   private val values = FloatArray(count)
   private val before = FloatArray(count)
   private val claimed = BooleanArray(count)
+  private val held = BooleanArray(count)
+  private var seenVersion = contexts.version
+  private var started = false
 
   /** The kind of device the player used last, or null before any input. */
   public var activeDevice: DeviceKind? = null
@@ -39,6 +42,28 @@ public class ActionInput(
       val context = contexts[level]
       applyBindings(context)
       if (context.blocksBelow) break
+    }
+    settleStackChange()
+  }
+
+  /**
+   * After the contexts in force change, a button held across the change does not count as pressed
+   * or released by it: one newly reachable stays unpressed until the control is let go, and one
+   * hidden reads as released without an edge.
+   */
+  private fun settleStackChange() {
+    val changed = started && contexts.version != seenVersion
+    started = true
+    seenVersion = contexts.version
+    for (action in 0 until count) {
+      if (actions.actions[action].kind != ActionKind.BUTTON) continue
+      val now = values[action] >= PRESS_THRESHOLD
+      val was = before[action] >= PRESS_THRESHOLD
+      if (changed && now && !was) held[action] = true
+      if (changed && !now && was) before[action] = 0f
+      if (held[action]) {
+        if (now) values[action] = 0f else held[action] = false
+      }
     }
   }
 
@@ -112,13 +137,13 @@ public class ActionInput(
       val raw = devices[index].value(binding.control)
       if (abs(raw) > abs(strongest)) strongest = raw
     }
-    return applyDeadzone(strongest) * binding.scale
+    return applyDeadzone(strongest, deadzone) * binding.scale
   }
+}
 
-  private fun applyDeadzone(raw: Float): Float {
-    val size = abs(raw)
-    if (size <= deadzone) return 0f
-    val rescaled = (size - deadzone) / (1f - deadzone)
-    return if (raw < 0f) -rescaled else rescaled
-  }
+private fun applyDeadzone(raw: Float, deadzone: Float): Float {
+  val size = abs(raw)
+  if (size <= deadzone) return 0f
+  val rescaled = (size - deadzone) / (1f - deadzone)
+  return if (raw < 0f) -rescaled else rescaled
 }

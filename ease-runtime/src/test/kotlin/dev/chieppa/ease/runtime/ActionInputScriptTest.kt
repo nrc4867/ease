@@ -4,6 +4,7 @@ import com.github.quillraven.fleks.World.Companion.family
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.replication.Authority
 import dev.chieppa.ease.ecs.replication.PeerId
+import dev.chieppa.ease.net.input.InputLayout
 import dev.chieppa.ease.platform.input.ActionDefinition
 import dev.chieppa.ease.platform.input.ActionInput
 import dev.chieppa.ease.platform.input.ActionKind
@@ -13,6 +14,7 @@ import dev.chieppa.ease.platform.input.RecordedInput
 import dev.chieppa.ease.runtime.loop.FixedStep
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /** Actions driven by a recorded device reach the predicted walker exactly as raw input would. */
@@ -42,7 +44,7 @@ class ActionInputScriptTest {
     return LocalHost(
       WalkModule(),
       FixedStep.perSecond(),
-      ActionInputScript(input, axes = listOf("move"), buttons = listOf("jump")),
+      ActionInputScript(input, InputLayout(axes = 2, buttons = 8), listOf("move"), listOf("jump")),
     )
   }
 
@@ -81,6 +83,15 @@ class ActionInputScriptTest {
     }
 
     assertEquals(walkerX(first), walkerX(second))
+  }
+
+  @Test
+  fun `more actions than the layout holds are refused`() {
+    val input = ActionInput(RecordedInput(recording), actions)
+
+    assertFailsWith<IllegalArgumentException> {
+      ActionInputScript(input, InputLayout(axes = 0, buttons = 8), listOf("move"), emptyList())
+    }
   }
 
   private companion object {

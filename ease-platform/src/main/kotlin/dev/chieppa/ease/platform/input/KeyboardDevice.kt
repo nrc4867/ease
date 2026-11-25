@@ -29,12 +29,14 @@ private val KEYS: List<Pair<String, Int>> = buildList {
   for ((name, scancode) in NAMED_KEYS) add("key.$name" to scancode)
 }
 
+/** The id of every key a [KeyboardDevice] reads. */
+internal val KEYBOARD_CONTROLS: List<String> = KEYS.map { it.first }
+
 /**
  * The keyboard: letters, digits, arrows, space, enter, escape, backspace, tab, left control and
  * left shift, as `key.a`, `key.1`, `key.up`, `key.space`, `key.left_shift` and so on.
  */
-public class KeyboardDevice(private val state: KeyboardState) :
-  SampledDevice(KEYS.map { it.first }) {
+public class KeyboardDevice(private val state: KeyboardState) : SampledDevice(KEYBOARD_CONTROLS) {
   private val scancodes = KEYS.map { it.second }.toIntArray()
 
   override val kind: DeviceKind = DeviceKind.KEYBOARD

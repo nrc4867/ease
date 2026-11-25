@@ -1,5 +1,7 @@
 package dev.chieppa.ease.platform.input
 
+import kotlin.math.sign
+
 /**
  * Ties [control] (such as `key.space` or `gamepad.left_x`) to the action called [action]. An axis
  * action reads the control's value times [scale], so `key.a` with scale -1 pushes it left; a button
@@ -25,15 +27,16 @@ public class InputContext(public val name: String, public val blocksBelow: Boole
   }
 
   /**
-   * Makes [control] the way to trigger [action] on the device family it belongs to: bindings of
-   * [action] on that family are replaced, those on other families stay. The new binding keeps the
-   * scale of the first one it replaces, or [scale] when there was none.
+   * Makes [control] a way to trigger [action], replacing the binding of [action] on the same device
+   * family and in the same direction (the sign of [scale]): rebinding an axis's right key leaves
+   * its left key, and bindings on other device families stay.
    */
   public fun rebind(action: String, control: String, scale: Float = 1f) {
     val kind = requireNotNull(DeviceKind.of(control)) { "Unknown control $control" }
-    val replaced = entries.firstOrNull { it.action == action && DeviceKind.of(it.control) == kind }
-    entries.removeAll { it.action == action && DeviceKind.of(it.control) == kind }
-    entries += Binding(action, control, replaced?.scale ?: scale)
+    entries.removeAll {
+      it.action == action && DeviceKind.of(it.control) == kind && sign(it.scale) == sign(scale)
+    }
+    entries += Binding(action, control, scale)
   }
 
   /** Replaces every binding with [replacement]. */
@@ -54,13 +57,18 @@ public class InputContextStack {
   /** The context at [index], 0 being the bottom. */
   public operator fun get(index: Int): InputContext = stack[index]
 
+  /** Counts the pushes and pops so far; a change tells readers the contexts in force changed. */
+  public var version: Int = 0
+    private set
+
   /** Puts [context] on top. */
   public fun push(context: InputContext) {
     stack += context
+    version++
   }
 
   /** Takes the top context off and returns it. */
-  public fun pop(): InputContext = stack.removeAt(stack.lastIndex)
+  public fun pop(): InputContext = stack.removeAt(stack.lastIndex).also { version++ }
 
   /** The contexts, bottom first. */
   public val contexts: List<InputContext>

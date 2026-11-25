@@ -45,7 +45,7 @@ private class SdlGamepadProvider : GamepadProvider {
     val ids = SDL_GetGamepads()
     val present = mutableListOf<Int>()
     if (ids != null) {
-      while (ids.hasRemaining()) present += ids.get()
+      for (index in 0 until ids.limit()) present += ids.get(index)
       SDL_free(ids)
     }
     val gone = open.filter { it.id !in present }

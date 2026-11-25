@@ -1,5 +1,6 @@
 package dev.chieppa.ease.runtime
 
+import dev.chieppa.ease.net.input.InputLayout
 import dev.chieppa.ease.platform.input.ActionInput
 import dev.chieppa.ease.platform.input.ActionKind
 
@@ -11,9 +12,17 @@ import dev.chieppa.ease.platform.input.ActionKind
  */
 public class ActionInputScript(
   private val input: ActionInput,
+  layout: InputLayout,
   axes: List<String>,
   buttons: List<String>,
 ) : InputScript {
+  init {
+    require(axes.size <= layout.axes) { "${axes.size} axis actions do not fit ${layout.axes} axes" }
+    require(buttons.size <= layout.buttons) {
+      "${buttons.size} button actions do not fit ${layout.buttons} buttons"
+    }
+  }
+
   private val axisActions = IntArray(axes.size) { checkKind(axes[it], ActionKind.AXIS) }
   private val buttonActions = IntArray(buttons.size) { checkKind(buttons[it], ActionKind.BUTTON) }
 
