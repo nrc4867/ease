@@ -6,11 +6,15 @@ import dev.chieppa.ease.net.channel.Connection
 import dev.chieppa.ease.net.command.CommandIntake
 import dev.chieppa.ease.net.input.InputBuffer
 import dev.chieppa.ease.net.input.InputPacket
+import dev.chieppa.ease.net.relevancy.Viewer
+import dev.chieppa.ease.net.snapshot.PeerPriority
 import dev.chieppa.ease.net.snapshot.PeerSnapshots
+import dev.chieppa.ease.net.view.PeerView
 
 /**
- * One client as the host sees it: its connection, the input it sent, its snapshots and the checks
- * on its commands. Game systems read [inputs] each tick.
+ * One client as the host sees it: its connection, the input it sent, where it looks from, the
+ * entities in its view, its snapshots and the checks on its commands. Game systems read [inputs]
+ * each tick and set the [viewer], usually by focusing it on the client's own character.
  */
 public class HostPeer
 internal constructor(
@@ -35,7 +39,21 @@ internal constructor(
   public var greeted: Boolean = false
     internal set
 
-  internal val snapshots = PeerSnapshots(session.world.replication, session.tracker)
+  /** Where the client looks at the world from, which relevancy and priority read. */
+  public val viewer: Viewer = Viewer(peer)
+
+  private val priority =
+    PeerPriority(session.world, viewer, session.motion, session.viewSettings.priority)
+  internal val snapshots = PeerSnapshots(session.world.replication, session.tracker, priority)
+  internal val view =
+    PeerView(
+      session.world,
+      session.tracker.entities,
+      viewer,
+      session.viewSettings,
+      snapshots,
+      session.spawns,
+    )
   internal val packet = InputPacket(session.settings.input)
   internal val commands =
     CommandIntake(

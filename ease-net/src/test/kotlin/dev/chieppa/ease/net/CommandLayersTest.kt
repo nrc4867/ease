@@ -20,6 +20,10 @@ import kotlin.test.assertTrue
 class CommandLayersTest {
   private val session = Session(entities = 2, owned = 1)
 
+  init {
+    session.step()
+  }
+
   /** Steps once, then asserts both worlds are as they were and [layer] refused one command. */
   private fun assertRefusedAt(layer: CommandLayer) {
     val before = session.states()

@@ -5,12 +5,11 @@ import com.github.quillraven.fleks.World
 import dev.chieppa.ease.commands.worldCodec
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.phasedWorld
-import dev.chieppa.ease.ecs.replication.Authority
-import dev.chieppa.ease.ecs.replication.NetworkIdentity
 import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.ecs.replication.ReplicatedFields
 import dev.chieppa.ease.ecs.replication.ReplicatedSchema
 import dev.chieppa.ease.ecs.replication.ReplicationSettings
+import dev.chieppa.ease.ecs.replication.entityOf
 import dev.chieppa.ease.ecs.replication.networkIdOf
 import dev.chieppa.ease.ecs.replication.replicatedSchema
 import dev.chieppa.ease.ecs.replication.replication
@@ -24,8 +23,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * An entity too large for any snapshot on its own is left out, and the entities after it still
- * reach the client every tick; a debug build throws, naming it.
+ * An entity whose changes are too large for any snapshot on its own is left out, and the entities
+ * after it still reach the client every tick; a debug build throws, naming it. Its spawn, a
+ * reliable message, still fits.
  */
 class OversizedEntityTest {
   private val schemas =
@@ -46,20 +46,6 @@ class OversizedEntityTest {
     val client = world(Session.CLIENT, debug = false)
     val wide: Entity = host.spawnEntity { entity -> schemas.forEach { entity += wideOf(it) } }
     val small: Entity = host.spawnEntity { it += LocalTransform() }
-    val mirroredSmall: Entity
-
-    init {
-      client.entity { entity ->
-        schemas.forEach { entity += wideOf(it) }
-        entity += Authority(PeerId.HOST, PeerId.HOST)
-        entity += NetworkIdentity(host.networkIdOf(wide))
-      }
-      mirroredSmall = client.entity {
-        it += LocalTransform()
-        it += Authority(PeerId.HOST, PeerId.HOST)
-        it += NetworkIdentity(host.networkIdOf(small))
-      }
-    }
 
     val link = LocalLink(clientPeer = Session.CLIENT)
     val hostSession = HostSession(host, codec)
@@ -69,11 +55,17 @@ class OversizedEntityTest {
     fun step(tick: Long) {
       hostSession.receive(tick)
       host.replication.write(small, LocalTransform) { x = tick.toFloat() }
+      schemas.forEach { schema ->
+        host.replication.write(wide, schema.type) {
+          repeat(ReplicatedFields.MAX_FIELDS) { setFloat(it, tick.toFloat()) }
+        }
+      }
       hostSession.send(tick)
       clientSession.receive()
     }
 
-    fun clientX(): Float = with(client) { mirroredSmall[LocalTransform].x }
+    fun clientX(): Float =
+      with(client) { client.entityOf(host.networkIdOf(small))[LocalTransform].x }
   }
 
   private fun wideOf(schema: ReplicatedSchema) =
@@ -95,9 +87,10 @@ class OversizedEntityTest {
   @Test
   fun `a debug build throws naming the entity too large for a snapshot`() {
     val pair = Worlds(debug = true)
-    pair.hostSession.receive(0)
+    pair.step(0)
 
-    val thrown = assertFailsWith<IllegalStateException> { pair.hostSession.send(0) }
+    // It waits behind the small entity until what it built up puts it first, alone in a snapshot.
+    val thrown = assertFailsWith<IllegalStateException> { for (tick in 1L..TICKS) pair.step(tick) }
 
     val message = thrown.message.orEmpty()
     assertTrue("${pair.host.networkIdOf(pair.wide)}" in message, message)
@@ -106,6 +99,6 @@ class OversizedEntityTest {
   private companion object {
     /** Ten components of 32 full floats: more than one snapshot holds. */
     const val SCHEMAS = 10
-    const val TICKS = 5L
+    const val TICKS = 10L
   }
 }

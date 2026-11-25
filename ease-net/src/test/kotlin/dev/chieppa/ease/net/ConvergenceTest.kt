@@ -68,16 +68,18 @@ class ConvergenceTest {
     var wrapped: ScriptedConnection? = null
     val session =
       Session(ENTITIES) { end -> ScriptedConnection(end) { Fate.DELIVER }.also { wrapped = it } }
-    session.step()
-    val full = checkNotNull(wrapped).lastLength
     repeat(SETTLE) { session.step() }
     val quiet = checkNotNull(wrapped).lastLength
     session.moveOnHost(0, 2f)
     session.step()
     val oneChange = checkNotNull(wrapped).lastLength
+    repeat(SETTLE) { session.step() }
+    for (index in 0 until ENTITIES) session.moveOnHost(index, 3f)
+    session.step()
+    val allChange = checkNotNull(wrapped).lastLength
 
-    assertTrue(quiet < oneChange && oneChange < full, "full $full, one $oneChange, none $quiet")
-    assertEquals(2f to 2f, session.xs(0))
+    assertTrue(quiet < oneChange && oneChange < allChange, "$quiet, $oneChange, $allChange")
+    assertEquals(3f to 3f, session.xs(0))
   }
 
   @Test
@@ -91,6 +93,7 @@ class ConvergenceTest {
     session.hostSession.connect(link.hostEnd)
     val client = ClientSession(world.first, session.codec, link.clientEnd, session.settings)
 
+    client.receive()
     session.step()
     client.receive()
 

@@ -10,12 +10,16 @@ import dev.chieppa.ease.net.command.CommandExecutor
 import dev.chieppa.ease.net.command.CommandRefusals
 import dev.chieppa.ease.net.snapshot.ChangeSink
 import dev.chieppa.ease.net.snapshot.ChangeTracker
+import dev.chieppa.ease.net.snapshot.EntityMotion
+import dev.chieppa.ease.net.view.SpawnWriter
+import dev.chieppa.ease.net.view.ViewSettings
 
 /**
  * The authority's side of a session over [world]: it takes each client's input and commands, and
- * sends each one delta snapshots of the entities it holds. Every entity is relevant to every peer.
- * Each tick the host calls [receive], updates the world, then calls [send]. Once its tables have
- * grown, a tick allocates nothing but the commands it decodes.
+ * sends each one the entities it holds that are relevant to it under [viewSettings]: a spawn as one
+ * enters the client's view, delta snapshots in priority order while it stays, a despawn as it
+ * leaves. Each tick the host calls [receive], updates the world, then calls [send]. Once its tables
+ * have grown, a tick allocates nothing but the commands it decodes and the spawns it names.
  */
 public class HostSession(
   internal val world: World,
@@ -25,8 +29,11 @@ public class HostSession(
     command.apply(world)
   },
   internal val refusals: CommandRefusals = CommandRefusals.IGNORE,
+  internal val viewSettings: ViewSettings = ViewSettings(),
 ) {
   internal val tracker = ChangeTracker(world)
+  internal val motion = EntityMotion(world, tracker.entities)
+  internal val spawns = SpawnWriter(world, viewSettings.naming)
   private val connected = ArrayList<HostPeer>()
   private val buffer = ByteArray(Channels.MAX_RELIABLE_BYTES)
   private val fold = ChangeSink { slot, networkId, fields ->
@@ -42,8 +49,7 @@ public class HostSession(
 
   /**
    * Adds the client at the far end of [connection] and sends it the host's hello. Once the client's
-   * own hello matches, it receives snapshots of the entities the host holds now, every field in the
-   * first; entities and components added later are left out until spawns are replicated.
+   * own hello matches, each [send] spawns the entities relevant to it and sends their changes.
    */
   public fun connect(connection: Connection): HostPeer {
     val peer = HostPeer(connection, this)
@@ -63,13 +69,19 @@ public class HostSession(
     }
   }
 
-  /** Sends every open client the snapshot of [tick], after the world's update for that tick. */
+  /**
+   * Sends every open client what changed in its view at [tick], after the world's update for that
+   * tick: spawns and despawns first, then the snapshot.
+   */
   public fun send(tick: Long) {
     tracker.update(fold)
+    motion.update()
     for (index in connected.indices) {
       val peer = connected[index]
       if (!peer.isOpen || !peer.greeted) continue
-      val length = peer.snapshots.write(tick, peer.inputs.lastProcessedTick, buffer)
+      peer.viewer.follow(world)
+      peer.view.update(tick, peer.connection)
+      val length = peer.snapshots.write(tick, peer.inputs.lastProcessedTick, peer.view, buffer)
       peer.connection.send(ChannelKind.UNRELIABLE, buffer, 0, length)
     }
   }

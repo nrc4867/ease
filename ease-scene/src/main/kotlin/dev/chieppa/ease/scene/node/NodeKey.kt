@@ -41,6 +41,15 @@ public class NodeKey private constructor(private val ids: LongArray) :
   public val placement: List<LocalId>
     get() = List(ids.size - 1) { LocalId(ids[it]) }
 
+  /** The id at [index], from 0 (the outermost placement) up to [depth] - 1 (the node's own). */
+  public fun idAt(index: Int): LocalId = LocalId(ids[index])
+
+  /** The key made of this key's first [depth] ids, such as the placement a node lies in. */
+  public fun prefix(depth: Int): NodeKey {
+    require(depth in 1..ids.size) { "A prefix of $this holds 1 to ${ids.size} ids, not $depth" }
+    return NodeKey(ids.copyOf(depth))
+  }
+
   /** The key of the node [child] inside the placement this node makes. */
   public fun child(child: LocalId): NodeKey = NodeKey(ids + child.value)
 

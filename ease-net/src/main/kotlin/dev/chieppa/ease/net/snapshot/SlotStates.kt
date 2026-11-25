@@ -10,21 +10,32 @@ private const val UNKNOWN = 0L
 
 /**
  * One peer's view of every replicated component: which components it knows (the entity, under its
- * network id, and the component on it), the fields it may not hold yet, and the first snapshot that
- * carried their current values. A field stays pending, and goes in every snapshot, until the peer
- * acknowledges a snapshot that carried its current value; so whatever a snapshot leaves out, the
- * peer already holds. A component the peer does not know is never sent, since it could not apply.
+ * network id, and the component on it, from the spawn that brought the entity into its view), the
+ * fields it may not hold yet, and the first snapshot that carried their current values. A field
+ * stays pending, and goes in every snapshot, until the peer acknowledges a snapshot that carried
+ * its current value; so whatever a snapshot leaves out, the peer already holds. A component the
+ * peer does not know is never sent, since it could not apply.
  */
 internal class SlotStates {
   private var pending = IntArray(INITIAL_SLOTS)
   private var firstCarried = LongArray(INITIAL_SLOTS) { NOT_CARRIED }
   private var known = LongArray(INITIAL_SLOTS)
 
-  /** Records that the peer holds [slot] on the entity [networkId]; every field starts pending. */
-  fun know(slot: Int, networkId: Long, allFields: Int) {
+  /** Records that the peer holds [slot] on the entity [networkId], with nothing pending. */
+  fun know(slot: Int, networkId: Long) {
     if (slot >= pending.size) grow(slot)
     known[slot] = networkId
-    pending[slot] = allFields
+    pending[slot] = 0
+    firstCarried[slot] = NOT_CARRIED
+  }
+
+  /**
+   * Records that the peer holds nothing in [slot] for the entity [networkId], as after a despawn.
+   */
+  fun forget(slot: Int, networkId: Long) {
+    if (!knows(slot, networkId)) return
+    known[slot] = UNKNOWN
+    pending[slot] = 0
     firstCarried[slot] = NOT_CARRIED
   }
 

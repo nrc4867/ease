@@ -2,17 +2,12 @@ package dev.chieppa.ease.scene.runtime
 
 import com.github.quillraven.fleks.World
 import dev.chieppa.ease.assets.Guid
-import dev.chieppa.ease.assets.loading.AssetHandle
-import dev.chieppa.ease.assets.loading.AssetLoadException
 import dev.chieppa.ease.assets.loading.AssetStore
 import dev.chieppa.ease.commands.CommandHistory
 import dev.chieppa.ease.commands.CommandOrigin
 import dev.chieppa.ease.commands.CommandRejected
-import dev.chieppa.ease.scene.document.SceneDocument
 import dev.chieppa.ease.scene.node.NodeKey
 import dev.chieppa.ease.scene.resolve.SceneProblem
-import dev.chieppa.ease.scene.resolve.SceneResolver
-import dev.chieppa.ease.scene.resolve.SceneSource
 
 /**
  * Spawns scenes into the world of [history] and keeps them in step with their files, on the peer
@@ -21,8 +16,8 @@ import dev.chieppa.ease.scene.resolve.SceneSource
  * prefab and sublevel in it), and at those it needed but could not load. When one has reloaded,
  * appeared or changed, it resolves the scene again and applies the difference from the live nodes
  * as `SpawnNode`, `UpdateNode` and `DestroyNode` commands with the engine's origin. The commands go
- * through the history, so they are logged and reach every peer the same way. A tick where no file
- * changed allocates nothing.
+ * through the history, so they are logged; clients receive the nodes as spawns naming the placed
+ * asset and each node's key (see [placementOf]). A tick where no file changed allocates nothing.
  */
 public class SceneSync(
   world: World,
@@ -32,6 +27,7 @@ public class SceneSync(
   private val nodes = world.system<SceneNodes>()
   private val diff = SceneDiff(world, nodes)
   private val placed = ArrayList<PlacedScene>()
+  private val byKey = HashMap<NodeKey, PlacedScene>()
 
   /** The scenes placed so far, oldest first. */
   public val scenes: List<PlacedScene>
@@ -48,6 +44,12 @@ public class SceneSync(
     return scene
   }
 
+  /**
+   * The placed scene whose last applied version spawned the node [key], or null when no placed
+   * scene has it, such as a node an editor command made: what a spawn names the node by.
+   */
+  public fun placementOf(key: NodeKey): PlacedScene? = byKey[key]
+
   /** Applies the changes of every placed scene whose files reloaded since the last call. */
   public fun beforeTick(tick: Long) {
     for (index in placed.indices) {
@@ -57,15 +59,8 @@ public class SceneSync(
   }
 
   private fun apply(scene: PlacedScene, tick: Long) {
-    val handles = mutableListOf<AssetHandle<SceneDocument>>()
-    val failed = LinkedHashMap<Guid, String?>()
-    val source = SceneSource { guid ->
-      val handle = handleOf(guid)
-      if (handle == null) failed[guid] = store.database[guid]?.contentHash else handles += handle
-      handle?.value
-    }
-    val resolver = SceneResolver(nodes.types, source) { store.database[it] != null }
-    val resolved = resolver.resolve(scene.asset, scene.placement)
+    val source = TrackingSource(store)
+    val resolved = source.resolver(nodes.types).resolve(scene.asset, scene.placement)
     val problems = resolved.problems.toMutableList()
     for (command in diff.commands(resolved, scene.keys)) {
       try {
@@ -74,16 +69,10 @@ public class SceneSync(
         problems += SceneProblem.Rejected(rejected.message.orEmpty())
       }
     }
+    scene.keys.forEach { byKey.remove(it, scene) }
     scene.keys = resolved.nodes.map { it.key }
+    scene.keys.forEach { byKey[it] = scene }
     scene.problems = problems
-    scene.track(handles, failed)
+    source.trackIn(scene)
   }
-
-  @Suppress("SwallowedException") // A missing or broken file is reported as a scene problem.
-  private fun handleOf(guid: Guid): AssetHandle<SceneDocument>? =
-    try {
-      store.handle(guid, SceneDocument::class)
-    } catch (missing: AssetLoadException) {
-      null
-    }
 }
