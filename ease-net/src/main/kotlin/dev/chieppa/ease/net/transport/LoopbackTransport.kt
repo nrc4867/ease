@@ -6,9 +6,10 @@ import dev.chieppa.ease.net.channel.Connection
 /**
  * The [Transport] for a host and its clients in one process: single-player, editor multi-client
  * play and network tests. Each [connect] makes a [LoopbackLink] under its own simulated network;
- * [update] is the links' clock, a tick at a time, so delays are counted in ticks and tests advance
- * them by hand. Every random draw comes from a schedule seeded by [seed] and the client's peer id,
- * so a run repeats exactly. On a perfect network, the default, a message arrives as it is sent.
+ * [update] is the links' clock, a tick at a time, and drops links either end closed, so delays are
+ * counted in ticks and tests advance them by hand. Every random draw comes from a schedule seeded
+ * by [seed] and the client's peer id, so a run repeats exactly. On a perfect network, the default,
+ * a message arrives as it is sent.
  */
 public class LoopbackTransport(
   private val seed: Long = 0L,
@@ -40,7 +41,12 @@ public class LoopbackTransport(
 
   override fun update() {
     tick++
-    for (index in links.indices) links[index].advance()
+    var index = links.size - 1
+    while (index >= 0) {
+      val link = links[index]
+      if (link.isOpen) link.advance() else links.removeAt(index)
+      index--
+    }
   }
 
   override fun close() {

@@ -24,13 +24,13 @@ import dev.chieppa.ease.runtime.loop.FixedStep
 private const val NANOS_PER_SECOND = 1_000_000_000f
 
 /**
- * One world a host runs, as [peer]: a Fleks world with [module]'s systems and the engine's
- * [ExtractSystem], the codec and command history every outside change goes through, the [snapshot]
- * rendering reads, and the current [tick]. Building it registers [module]'s types and, in the
- * host's own world, lets the module populate it; a client's world starts empty and receives the
- * host's entities. With [assets], each [step] begins by applying the asset file changes waiting
- * since the last one, as `ReloadAsset` commands in the history, so a changed file reloads in the
- * running world.
+ * One world a host runs, as [peer]: a Fleks world with [module]'s systems (its host systems too in
+ * the host's own world) and the engine's [ExtractSystem], the codec and command history every
+ * outside change goes through, the [snapshot] rendering reads, and the current [tick]. Building it
+ * registers [module]'s types and, in the host's own world, lets the module populate it; a client's
+ * world starts empty and receives the host's entities. With [assets], each [step] begins by
+ * applying the asset file changes waiting since the last one, as `ReloadAsset` commands in the
+ * history, so a changed file reloads in the running world.
  */
 public class HostedWorld(
   module: GameModule,
@@ -57,6 +57,7 @@ public class HostedWorld(
   public val world: World =
     phasedWorld(entityCapacity, ReplicationSettings(peer, codec.replicated)) {
       module.systems(this)
+      if (peer == PeerId.HOST) module.hostSystems(this)
       assets?.let { add(Phase.INPUT, AssetReloadSystem(it)) }
       add(Phase.EXTRACT, ExtractSystem(snapshot))
     }

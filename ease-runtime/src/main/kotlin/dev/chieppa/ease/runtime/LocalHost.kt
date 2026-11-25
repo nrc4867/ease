@@ -28,10 +28,10 @@ import dev.chieppa.ease.runtime.loop.FixedStep
  */
 public class LocalHost(
   private val module: GameModule,
-  fixedStep: FixedStep,
+  private val fixedStep: FixedStep,
   input: InputScript? = null,
-  assets: AssetStore? = null,
-  entityCapacity: Int = DEFAULT_ENTITY_CAPACITY,
+  private val assets: AssetStore? = null,
+  private val entityCapacity: Int = DEFAULT_ENTITY_CAPACITY,
 ) {
   /** The in-process transport between the host and the local client. */
   public val transport: LoopbackTransport = LoopbackTransport()
@@ -57,10 +57,15 @@ public class LocalHost(
   /** The local client's link; its conditions simulate a network, perfect by default. */
   public val link: LoopbackLink = transport.connect(LOCAL_PEER)
 
-  /** The local client: the world a player sees and steers. */
-  public val client: ClientWorld = localClient(fixedStep, entityCapacity, input, assets)
-
   private val joined = ArrayList<HostPeer>()
+  private val joinedClients = ArrayList<ClientWorld>()
+
+  /** The local client: the world a player sees and steers. */
+  public val client: ClientWorld = clientOver(LOCAL_PEER, link, input)
+
+  /** Every client in this process, the local one first. */
+  public val clients: List<ClientWorld>
+    get() = joinedClients
 
   /** What rendering shows: the client world's extract. */
   public val snapshot: RenderSnapshot
@@ -71,21 +76,32 @@ public class LocalHost(
     get() = host.tick
 
   /**
-   * One tick: the transport moves on and the host takes new connections; the client sends its
+   * One tick: the transport moves on and the host takes new connections; each client sends its
    * commands and input; the host takes them, welcomes peers whose join it accepted, takes each
-   * peer's input for the tick, ticks and sends what changed; then the client takes it and ticks.
+   * peer's input for the tick, ticks and sends what changed; then each client takes it and ticks.
    */
   public fun step() {
     transport.update()
     while (true) session.connect(transport.accept() ?: break)
-    client.beforeHost()
+    for (index in joinedClients.indices) joinedClients[index].beforeHost()
     val hostTick = host.tick
     session.receive(hostTick)
     welcomeJoined()
     takeInputs(hostTick)
     host.step()
     session.send(hostTick)
-    client.afterHost()
+    for (index in joinedClients.indices) joinedClients[index].afterHost()
+  }
+
+  /**
+   * Joins another client in this process as [peer], with its own [input] script, as editor
+   * multi-client play does; it takes part from the next [step]. Throws when [peer] is the host or
+   * already joined.
+   */
+  public fun addClient(peer: PeerId, input: InputScript? = null): ClientWorld {
+    require(peer != PeerId.HOST) { "The host's peer id is not a client's" }
+    require(joinedClients.none { it.world.peer == peer }) { "A client already joined as $peer" }
+    return clientOver(peer, transport.connect(peer), input)
   }
 
   private fun welcomeJoined() {
@@ -107,15 +123,12 @@ public class LocalHost(
     }
   }
 
-  private fun localClient(
-    fixedStep: FixedStep,
-    entityCapacity: Int,
-    input: InputScript?,
-    assets: AssetStore?,
-  ): ClientWorld {
-    val world = HostedWorld(module, fixedStep, entityCapacity, LOCAL_PEER)
+  private fun clientOver(peer: PeerId, link: LoopbackLink, input: InputScript?): ClientWorld {
+    val world = HostedWorld(module, fixedStep, entityCapacity, peer)
     val content = assets?.let { SceneReplicas(world.world, it) } ?: ReplicaContent.NONE
-    return ClientWorld(world, link.clientEnd, settings, content, input)
+    val client = ClientWorld(world, link.clientEnd, settings, content, input)
+    joinedClients += client
+    return client
   }
 
   public companion object {

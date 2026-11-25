@@ -111,6 +111,14 @@ class HandshakeTest {
     assertFalse(forward.contentEquals(ContentManifest.EMPTY.digest))
   }
 
+  @Test
+  fun `fields that run together differently give different digests`() {
+    val spaced = ContentManifest.of(mods = listOf(ContentPart("pack b", "1"))).digest
+    val shifted = ContentManifest.of(mods = listOf(ContentPart("pack", "b 1"))).digest
+
+    assertFalse(spaced.contentEquals(shifted))
+  }
+
   private companion object {
     val PACK = ContentPart("pack", "1")
   }

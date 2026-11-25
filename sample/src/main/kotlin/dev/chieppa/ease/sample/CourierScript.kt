@@ -2,6 +2,7 @@ package dev.chieppa.ease.sample
 
 import com.github.quillraven.fleks.Family
 import com.github.quillraven.fleks.World.Companion.family
+import dev.chieppa.ease.ecs.replication.Authority
 import dev.chieppa.ease.ecs.replication.NetworkId
 import dev.chieppa.ease.ecs.replication.networkIdOf
 import dev.chieppa.ease.runtime.ClientWorld
@@ -10,8 +11,8 @@ import dev.chieppa.ease.runtime.InputScript
 /**
  * The sample's scripted input, run on a client: every [STEER_EVERY] ticks it sends the host a
  * command steering the client's courier a quarter turn, so the courier traces a square loop moved
- * only by commands. The courier is the one the game gave the client when it joined (see
- * [SampleGame.peerJoined]); until its spawn arrives, the script waits.
+ * only by commands. It steers the courier the client owns, the one the game gave it when it joined
+ * (see [SampleGame.peerJoined]), among every peer's; until its spawn arrives, the script waits.
  */
 public class CourierScript : InputScript {
   private var couriers: Family? = null
@@ -24,10 +25,13 @@ public class CourierScript : InputScript {
     client.send(Steer(courier, DIRECTION_X[turn] * SPEED, DIRECTION_Y[turn] * SPEED))
   }
 
+  /** The courier [client] owns, or null until its spawn arrives. */
   private fun courier(client: ClientWorld): NetworkId? {
     val world = client.world.world
-    val family = couriers ?: world.family { all(Courier) }.also { couriers = it }
-    return if (family.isEmpty) null else world.networkIdOf(family.first())
+    val family = couriers ?: world.family { all(Courier, Authority) }.also { couriers = it }
+    val owner = client.world.peer
+    val owned = family.firstOrNull { with(world) { it[Authority].owner == owner } }
+    return owned?.let { world.networkIdOf(it) }
   }
 
   public companion object {

@@ -16,12 +16,17 @@ internal class SimulatedPath(private val random: SplittableRandom) {
   private var now = 0L
   private var budget = 0L
   private var lastOrderedDue = 0L
+  private var advancing = false
 
-  /** The network this direction simulates; setting it fills the bandwidth budget again. */
+  /**
+   * The network this direction simulates. A new cap only clamps what is left of this tick's budget;
+   * a link that had none starts with one tick's worth.
+   */
   var conditions: LinkConditions = LinkConditions.PERFECT
     set(value) {
+      val cap = value.bytesPerTick.toLong()
+      budget = if (field.bytesPerTick == LinkConditions.UNCAPPED) cap else minOf(budget, cap)
       field = value
-      budget = value.bytesPerTick.toLong()
     }
 
   private val capped: Boolean
@@ -40,13 +45,19 @@ internal class SimulatedPath(private val random: SplittableRandom) {
   /** Moves the next message that arrived on [kind] into [target]; see `Connection.receive`. */
   fun receive(kind: ChannelKind, target: ByteArray): Int = arrivals[kind.ordinal].pop(target)
 
-  /** Moves on one tick: the bandwidth budget refills, waiting messages leave, due ones arrive. */
+  /**
+   * Moves on one tick: the bandwidth budget refills and waiting messages leave, then every message
+   * due arrives, due first and sent first on a tie, so a message that waited for bandwidth never
+   * overtakes one sent before it on the ordered channel.
+   */
   fun advance() {
     now++
     if (capped) budget = minOf(budget + conditions.bytesPerTick, conditions.bytesPerTick.toLong())
-    while (flight.waiting > 0 && (!capped || budget > 0)) depart(
-      checkNotNull(flight.oldestWaiting())
-    )
+    advancing = true
+    while (flight.waiting > 0 && (!capped || budget > 0)) {
+      depart(checkNotNull(flight.oldestWaiting()))
+    }
+    advancing = false
     while (true) arrive(flight.firstDue(now) ?: return)
   }
 
@@ -69,6 +80,7 @@ internal class SimulatedPath(private val random: SplittableRandom) {
           flight.free(slot)
         } else {
           if (chance(conditions.duplication)) {
+            if (capped) budget -= slot.length
             schedule(flight.add(slot.kind, slot.bytes, 0, slot.length), delayedDue())
           }
           schedule(slot, delayedDue())
@@ -99,7 +111,7 @@ internal class SimulatedPath(private val random: SplittableRandom) {
 
   private fun schedule(slot: FlightSlot, due: Long) {
     flight.schedule(slot, due)
-    if (due <= now) arrive(slot)
+    if (due <= now && !advancing) arrive(slot)
   }
 
   private fun arrive(slot: FlightSlot) {

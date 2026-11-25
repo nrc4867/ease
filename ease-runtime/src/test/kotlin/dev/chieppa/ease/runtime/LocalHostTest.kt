@@ -1,6 +1,8 @@
 package dev.chieppa.ease.runtime
 
 import dev.chieppa.ease.ecs.LocalTransform
+import dev.chieppa.ease.ecs.Phase
+import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.net.transport.LinkConditions
 import dev.chieppa.ease.runtime.loop.FixedStep
@@ -58,12 +60,38 @@ class LocalHostTest {
   }
 
   @Test
-  fun `under simulated latency the client lags the host by the round trip`() {
+  fun `under simulated latency the client sees the host's state one latency late`() {
     local.link.conditions = LinkConditions(latencyTicks = LATENCY)
     repeat(STEPS) { local.step() }
 
     assertEquals(STEPS.toFloat(), x(local.host))
     assertEquals(STEPS - LATENCY.toFloat(), x(local.client.world))
+  }
+
+  @Test
+  fun `host systems run only in the host's world, shared systems in every world`() {
+    val ticks = mutableMapOf<PeerId, Int>()
+    val counting =
+      object : GameModule by DriftModule() {
+        override fun systems(systems: PhasedSystems) {
+          systems.add(Phase.INPUT, TickCounter(ticks))
+        }
+
+        override fun hostSystems(systems: PhasedSystems) {
+          DriftModule().hostSystems(systems)
+        }
+      }
+    val pair = LocalHost(counting, FixedStep.perSecond())
+    val second = pair.addClient(PeerId(2))
+
+    repeat(STEPS) { pair.step() }
+
+    assertEquals(
+      mapOf(PeerId.HOST to STEPS, LocalHost.LOCAL_PEER to STEPS, PeerId(2) to STEPS),
+      ticks,
+    )
+    assertEquals(STEPS.toFloat(), x(pair.host))
+    assertEquals(STEPS.toFloat(), x(second.world))
   }
 
   @Test

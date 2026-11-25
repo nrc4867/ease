@@ -24,7 +24,7 @@ public class SampleGame : GameModule {
     registry.command(Steer::class, Steer.serializer())
   }
 
-  override fun systems(systems: PhasedSystems) {
+  override fun hostSystems(systems: PhasedSystems) {
     systems.add(Phase.SIMULATION, BounceSystem())
   }
 

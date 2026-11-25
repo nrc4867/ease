@@ -1,4 +1,4 @@
-description: A system that runs every tick, added to the game
+description: A system the host's world runs every tick, added to the game's host systems
 formatVersion: 1
 insertions:
   - file: "{{gameModuleDir}}/src/main/kotlin/{{packagePath}}/{{className}}.kt"

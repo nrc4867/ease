@@ -15,7 +15,7 @@ public class {{className}} : GameModule {
     // ease:types
   }
 
-  override fun systems(systems: PhasedSystems) {
+  override fun hostSystems(systems: PhasedSystems) {
     // ease:systems
   }
 

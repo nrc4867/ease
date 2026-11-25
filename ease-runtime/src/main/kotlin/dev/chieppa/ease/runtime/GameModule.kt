@@ -15,10 +15,20 @@ public interface GameModule {
   public fun registerTypes(registry: CommandRegistry) {}
 
   /**
-   * Adds the game's systems, each in its phase. Systems are constructed here, where the world being
+   * Adds the systems every world runs, the host's and each client's, each in its phase: systems
+   * that read replicated state or keep state of their own that never replicates, such as
+   * presentation and effects. A client holds replicas it may not write, so a system that changes
+   * replicated state goes in [hostSystems]. Systems are constructed here, where the world being
    * built is current.
    */
   public fun systems(systems: PhasedSystems) {}
+
+  /**
+   * Adds the systems only the host's world runs, after [systems] in each phase: the simulation,
+   * which writes replicated state and spawns entities. Clients receive what it does as spawns and
+   * snapshots, so these systems never check authority on a client's behalf.
+   */
+  public fun hostSystems(systems: PhasedSystems) {}
 
   /**
    * Creates the game's starting entities in the host's [world], through [HostedWorld.execute] so

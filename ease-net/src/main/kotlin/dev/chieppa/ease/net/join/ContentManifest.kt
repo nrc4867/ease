@@ -1,6 +1,7 @@
 package dev.chieppa.ease.net.join
 
 import dev.chieppa.ease.assets.database.AssetRecord
+import java.nio.ByteBuffer
 import java.security.MessageDigest
 
 /**
@@ -8,7 +9,7 @@ import java.security.MessageDigest
  * over the GUID and content hash of every shipped asset, then the id and hash of every enabled mod
  * that changes the simulation. Peers whose digests differ would build different worlds from the
  * same spawns, so the host refuses them at join. Each list is sorted first, so the order a peer
- * finds its content in never matters.
+ * finds its content in never matters, and every field is hashed behind its length.
  */
 public class ContentManifest private constructor(digest: ByteArray) {
   private val bytes = digest.copyOf()
@@ -52,10 +53,19 @@ public class ContentManifest private constructor(digest: ByteArray) {
     }
 
     private fun section(sha: MessageDigest, name: String, parts: Collection<ContentPart>) {
-      sha.update("$name ${parts.size}\n".toByteArray())
+      field(sha, name)
+      sha.update(ByteBuffer.allocate(Int.SIZE_BYTES).putInt(parts.size).array())
       parts.sortedWith(compareBy({ it.id }, { it.hash })).forEach {
-        sha.update("${it.id} ${it.hash}\n".toByteArray())
+        field(sha, it.id)
+        field(sha, it.hash)
       }
+    }
+
+    /** Hashes [text] behind its length in bytes, so no two lists of fields hash alike. */
+    private fun field(sha: MessageDigest, text: String) {
+      val bytes = text.toByteArray(Charsets.UTF_8)
+      sha.update(ByteBuffer.allocate(Int.SIZE_BYTES).putInt(bytes.size).array())
+      sha.update(bytes)
     }
 
     private const val ASSETS = "assets"

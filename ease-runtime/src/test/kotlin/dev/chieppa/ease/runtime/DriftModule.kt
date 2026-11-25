@@ -11,12 +11,9 @@ import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.ecs.replication.replication
 import dev.chieppa.ease.render.Quad
 
-/**
- * A game whose one quad drifts one unit along x every tick, in the world holding authority over it;
- * a client's world only follows.
- */
+/** A game whose one quad drifts one unit along x every tick, moved by a host system. */
 internal class DriftModule : GameModule {
-  override fun systems(systems: PhasedSystems) {
+  override fun hostSystems(systems: PhasedSystems) {
     systems.add(Phase.SIMULATION, DriftSystem())
   }
 
@@ -28,7 +25,7 @@ internal class DriftModule : GameModule {
     private val replication = world.replication
 
     override fun onTickEntity(entity: Entity) {
-      if (replication.hasAuthority(entity)) replication.write(entity, LocalTransform) { x += 1f }
+      replication.write(entity, LocalTransform) { x += 1f }
     }
   }
 }
