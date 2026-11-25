@@ -96,7 +96,8 @@ class PredictionEdgesTest {
   fun `a peer whose connection closes stops moving on the host`() {
     val local = LocalHost(WalkModule(), FixedStep.perSecond())
     repeat(SETTLE) { step(local, 1f) }
-    val id = local.client.world.world.networkIdOf(walker(local.client.world))
+    val clientWorld = local.client.world
+    val id = clientWorld.world.networkIdOf(walker(clientWorld))
 
     repeat(FLOOD) { local.client.send(Destroy(id)) }
     repeat(CALM) { step(local, 1f) }

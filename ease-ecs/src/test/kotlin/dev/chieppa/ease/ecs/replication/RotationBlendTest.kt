@@ -58,7 +58,7 @@ class RotationBlendTest {
   fun `a schema rotation group blends as the generated one does`() {
     val schema =
       replicatedSchema("test.Spinner") {
-        listOf("x", "y", "z", "w").forEach { float(it, interpolated = true, rotation = "turn") }
+        rotation("turn", listOf("x", "y", "z", "w"))
       }
     fun spin(z: Float, w: Float) =
       schema.component().also {

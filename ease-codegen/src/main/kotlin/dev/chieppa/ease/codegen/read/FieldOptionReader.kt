@@ -29,7 +29,7 @@ internal val rangeReader = FieldOptionReader { property, field ->
 internal val interpolatedReader = FieldOptionReader { property, field ->
   val annotation =
     property.annotation(AnnotationNames.INTERPOLATED) ?: return@FieldOptionReader field
-  field.copy(interpolated = true, rotation = annotation.argument("rotation") as? String ?: "")
+  field.copy(interpolated = true, rotation = (annotation.argument("rotation") as? String).orEmpty())
 }
 
 /** `@ReplicatedTo(audience)`. */
