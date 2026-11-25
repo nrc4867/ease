@@ -13,8 +13,9 @@ public val World.peerInputs: PeerInputs
 /**
  * The input of each peer for the tick a world is running, which its systems read to move what each
  * peer controls. The host sets every joined peer's frame before its tick; a client sets only its
- * own, before each tick it predicts or replays, so on a client other peers have none. Frames are
- * held by reference, never copied, and nothing here allocates once every peer has been set.
+ * own, before each tick it predicts or replays, so on a client other peers have none; a peer whose
+ * connection closed has none either. Frames are held by reference, never copied, and nothing here
+ * allocates once every peer has been set.
  */
 public class PeerInputs {
   private var peers = IntArray(INITIAL_PEERS)
@@ -41,6 +42,19 @@ public class PeerInputs {
     }
     peers[count] = peer.value
     frames[count++] = frame
+  }
+
+  /** Takes [peer]'s input away, as when its connection closes, so what it controls stops. */
+  public fun remove(peer: PeerId) {
+    for (index in 0 until count) {
+      if (peers[index] == peer.value) {
+        count--
+        peers[index] = peers[count]
+        frames[index] = frames[count]
+        frames[count] = null
+        return
+      }
+    }
   }
 
   private companion object {

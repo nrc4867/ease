@@ -13,6 +13,11 @@ internal class TypeCopies<T : Component<T>>(private val serializer: ReplicatedSe
   /** A new component of this type with every field at its default, to hold a copy of one. */
   fun create(): Any = serializer.create()
 
+  /** Copies [from] into [into], both copies made by [create]. */
+  fun copy(from: Any, into: Any) {
+    serializer.copy(cast(from), cast(into))
+  }
+
   /** Copies [entity]'s component into [into], a copy made by [create]. */
   fun save(world: World, entity: Entity, into: Any) {
     serializer.copy(serializer.componentOf(world, entity), cast(into))

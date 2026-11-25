@@ -10,24 +10,20 @@ import dev.chieppa.ease.commands.CommandScope
 import dev.chieppa.ease.ecs.replication.NetworkId
 import dev.chieppa.ease.ecs.replication.entityOf
 import dev.chieppa.ease.ecs.replication.replication
-import kotlin.math.abs
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Doc(
-  "Sets the Velocity of an entity; undone by setting the previous velocity back. A peer may " +
-    "steer only entities it owns; rejected unless the world holds authority over the entity."
+  "Sets how fast a courier moves at full input; undone by setting the previous pace back. A " +
+    "peer may set only the pace of a courier it owns."
 )
 @Serializable
-@SerialName("sample.Steer")
-public class Steer(
-  @Doc("The entity to steer.") public val entity: NetworkId,
-  @Doc("Speed along x, in world units a second.")
-  @Range(-Velocity.MAX_SPEED, Velocity.MAX_SPEED)
-  public val x: Float,
-  @Doc("Speed along y, in world units a second.")
-  @Range(-Velocity.MAX_SPEED, Velocity.MAX_SPEED)
-  public val y: Float,
+@SerialName("sample.SetPace")
+public class SetPace(
+  @Doc("The courier.") public val entity: NetworkId,
+  @Doc("The new pace, in world units a second.")
+  @Range(0.0, Courier.MAX_PACE)
+  public val pace: Float,
 ) : Command {
   override val scope: CommandScope
     get() = CommandScope.OWNED_ENTITIES
@@ -37,11 +33,11 @@ public class Steer(
   override fun validate(world: World): String? {
     val target = world.entityOf(entity)
     return when {
-      target == Entity.NONE || !with(world) { target.has(Velocity) } ->
-        "Entity $entity has no Velocity to steer"
+      target == Entity.NONE || !with(world) { target.has(Courier) } ->
+        "Entity $entity is not a courier"
       !world.replication.hasAuthority(target) -> "Entity $entity is held by another peer"
-      abs(x) > Velocity.MAX_SPEED || abs(y) > Velocity.MAX_SPEED ->
-        "A speed is at most ${Velocity.MAX_SPEED} along each axis"
+      !(pace >= 0f && pace <= Courier.MAX_PACE) ->
+        "A pace is from 0 to ${Courier.MAX_PACE} units a second"
       else -> null
     }
   }
@@ -49,12 +45,8 @@ public class Steer(
   override fun apply(world: World): Command {
     validate(world)?.let { throw CommandRejected(it) }
     val target = world.entityOf(entity)
-    val velocity = with(world) { target[Velocity] }
-    val previous = Steer(entity, velocity.x, velocity.y)
-    world.replication.write(target, Velocity) {
-      this.x = this@Steer.x
-      this.y = this@Steer.y
-    }
+    val previous = SetPace(entity, with(world) { target[Courier].pace })
+    world.replication.write(target, Courier) { pace = this@SetPace.pace }
     return previous
   }
 }

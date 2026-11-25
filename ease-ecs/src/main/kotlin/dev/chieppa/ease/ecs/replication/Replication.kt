@@ -34,6 +34,9 @@ public class Replication internal constructor(settings: ReplicationSettings) {
 
   private val dirty = Array(types.size) { EntityBits() }
 
+  /** Which entities the last state packet applied carried. */
+  internal val carried: CarriedEntities = CarriedEntities()
+
   /** What [stepPredicted] runs, in order: the predicted systems, their gates, the write check. */
   internal var predictedSystems: Array<IntervalSystem> = emptyArray()
 

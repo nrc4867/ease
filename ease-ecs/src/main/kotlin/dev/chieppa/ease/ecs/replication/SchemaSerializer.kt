@@ -9,6 +9,15 @@ internal class SchemaSerializer(private val schema: ReplicatedSchema) :
   ReplicatedSerializer<SchemaComponent> {
   private val fields = schema.fields.toTypedArray()
 
+  /** Each rotation group's four field indexes, one group after another. */
+  private val rotations: IntArray =
+    schema.fields.indices
+      .filter { schema.fields[it].rotation.isNotEmpty() }
+      .groupBy { schema.fields[it].rotation }
+      .values
+      .flatten()
+      .toIntArray()
+
   override val name: String = schema.name
   override val type: ComponentType<SchemaComponent>
     get() = schema.type
@@ -83,9 +92,41 @@ internal class SchemaSerializer(private val schema: ReplicatedSchema) :
   ) {
     copy(from, into)
     for (index in fields.indices) {
-      if (!fields[index].interpolated) continue
+      if (!fields[index].interpolated || fields[index].rotation.isNotEmpty()) continue
       val start = from.getFloat(index)
       into.setFloat(index, start + (to.getFloat(index) - start) * amount)
+    }
+    for (group in 0 until rotations.size / RotationBlend.COMPONENTS) {
+      blendRotation(group * RotationBlend.COMPONENTS, from, to, amount, into)
+    }
+  }
+
+  private fun blendRotation(
+    first: Int,
+    from: SchemaComponent,
+    to: SchemaComponent,
+    amount: Float,
+    into: SchemaComponent,
+  ) {
+    val x = rotations[first]
+    val y = rotations[first + 1]
+    val z = rotations[first + 2]
+    val w = rotations[first + 3]
+    for (part in 0 until RotationBlend.COMPONENTS) {
+      val value =
+        RotationBlend.component(
+          part,
+          from.getFloat(x),
+          from.getFloat(y),
+          from.getFloat(z),
+          from.getFloat(w),
+          to.getFloat(x),
+          to.getFloat(y),
+          to.getFloat(z),
+          to.getFloat(w),
+          amount,
+        )
+      into.setFloat(rotations[first + part], value)
     }
   }
 

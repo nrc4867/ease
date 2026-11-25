@@ -124,7 +124,10 @@ public class LocalHost(
     val peers = session.peers
     for (index in peers.indices) {
       val peer = peers[index]
-      if (peer.greeted && peer.isOpen) host.inputs[peer.peer] = peer.inputs.take(hostTick)
+      when {
+        peer.greeted && peer.isOpen -> host.inputs[peer.peer] = peer.inputs.take(hostTick)
+        !peer.isOpen -> host.inputs.remove(peer.peer)
+      }
     }
   }
 

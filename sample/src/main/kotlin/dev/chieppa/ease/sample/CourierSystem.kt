@@ -15,8 +15,8 @@ import dev.chieppa.ease.net.input.peerInputs
 
 /**
  * Moves each courier from its owner's input, a predicted system: the stick's x and y, from -1 to 1,
- * become its [Velocity] at up to [SPEED], and a [Mover] carries it there. The host runs it for
- * every peer's courier; each client runs it ahead of the host for its own.
+ * become its [Velocity] at up to its [Courier.pace], and a [Mover] carries it there. The host runs
+ * it for every peer's courier; each client runs it ahead of the host for its own.
  */
 public class CourierSystem :
   IteratingSystem(family { all(Courier, LocalTransform, Velocity, Authority) }) {
@@ -27,8 +27,9 @@ public class CourierSystem :
   override fun onTickEntity(entity: Entity) {
     if (!replication.mayWrite(entity)) return
     val input = inputs.of(entity[Authority].owner) ?: return
-    val speedX = input.axis(AXIS_X) * SPEED
-    val speedY = input.axis(AXIS_Y) * SPEED
+    val pace = entity[Courier].pace
+    val speedX = input.axis(AXIS_X) * pace
+    val speedY = input.axis(AXIS_Y) * pace
     replication.write(entity, Velocity) {
       x = speedX
       y = speedY
@@ -37,9 +38,6 @@ public class CourierSystem :
   }
 
   public companion object {
-    /** How fast a courier moves at full stick, in world units a second. */
-    public const val SPEED: Float = 4f
-
     /** The input axis steering along x. */
     public const val AXIS_X: Int = 0
 

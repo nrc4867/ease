@@ -36,13 +36,12 @@ public class ClientWorld(
   private val input: InputScript? = null,
   prediction: PredictionSettings = PredictionSettings(),
 ) {
-  private val predicted = PredictedEntities(world.world, prediction.historyTicks)
+  private val predicted = PredictedEntities(world.world, world.corrections, prediction.historyTicks)
   private val interpolated = InterpolatedEntities(world.world, prediction.interpolationStates)
   private val clock = ClockSync(prediction.clock)
   private val interpolation = InterpolationClock(prediction.interpolationDelayTicks)
   private val sent = InputRing(settings.input, prediction.historyTicks)
   private val replication = world.world.replication
-  private var snapshotsThisReceive = 0
   private var observedSlackTick = -1L
 
   /** The client's side of the session with the host. */
@@ -54,8 +53,8 @@ public class ClientWorld(
       settings,
       content,
       SnapshotListener { tick ->
+        predicted.snapshotApplied(tick)
         interpolated.snapshotApplied(tick)
-        snapshotsThisReceive++
       },
     )
 
@@ -98,27 +97,33 @@ public class ClientWorld(
   private fun receive() {
     predicted.beforeReceive()
     interpolated.beforeReceive()
-    snapshotsThisReceive = 0
     session.receive()
-    val replayFrom = predicted.afterReceive(session.latestSnapshotTick, snapshotsThisReceive > 0)
+    val replayFrom = predicted.afterReceive(session.latestSnapshotTick)
     if (replayFrom != PredictedEntities.NO_REPLAY) replay(replayFrom)
     interpolated.present(interpolation.time)
     followClock()
   }
 
-  /** Replays the input of every tick after [from] up to the last one run, from the host's state. */
+  /**
+   * Replays the input of every tick after [from] up to the last one run, from the host's state.
+   * When no tick has run since [from], the host's state is already the present one. When the input
+   * of [from]'s next tick is not kept, the predictions stand: the client cannot replay, and the
+   * host's state is too old to show.
+   */
   private fun replay(from: Long) {
-    if (!sent.reaches(from + 1)) {
-      predicted.forget()
+    val first = from + 1
+    if (first >= world.tick) return
+    if (!sent.reaches(first)) {
+      predicted.keepPredictions()
       return
     }
     replays++
-    for (tick in from + 1 until world.tick) {
+    for (tick in first until world.tick) {
       world.inputs[world.peer] = sent.frameAt(tick)
       replication.stepPredicted()
       predicted.record(tick)
     }
-    predicted.smooth(world.corrections)
+    predicted.smooth()
   }
 
   /** Takes the host's newest report on the input's slack, jumping ahead when the clock says to. */

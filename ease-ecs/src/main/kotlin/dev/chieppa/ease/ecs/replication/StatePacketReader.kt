@@ -32,6 +32,7 @@ public class StatePacketReader(
     pass(apply = false)
     if (!reader.ok) return reader.status
     reader.reset(bytes, offset, length)
+    replication.carried.startPacket()
     pass(apply = true)
     return reader.status
   }
@@ -87,6 +88,7 @@ public class StatePacketReader(
       apply -> {
         replication.types[typeId].readInto(world, entity, reader)
         replication.received(entity, typeId)
+        replication.carried.mark(entity)
       }
       else -> replication.types[typeId].check(reader)
     }

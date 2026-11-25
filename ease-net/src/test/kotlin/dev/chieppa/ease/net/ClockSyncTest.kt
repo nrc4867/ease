@@ -51,6 +51,20 @@ class ClockSyncTest {
   }
 
   @Test
+  fun `a client far ahead holds still until the host has caught up, never stepping back`() {
+    val clock = ClockSync(settings)
+    clock.observe(buffer, inputTick = 1, clientTick = 2)
+
+    val jump = clock.observe(buffer + AHEAD, inputTick = 5, clientTick = 6)
+    val held = (0 until AHEAD).map { clock.ticksThisStep() }
+
+    assertEquals(0L, jump)
+    assertTrue(held.all { it == 0 }, "held for $AHEAD host ticks: $held")
+    assertEquals(1, clock.ticksThisStep())
+    assertEquals(0L, clock.observe(buffer + AHEAD, inputTick = 5, clientTick = 6), "stale report")
+  }
+
+  @Test
   fun `the rate runs extra or fewer ticks over many host ticks, never skipping one`() {
     val clock = ClockSync(settings)
     clock.observe(buffer, inputTick = 1, clientTick = 2)
@@ -85,10 +99,12 @@ class ClockSyncTest {
     assertEquals(-1f, ring.frameAt(6).axis(0))
     assertSame(ring.frameAt(2), ring.frameAt(1), "no input before the first kept tick")
     assertTrue(!ring.reaches(-3), "the ring reaches only its last 8 ticks")
+    assertTrue(!ring.reaches(7), "nor any tick after the newest it recorded")
   }
 
   private companion object {
     const val LATE = 5L
+    const val AHEAD = 40
     const val HOST_TICKS = 100
     const val DELAY = 6
   }

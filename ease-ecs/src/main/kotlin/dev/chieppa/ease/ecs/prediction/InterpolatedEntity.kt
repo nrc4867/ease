@@ -24,6 +24,9 @@ internal class InterpolatedEntity(
   private var newest = 0
   private var count = 0
 
+  /** The newest snapshot tick that found the entity still as the newest state kept. */
+  private var heldThrough = Long.MIN_VALUE
+
   /** Whether [entity] carries exactly the interpolated types [typeIds] names. */
   fun carriesSame(world: World, entity: Entity, interpolated: BooleanArray): Boolean {
     var found = 0
@@ -35,13 +38,33 @@ internal class InterpolatedEntity(
     return found == typeIds.size
   }
 
-  /** Keeps the entity's state as received at [tick], unless it is the newest one kept. */
+  /**
+   * Keeps the entity's state as received at [tick]. A state equal to the newest kept only marks it
+   * held through [tick]; when a different one follows, the held state is kept again at the last
+   * tick it held, so the change is blended over the ticks it took, not from the start of the rest.
+   */
   fun push(world: World, tick: Long) {
-    if (count > 0 && !differsFromNewest(world)) return
+    val held = count > 0 && !differsFromNewest(world)
+    if (!held && count > 0 && heldThrough > ticks[newest]) repeatNewest(heldThrough)
+    if (!held) {
+      advance(tick)
+      for (index in typeIds.indices) {
+        types[typeIds[index]].copies.save(world, entity, entries[newest][index])
+      }
+    }
+    heldThrough = tick
+  }
+
+  private fun repeatNewest(tick: Long) {
+    val held = newest
+    advance(tick)
+    for (index in typeIds.indices) {
+      types[typeIds[index]].copies.copy(entries[held][index], entries[newest][index])
+    }
+  }
+
+  private fun advance(tick: Long) {
     newest = (newest + 1) % capacity
-    for (index in typeIds.indices) types[typeIds[index]]
-      .copies
-      .save(world, entity, entries[newest][index])
     ticks[newest] = tick
     count = minOf(count + 1, capacity)
   }

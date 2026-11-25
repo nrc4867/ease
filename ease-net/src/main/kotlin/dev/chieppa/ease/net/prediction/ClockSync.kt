@@ -7,9 +7,10 @@ import kotlin.math.floor
  * arrives just before the host needs it. The host reports, in each snapshot, how many ticks early
  * the client's input reached it (its slack, negative when late); the client [observe]s each report
  * and runs [ticksThisStep] ticks for each host tick, slightly more or fewer than one while the
- * slack is off the buffer. The first report, and any showing the client far behind, make it
- * [observe] a jump instead: ticks to skip ahead at once. Reports about input sent before a jump are
- * ignored. Nothing here allocates.
+ * slack is off the buffer. The first report, and any showing the client far off, resync it at once
+ * instead: far behind, [observe] returns ticks to skip ahead; far ahead, the client runs no ticks
+ * until the host has caught up the difference, since its ticks never go back. Reports about input
+ * sent before a resync are ignored. Nothing here allocates.
  */
 public class ClockSync(private val settings: ClockSettings = ClockSettings()) {
   private val readings = LongArray(settings.window)
@@ -18,6 +19,7 @@ public class ClockSync(private val settings: ClockSettings = ClockSettings()) {
   private var aligned = false
   private var ignoreBefore = Long.MIN_VALUE
   private var carry = 0.0
+  private var holding = 0L
 
   /** The client's step rate relative to the host's. */
   public var rate: Double = 1.0
@@ -34,14 +36,16 @@ public class ClockSync(private val settings: ClockSettings = ClockSettings()) {
   public fun observe(slack: Long, inputTick: Long, clientTick: Long): Long {
     if (inputTick < ignoreBefore) return 0L
     val behind = settings.bufferTicks - slack
-    val jumps = !aligned || behind > settings.resyncTicks
-    if (jumps) jump(maxOf(0L, behind), clientTick) else read(slack)
-    return if (jumps) maxOf(0L, behind) else 0L
+    val resyncs = !aligned || behind > settings.resyncTicks || -behind > settings.resyncTicks
+    if (resyncs) resync(behind, clientTick) else read(slack)
+    return if (resyncs) maxOf(0L, behind) else 0L
   }
 
-  private fun jump(ticks: Long, clientTick: Long) {
+  /** Starts over [behind] ticks behind: ahead by skipping, back by holding still. */
+  private fun resync(behind: Long, clientTick: Long) {
     aligned = true
-    ignoreBefore = clientTick + ticks
+    holding = maxOf(0L, -behind)
+    ignoreBefore = clientTick + maxOf(0L, behind)
     readingCount = 0
     rate = 1.0
   }
@@ -55,6 +59,10 @@ public class ClockSync(private val settings: ClockSettings = ClockSettings()) {
 
   /** How many ticks the client runs for this host tick: 1 on time, sometimes 0 or 2 off it. */
   public fun ticksThisStep(): Int {
+    if (holding > 0) {
+      holding--
+      return 0
+    }
     carry += rate
     val ticks = floor(carry)
     carry -= ticks

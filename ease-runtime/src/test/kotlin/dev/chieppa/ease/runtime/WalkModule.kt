@@ -17,13 +17,18 @@ import dev.chieppa.ease.render.Quad
 
 /**
  * A game for prediction: each peer that joins gets a walker it owns, which its input's first axis
- * walks along x at [STEP] a tick, a predicted system; the host's drifter moves [STEP] a tick along
- * x by a host system; and while [gusts] is on, a host system pushes every walker [GUST] along y
- * every [GUST_EVERY] ticks, which no client can predict.
+ * walks along x at [STEP] a tick, a predicted system; the host's [crowd] of drifters move [STEP] a
+ * tick along x by a host system; and while [gusts] is on, a host system pushes every walker [GUST]
+ * along y every [GUST_EVERY] ticks, which no client can predict.
  */
-internal class WalkModule(private val gusts: () -> Boolean = { false }) : GameModule {
+internal class WalkModule(
+  private val crowd: Int = 1,
+  private val gusts: () -> Boolean = { false },
+) : GameModule {
   override fun populate(world: HostedWorld) {
-    world.execute(Spawn(listOf<Component<out Any>>(LocalTransform(), Quad.of(1f, 1f, 1f, 1f))))
+    repeat(crowd) {
+      world.execute(Spawn(listOf<Component<out Any>>(LocalTransform(), Quad.of(1f, 1f, 1f, 1f))))
+    }
   }
 
   override fun peerJoined(world: HostedWorld, peer: PeerId) {

@@ -126,7 +126,18 @@ internal object SerializerSource {
     val type = model.className
     appendLine()
     appendLine("  override fun interpolate(from: $type, to: $type, amount: Float, into: $type) {")
-    model.fields.forEach { appendLine("    into.${it.name} = ${FieldSource.blend(it)}") }
+    model.fields
+      .filter { it.rotation.isEmpty() }
+      .forEach { appendLine("    into.${it.name} = ${FieldSource.blend(it)}") }
+    model.fields
+      .filter { it.rotation.isNotEmpty() }
+      .groupBy { it.rotation }
+      .values
+      .forEach { group ->
+        group.forEachIndexed { index, field ->
+          appendLine("    into.${field.name} = ${FieldSource.rotationBlend(group, index)}")
+        }
+      }
     appendLine("  }")
   }
 

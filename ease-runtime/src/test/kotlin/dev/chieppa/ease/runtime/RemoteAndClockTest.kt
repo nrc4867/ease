@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
  * tick of all of it, prediction, replays and interpolation included, allocates nothing.
  */
 class RemoteAndClockTest {
-  private val local = LocalHost(WalkModule { true }, FixedStep.perSecond())
+  private val local = LocalHost(WalkModule(gusts = { true }), FixedStep.perSecond())
   private val client = local.client
 
   private fun drifterX(world: HostedWorld): Float =

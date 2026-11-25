@@ -21,7 +21,7 @@ public class SampleGame : GameModule {
     registry.component(Courier::class, Courier.serializer())
     registry.replicated(VelocityReplicated)
     registry.replicated(CourierReplicated)
-    registry.command(Steer::class, Steer.serializer())
+    registry.command(SetPace::class, SetPace.serializer())
   }
 
   override fun predictedSystems(systems: PhasedSystems) {

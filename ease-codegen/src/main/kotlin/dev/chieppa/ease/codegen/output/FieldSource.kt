@@ -6,6 +6,7 @@ import dev.chieppa.ease.codegen.model.FieldModel
 /** The expressions a generated serializer uses for one field, by how the field goes on the wire. */
 internal object FieldSource {
   private const val FIELDS = "ReplicatedFields"
+  private const val BLEND = "dev.chieppa.ease.ecs.replication.RotationBlend"
 
   /** Whether the field's wire value differs between `value` and `baseline`. */
   fun wireDiffers(field: FieldModel): String {
@@ -50,6 +51,16 @@ internal object FieldSource {
   fun blend(field: FieldModel): String {
     val from = "from.${field.name}"
     return if (field.interpolated) "$from + (to.${field.name} - $from) * amount" else from
+  }
+
+  /**
+   * Component [index] of the rotation [group]'s four fields `amount` of the way from `from` to
+   * `to`, blended as one quaternion.
+   */
+  fun rotationBlend(group: List<FieldModel>, index: Int): String {
+    val from = group.joinToString { "from.${it.name}" }
+    val to = group.joinToString { "to.${it.name}" }
+    return "$BLEND.component($index, $from, $to, amount)"
   }
 
   private fun differs(field: FieldModel, a: String, b: String): String =

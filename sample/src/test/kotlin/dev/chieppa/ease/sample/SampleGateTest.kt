@@ -3,6 +3,7 @@ package dev.chieppa.ease.sample
 import com.github.quillraven.fleks.World.Companion.family
 import dev.chieppa.ease.commands.CommandOrigin
 import dev.chieppa.ease.ecs.LocalTransform
+import dev.chieppa.ease.ecs.replication.networkIdOf
 import dev.chieppa.ease.net.input.InputFrame
 import dev.chieppa.ease.runtime.HostedWorld
 import dev.chieppa.ease.runtime.LocalHost
@@ -92,6 +93,24 @@ class SampleGateTest {
     while (replayed.tick < live.tick) stepReplayed()
 
     assertEquals(live.codec.worldToJson(live.world), replayed.codec.worldToJson(replayed.world))
+  }
+
+  @Test
+  fun `a client command sets its courier's pace, and its prediction takes the host's correction`() {
+    val local = scripted()
+    repeat(CourierScript.TURN_EVERY.toInt()) { local.step() }
+    val client = local.client
+    val courier = with(client.world.world) { family { all(Courier) }.first() }
+    val replays = client.replays
+
+    client.send(SetPace(client.world.world.networkIdOf(courier), Courier.MAX_PACE.toFloat()))
+    repeat(CourierScript.TURN_EVERY.toInt()) { local.step() }
+
+    val hostPace = with(local.host.world) { family { all(Courier) }.first()[Courier].pace }
+    val clientPace = with(client.world.world) { courier[Courier].pace }
+    assertEquals(Courier.MAX_PACE.toFloat(), hostPace)
+    assertEquals(hostPace, clientPace)
+    assertTrue(client.replays > replays, "the faster courier corrected the client's prediction")
   }
 
   @Test

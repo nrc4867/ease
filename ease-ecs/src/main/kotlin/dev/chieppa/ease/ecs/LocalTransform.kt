@@ -15,7 +15,8 @@ import kotlinx.serialization.Serializable
 
 @Doc(
   "An entity's position, rotation (a quaternion) and scale relative to its parent, as plain " +
-    "floats. It replicates with the position interpolated and each rotation component quantized."
+    "floats. It replicates with the position interpolated, and the rotation quantized and " +
+    "interpolated as one quaternion."
 )
 @Replicated
 @Serializable
@@ -26,25 +27,25 @@ public class LocalTransform : Component<LocalTransform> {
   @Doc("Position along z, in world units.") @Interpolated public var z: Float = 0f
 
   @Doc("Rotation quaternion, x component.")
-  @Interpolated
+  @Interpolated(rotation = ROTATION)
   @Quantized(ROTATION_BITS)
   @Range(-1.0, 1.0)
   public var rotationX: Float = 0f
 
   @Doc("Rotation quaternion, y component.")
-  @Interpolated
+  @Interpolated(rotation = ROTATION)
   @Quantized(ROTATION_BITS)
   @Range(-1.0, 1.0)
   public var rotationY: Float = 0f
 
   @Doc("Rotation quaternion, z component.")
-  @Interpolated
+  @Interpolated(rotation = ROTATION)
   @Quantized(ROTATION_BITS)
   @Range(-1.0, 1.0)
   public var rotationZ: Float = 0f
 
   @Doc("Rotation quaternion, w component; 1 with the other three 0 is no rotation.")
-  @Interpolated
+  @Interpolated(rotation = ROTATION)
   @Quantized(ROTATION_BITS)
   @Range(-1.0, 1.0)
   public var rotationW: Float = 1f
@@ -93,6 +94,9 @@ public class LocalTransform : Component<LocalTransform> {
   public companion object : ComponentType<LocalTransform>() {
     /** Bits each rotation component takes on the wire. */
     public const val ROTATION_BITS: Int = 16
+
+    /** The interpolation group of the rotation's four components. */
+    public const val ROTATION: String = "rotation"
 
     /** A component holding [transform]. */
     public fun of(transform: Transform): LocalTransform = LocalTransform().apply { set(transform) }

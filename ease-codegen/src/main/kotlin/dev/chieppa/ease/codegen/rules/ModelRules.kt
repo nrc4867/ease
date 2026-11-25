@@ -15,6 +15,9 @@ internal object ModelRules {
   /** The most fields a component may replicate: its change mask is one `Int`. */
   const val MAX_FIELDS = 32
 
+  /** The fields of one interpolated rotation group: a quaternion's four components. */
+  const val ROTATION_COMPONENTS = 4
+
   /** The bits a quantized float may take. */
   val QUANTIZED_BITS = 1..30
 
@@ -40,7 +43,17 @@ internal object ModelRules {
   }
 
   private fun fieldProblems(model: ComponentModel): List<Problem> =
-    model.fields.flatMap { field -> problems(field) }
+    model.fields.flatMap { field -> problems(field) } + rotationProblems(model)
+
+  private fun rotationProblems(model: ComponentModel): List<Problem> =
+    model.fields
+      .filter { it.rotation.isNotEmpty() }
+      .groupBy { it.rotation }
+      .filterValues { it.size != ROTATION_COMPONENTS }
+      .map { (group, members) ->
+        val message = "rotation group $group has ${members.size} fields, not $ROTATION_COMPONENTS"
+        Problem(members.first().name, message)
+      }
 
   private fun problems(field: FieldModel): List<Problem> = buildList {
     if (field.kind == null) add(Problem(field.name, unsupported(field)))

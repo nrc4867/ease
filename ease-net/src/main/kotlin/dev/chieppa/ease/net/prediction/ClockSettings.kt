@@ -4,7 +4,8 @@ package dev.chieppa.ease.net.prediction
  * How a client keeps its lead on the host: its input should reach the host [bufferTicks] before the
  * tick it is for, judged by the earliest of the last [window] reports. While it is off, the client
  * steps [gain] faster or slower per tick of error, at most [maxAdjust] off the host's rate. It
- * jumps ahead only to take its lead at join, or when it has fallen [resyncTicks] behind.
+ * resyncs at once only to take its lead at join, or when it is more than [resyncTicks] off either
+ * way, which keeps it well inside the host's input window.
  */
 public class ClockSettings(
   public val bufferTicks: Int = DEFAULT_BUFFER_TICKS,

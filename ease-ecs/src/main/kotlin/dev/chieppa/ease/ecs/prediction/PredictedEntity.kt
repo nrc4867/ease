@@ -25,6 +25,15 @@ internal class PredictedEntity(
   private val history = Array(historyTicks) { copies() }
   private val ticks = LongArray(historyTicks) { NO_TICK }
 
+  /** The tick of the newest snapshot that carried the entity, or -1 before any. */
+  var authoritativeTick: Long = -1L
+
+  /** Whether a snapshot applied in the receive under way carried the entity. */
+  var carriedNow: Boolean = false
+
+  /** The number of the last scan that found the entity predicted. */
+  var lastSeen: Long = 0L
+
   /** True until the entity's first replay: it has no prediction to compare yet. */
   var fresh: Boolean = true
     private set
@@ -84,9 +93,12 @@ internal class PredictedEntity(
     return same
   }
 
-  /** Forgets every prediction kept. */
-  fun forget() {
-    ticks.fill(NO_TICK)
+  /** Puts the prediction kept for [tick] into the world and returns true, or returns false. */
+  fun loadPrediction(world: World, tick: Long): Boolean {
+    val slot = slotOf(tick)
+    if (tick < 0 || ticks[slot] != tick) return false
+    load(world, history[slot])
+    return true
   }
 
   /** The index of [typeId] among [typeIds], or -1. */

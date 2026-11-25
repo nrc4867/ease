@@ -14,6 +14,8 @@ internal data class FieldModel(
   /** The field's `@Range`; a quantized float spreads its bits over it. */
   val range: ValueRange? = null,
   val interpolated: Boolean = false,
+  /** The `@Interpolated(rotation)` group: four fields blended as one quaternion; empty for none. */
+  val rotation: String = "",
   val audience: FieldAudience = FieldAudience.EVERYONE,
   /** Whether generated code can set the property: its setter is not private or protected. */
   val settable: Boolean = true,

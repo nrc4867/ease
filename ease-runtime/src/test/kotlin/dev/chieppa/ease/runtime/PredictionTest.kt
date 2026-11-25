@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
  */
 class PredictionTest {
   private var gusting = true
-  private val local = LocalHost(WalkModule { gusting }, FixedStep.perSecond())
+  private val local = LocalHost(WalkModule(gusts = { gusting }), FixedStep.perSecond())
   private val client = local.client
 
   init {

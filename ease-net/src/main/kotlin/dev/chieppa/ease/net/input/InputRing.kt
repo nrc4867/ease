@@ -25,12 +25,16 @@ public class InputRing(layout: InputLayout, private val capacity: Int) {
     newestTick = tick
   }
 
-  /** Whether the input of [tick] can still be replayed: it is one of the last [capacity] ticks. */
-  public fun reaches(tick: Long): Boolean = newestTick != NONE && newestTick - tick < capacity
+  /**
+   * Whether the input of [tick] can be replayed: it is one of the last [capacity] ticks recorded,
+   * the newest included.
+   */
+  public fun reaches(tick: Long): Boolean =
+    newestTick != NONE && tick <= newestTick && newestTick - tick < capacity
 
   /** The input of [tick]: its own frame, or the newest kept before it, or no input when none is. */
   public fun frameAt(tick: Long): InputFrame {
-    var at = tick
+    var at = minOf(tick, newestTick)
     while (at >= 0 && reaches(at)) {
       val slot = slotOf(at)
       if (ticks[slot] == at) return frames[slot]
