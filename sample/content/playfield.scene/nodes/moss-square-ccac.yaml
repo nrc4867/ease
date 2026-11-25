@@ -1,0 +1,24 @@
+components:
+  ease.LocalTransform:
+    rotationW: 1.0
+    rotationX: 0.0
+    rotationY: 0.0
+    rotationZ: 0.0
+    scaleX: 1.0
+    scaleY: 1.0
+    scaleZ: 1.0
+    x: 5.0
+    "y": 3.0
+    z: 0.0
+  ease.Quad:
+    blue: 0.3019608
+    green: 0.8
+    red: 0.4509804
+    size: 0.9
+  sample.Velocity:
+    x: -3.5
+    "y": -0.5
+formatVersion: 1
+id: ccacb344c915716c
+name: "Moss square"
+order: zn

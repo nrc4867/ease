@@ -1,6 +1,6 @@
-description: A serializable component, registered with the game
+description: A serializable component, registered with the game as a scene type
 formatVersion: 1
 insertions:
   - file: "{{gameModuleDir}}/src/main/kotlin/{{packagePath}}/{{className}}.kt"
-    marker: "// ease:types"
-    text: "registry.component({{Name}}::class, {{Name}}.serializer())"
+    marker: "// ease:scene-types"
+    text: "types.component({{Name}}, {{Name}}.serializer())"

@@ -2,6 +2,7 @@ package dev.chieppa.ease.agent
 
 import dev.chieppa.ease.agent.server.AgentConstants
 import dev.chieppa.ease.agent.server.AgentToken
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -12,6 +13,13 @@ class AgentOptionsTest {
   fun `the port defaults to the fixed one and --port picks another`() {
     assertEquals(AgentConstants.DEFAULT_PORT, AgentOptions.parse(emptyArray()).port)
     assertEquals(PORT, AgentOptions.parse(arrayOf("--port", PORT.toString())).port)
+  }
+
+  @Test
+  fun `--content names the game's content folder`() {
+    assertEquals(null, AgentOptions.parse(emptyArray()).content)
+    assertEquals(Path.of("content"), AgentOptions.parse(arrayOf("--content", "content")).content)
+    assertFailsWith<IllegalStateException> { AgentOptions.parse(arrayOf("--content")) }
   }
 
   @Test

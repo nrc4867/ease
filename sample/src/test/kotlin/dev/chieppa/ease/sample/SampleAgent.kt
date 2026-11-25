@@ -6,6 +6,7 @@ import dev.chieppa.ease.agent.list
 import dev.chieppa.ease.agent.server.ConnectCommand
 import dev.chieppa.ease.agent.text
 import dev.chieppa.ease.runtime.GameModules
+import java.nio.file.Path
 import java.util.concurrent.Executors
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
@@ -15,12 +16,20 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 
 /**
- * The sample game in the agent host, as an agent reaches it: over MCP on 127.0.0.1, through a
- * session opened with the host's token.
+ * The sample game in the agent host, over a copy of its content in [root], as an agent reaches it:
+ * over MCP on 127.0.0.1, through a session opened with the host's token.
  */
-internal class SampleAgent : AutoCloseable {
+internal class SampleAgent(root: Path) : AutoCloseable {
+  /** The copy of the sample's content the agent's world is built from. */
+  val content = SampleContent(root)
   private val worldThread = Executors.newSingleThreadExecutor()
-  private val host = AgentHost(GameModules.load(), TOKEN, worldThread.asCoroutineDispatcher())
+  private val host =
+    AgentHost(
+      GameModules.load(),
+      TOKEN,
+      worldThread.asCoroutineDispatcher(),
+      assets = content.assets,
+    )
   private val port = runBlocking { host.start(0) }
   val client = McpTestClient(ConnectCommand.url(port), TOKEN).also { it.initialize() }
 

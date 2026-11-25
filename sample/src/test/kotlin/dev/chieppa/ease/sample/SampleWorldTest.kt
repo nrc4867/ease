@@ -1,33 +1,41 @@
 package dev.chieppa.ease.sample
 
 import dev.chieppa.ease.commands.CommandOrigin
+import dev.chieppa.ease.scene.commands.SpawnNode
+import java.nio.file.Path
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.io.TempDir
 
 /** The sample world run headless: ticks advanced by hand, no window and no GPU. */
 class SampleWorldTest {
-  private val sample = SampleWorld()
+  @TempDir lateinit var folder: Path
+
+  private val sample by lazy { SampleWorld(folder) }
 
   @Test
-  fun `the player's loader finds the sample game, which spawns its squares through commands`() {
+  fun `the player's loader finds the sample game, which spawns its scene's squares as nodes`() {
     assertIs<SampleGame>(sample.module)
-    assertEquals(SampleGame.SQUARES.size, sample.entities.size)
-    val logged = sample.hosted.history.log
-    assertTrue(logged.all.all { it.origin == CommandOrigin.GAME })
-    assertEquals(SampleGame.SQUARES.size, logged.all.size)
+    val nodes = sample.content.squares().size
+    assertEquals(nodes, sample.entities.size)
+    val log = sample.hosted.history.log
+    assertTrue(log.all.all { it.origin == CommandOrigin.GAME && it.tick == 0L })
+    assertEquals(List(nodes) { SpawnNode::class }, log.all.map { log.commandOf(it)::class })
   }
 
   @Test
   fun `before reaching a wall each square moves by its speed every tick`() {
+    val start = sample.entities.map { Triple(sample.x(it), sample.y(it), sample.velocity(it)) }
     sample.step(SHORT_RUN)
 
     val seconds = sample.stepSeconds * SHORT_RUN
-    sample.entities.zip(SampleGame.SQUARES).forEach { (entity, square) ->
-      assertEquals(square.x + square.speedX * seconds, sample.x(entity), TOLERANCE)
-      assertEquals(square.y + square.speedY * seconds, sample.y(entity), TOLERANCE)
+    sample.entities.zip(start).forEach { (entity, at) ->
+      val (x, y, speed) = at
+      assertEquals(x + speed.first * seconds, sample.x(entity), TOLERANCE)
+      assertEquals(y + speed.second * seconds, sample.y(entity), TOLERANCE)
     }
   }
 

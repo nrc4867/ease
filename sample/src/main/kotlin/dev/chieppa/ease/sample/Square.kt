@@ -10,8 +10,8 @@ private const val CHANNEL = 0xFF
 private const val CHANNEL_MAX = 255f
 
 /**
- * One of the sample's starting squares: where it starts, how fast it moves, how big it is and its
- * color as `0xRRGGBB`.
+ * A square the sample spawns in code, such as a courier: where it starts, how fast it moves, how
+ * big it is and its color as `0xRRGGBB`. The playfield scene's squares are in its node files.
  */
 public class Square(
   public val x: Float,

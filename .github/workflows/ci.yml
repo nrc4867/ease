@@ -70,8 +70,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v5
       - run: ./gradlew check --continue
         working-directory: ease
-      # The sample as the player runs it, headless: no window, no GPU, its input script attached.
+      # The sample as the player runs it, headless: no window, no GPU, its input script attached,
+      # from its saved scene.
       - run: ./gradlew :sample:sampleHeadless
+        working-directory: ease
+      # ease check on the sample's own content, as a game's pre-commit hook runs it.
+      - run: ./gradlew :ease-cli:runEase --args="check --dir sample"
         working-directory: ease
       - uses: actions/upload-artifact@v7
         if: failure()

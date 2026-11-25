@@ -4,25 +4,24 @@ import com.github.quillraven.fleks.World
 import dev.chieppa.ease.assets.loading.AssetStore
 import dev.chieppa.ease.assets.reload.AssetReloadSystem
 import dev.chieppa.ease.assets.reload.AssetSync
-import dev.chieppa.ease.assets.reload.registerAssetCommands
 import dev.chieppa.ease.commands.Command
 import dev.chieppa.ease.commands.CommandHistory
 import dev.chieppa.ease.commands.CommandOrigin
 import dev.chieppa.ease.commands.WorldCodec
-import dev.chieppa.ease.commands.worldCodec
 import dev.chieppa.ease.ecs.DEFAULT_ENTITY_CAPACITY
 import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.phasedWorld
 import dev.chieppa.ease.ecs.prediction.CorrectionOffsets
+import dev.chieppa.ease.ecs.replication.DebugBuild
 import dev.chieppa.ease.ecs.replication.PeerId
 import dev.chieppa.ease.ecs.replication.ReplicationSettings
 import dev.chieppa.ease.net.input.PEER_INPUTS_INJECTABLE
 import dev.chieppa.ease.net.input.PeerInputs
 import dev.chieppa.ease.render.ExtractSystem
-import dev.chieppa.ease.render.Quad
-import dev.chieppa.ease.render.QuadReplicated
 import dev.chieppa.ease.render.RenderSnapshot
 import dev.chieppa.ease.runtime.loop.FixedStep
+import dev.chieppa.ease.scene.runtime.SceneNodes
+import dev.chieppa.ease.scene.runtime.SceneSync
 
 private const val NANOS_PER_SECOND = 1_000_000_000f
 
@@ -30,12 +29,22 @@ private const val NANOS_PER_SECOND = 1_000_000_000f
  * One world a host runs, as [peer]: a Fleks world with [module]'s systems and predicted systems
  * (its host systems too in the host's own world) and the engine's [ExtractSystem], the codec and
  * command history every outside change goes through, each peer's [inputs], the [snapshot] rendering
- * reads, drawn [corrections] away while a prediction settles, and the current [tick]. Building it
- * registers [module]'s types and, in the host's own world, lets the module populate it; a client's
- * world starts empty and receives the host's entities. With [assets], each [step] begins by
- * applying the asset file changes waiting since the last one, as `ReloadAsset` commands in the
- * history, so a changed file reloads in the running world.
+ * reads, drawn [corrections] away while a prediction settles, and the current [tick]. Every world
+ * holds a `SceneNodes` system with the module's scene types. Building it registers [module]'s types
+ * and, in the host's own world, places the module's start scene from [assets] and lets the module
+ * populate it; a client's world starts empty and receives the host's entities. What a scene could
+ * not honor is kept in [sceneProblems].
+ *
+ * With [assets], each [step] of the host's world begins by applying the asset file changes waiting
+ * since the last one, as `ReloadAsset` commands in the history, then the changes they make to the
+ * placed [scenes], as node commands, so a changed file reloads in the running world and reaches
+ * clients as spawns, snapshots and despawns.
+ *
+ * A [replaying] world is one the host's command log is replayed into: it places no scene, does not
+ * populate and runs neither sync, since the log holds every command those made; its [assets] only
+ * serve the log's `ReloadAsset` commands, which need the files at the versions they name.
  */
+@Suppress("LongParameterList") // Named arguments with defaults; most worlds pass two.
 public class HostedWorld(
   module: GameModule,
   public val fixedStep: FixedStep,
@@ -43,17 +52,15 @@ public class HostedWorld(
   public val peer: PeerId = PeerId.HOST,
   assets: AssetStore? = null,
   public val corrections: CorrectionOffsets = CorrectionOffsets(),
+  replaying: Boolean = false,
 ) {
+  private val types = WorldTypes(module)
+
   /** What the last tick's extract copied out for rendering. */
   public val snapshot: RenderSnapshot = RenderSnapshot(entityCapacity)
 
   /** Reads and writes this world's commands and state, the module's types included. */
-  public val codec: WorldCodec = worldCodec {
-    component(Quad::class, Quad.serializer())
-    replicated(QuadReplicated)
-    module.registerTypes(this)
-    if (assets != null) registerAssetCommands()
-  }
+  public val codec: WorldCodec = types.codec
 
   /**
    * Each peer's input for the tick being run, which the world's systems read as `World.peerInputs`:
@@ -71,6 +78,7 @@ public class HostedWorld(
       ReplicationSettings(peer, codec.replicated),
       mapOf(PEER_INPUTS_INJECTABLE to inputs),
     ) {
+      add(Phase.INPUT, SceneNodes(types.scene))
       module.systems(this)
       predicted { module.predictedSystems(this) }
       if (peer == PeerId.HOST) module.hostSystems(this)
@@ -85,18 +93,51 @@ public class HostedWorld(
   public var tick: Long = 0
     private set
 
-  private val assetSync: AssetSync? = assets?.let { AssetSync(it.database, it, history) }
+  private val syncs = peer == PeerId.HOST && !replaying
+
+  private val assetSync: AssetSync? =
+    assets?.takeIf { syncs }?.let { AssetSync(it.database, it, history) }
+
+  /**
+   * The scenes placed in the host's world and kept in step with their files, or null on a client,
+   * in a replaying world and without [assets].
+   */
+  public val scenes: SceneSync? = assets?.takeIf { syncs }?.let { SceneSync(world, it, history) }
+
+  /**
+   * What the placed [scenes] could not honor, at their placing and every reload. In a debug build a
+   * component whose type the module does not register as a scene type throws.
+   */
+  public val sceneProblems: SceneProblemLog = SceneProblemLog(scenes)
 
   /** How long one step is, in seconds. */
   internal val stepSeconds = fixedStep.stepNanos / NANOS_PER_SECOND
 
   init {
-    if (peer == PeerId.HOST) module.populate(this)
+    if (syncs) start(module, assets)
   }
 
-  /** Runs one tick: the asset reloads, then every system, phase by phase, one fixed step long. */
+  /** Places [module]'s start scene from [assets], then lets the module populate the world. */
+  private fun start(module: GameModule, assets: AssetStore?) {
+    val scene = module.startScene()
+    if (scene != null) {
+      val name = module.javaClass.simpleName
+      checkNotNull(assets) { "$name starts from scene $scene, so its host needs the content" }
+      checkNotNull(assets.database[scene]) { "$name's start scene $scene is not in its content" }
+      checkNotNull(scenes).place(scene, tick)
+      if (DebugBuild.enabled) sceneProblems.checkApplied()
+    }
+    module.populate(this)
+  }
+
+  /**
+   * Runs one tick: the asset reloads and the scene changes they bring, then every system, phase by
+   * phase, one fixed step long.
+   */
   public fun step() {
     assetSync?.beforeTick(tick)
+    scenes?.beforeTick(tick)
+    if (DebugBuild.enabled) sceneProblems.checkApplied()
     world.update(stepSeconds)
     tick++
   }

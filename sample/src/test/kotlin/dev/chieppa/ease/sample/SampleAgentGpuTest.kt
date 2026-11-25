@@ -3,27 +3,32 @@ package dev.chieppa.ease.sample
 import dev.chieppa.ease.agent.list
 import dev.chieppa.ease.agent.names
 import dev.chieppa.ease.agent.text
+import dev.chieppa.ease.scene.document.SceneNode
 import java.io.ByteArrayInputStream
+import java.nio.file.Path
 import java.util.Base64
 import javax.imageio.ImageIO
-import kotlin.math.abs
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import org.junit.jupiter.api.io.TempDir
 
 /**
  * What an agent needs first, over MCP against the sample game: list the component types, read the
  * world, and get a captured frame of it.
  */
 class SampleAgentGpuTest {
-  private val agent = SampleAgent()
+  @TempDir lateinit var folder: Path
+
+  private val started = lazy { SampleAgent(folder) }
+  private val agent by started
 
   @AfterTest
   fun close() {
-    agent.close()
+    if (started.isInitialized()) agent.close()
   }
 
   @Test
@@ -35,7 +40,7 @@ class SampleAgentGpuTest {
     assertTrue(names.containsAll(listOf("ease.LocalTransform", "ease.Quad", "sample.Velocity")))
 
     val world = agent.json(agent.call("query")).list("entities")
-    assertEquals(SampleGame.SQUARES.size, world.size)
+    assertEquals(agent.content.squares().size, world.size)
 
     val capture =
       agent.call(
@@ -52,25 +57,28 @@ class SampleAgentGpuTest {
     assertEquals(WIDTH, frame.width)
     assertEquals(HEIGHT, frame.height)
     val pixelsPerUnit = HEIGHT / Playfield.VISIBLE_HEIGHT
-    SampleGame.SQUARES.forEach { square ->
-      val column = (WIDTH / 2f + square.x * pixelsPerUnit).toInt()
-      val row = (HEIGHT / 2f - square.y * pixelsPerUnit).toInt()
+    agent.content.squares().forEach { square ->
+      val x = field(square, "ease.LocalTransform", "x")
+      val y = field(square, "ease.LocalTransform", "y")
+      val column = (WIDTH / 2f + x * pixelsPerUnit).toInt()
+      val row = (HEIGHT / 2f - y * pixelsPerUnit).toInt()
       val found = frame.getRGB(column, row)
-      assertTrue(close(found, square.rgb), "square at (${square.x}, ${square.y})")
+      assertTrue(Rgb.close(found, rgb(square)), "${square.name} at ($x, $y)")
     }
   }
 
-  /** Whether every channel of [a] and [b] is within one step, as rounding allows. */
-  private fun close(a: Int, b: Int): Boolean =
-    listOf(RED_SHIFT, GREEN_SHIFT, 0).all { shift ->
-      abs((a shr shift and CHANNEL) - (b shr shift and CHANNEL)) <= 1
-    }
+  /** The number [field] of [square]'s component [component], as its node file holds it. */
+  private fun field(square: SceneNode, component: String, field: String): Float =
+    SampleContent.field(square, component, field)
+
+  /** [square]'s quad color as `0xRRGGBB`, as its node file holds it. */
+  private fun rgb(square: SceneNode): Int {
+    fun channel(name: String) = field(square, "ease.Quad", name)
+    return Rgb.of(channel("red"), channel("green"), channel("blue"))
+  }
 
   private companion object {
     const val WIDTH = 320
     const val HEIGHT = 180
-    const val RED_SHIFT = 16
-    const val GREEN_SHIFT = 8
-    const val CHANNEL = 0xFF
   }
 }

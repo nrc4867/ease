@@ -11,16 +11,28 @@ import dev.chieppa.ease.ecs.replication.NetworkIdentity
 import dev.chieppa.ease.ecs.replication.ReplicatedFields
 import dev.chieppa.ease.ecs.replication.ReplicatedSerializer
 import dev.chieppa.ease.runtime.LocalHost
+import dev.chieppa.ease.runtime.loop.FixedStep
+import dev.chieppa.ease.scene.node.NodeKey
+import dev.chieppa.ease.scene.node.NodeName
+import dev.chieppa.ease.scene.node.Parent
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.io.TempDir
 
 /**
- * Every component the sample's entities carry replicates, and round-trips through its serializer.
+ * Every component the sample's entities carry replicates, and round-trips through its serializer,
+ * but identity and a node's place in its scene, which spawns carry instead.
  */
 class SampleReplicationTest {
-  private val local = LocalHost(SampleGame(), SampleWorld().fixedStep, input = CourierScript())
-  private val world = local.host
+  @TempDir lateinit var folder: Path
+
+  private val content by lazy { SampleContent(folder) }
+  private val local by lazy {
+    LocalHost(SampleGame(), FixedStep.perSecond(), CourierScript(), content.assets)
+  }
+  private val world by lazy { local.host }
   private val writer = BitWriter(CAPACITY)
   private val reader = BitReader()
 
@@ -48,6 +60,10 @@ class SampleReplicationTest {
     return serializers.single { it.type == component.type() }.name
   }
 
+  /** Whether [component] is a node's key, name or parent, which a scene node's spawn names. */
+  private fun isNode(component: Component<*>): Boolean =
+    component is NodeKey || component is NodeName || component is Parent
+
   @Test
   fun `the sample registers a serializer for every component its entities carry`() {
     repeat(TICKS) { local.step() }
@@ -57,7 +73,10 @@ class SampleReplicationTest {
     val snapshots = world.world.snapshot().values
     val components = snapshots.flatMap { it.components }
     val carried =
-      components.filterNot { it is NetworkIdentity || it is Authority }.map { nameOf(it) }.toSet()
+      components
+        .filterNot { it is NetworkIdentity || it is Authority || isNode(it) }
+        .map { nameOf(it) }
+        .toSet()
 
     assertEquals(setOf("ease.LocalTransform", "ease.Quad", "sample.Velocity"), carried - COURIER)
     assertTrue(COURIER in carried)
@@ -80,7 +99,7 @@ class SampleReplicationTest {
       }
     }
 
-    assertEquals(SampleGame.SQUARES.size * SQUARE_TYPES + COURIER_TYPES, checked)
+    assertEquals(content.playfield().nodes.size * SQUARE_TYPES + COURIER_TYPES, checked)
   }
 
   private companion object {

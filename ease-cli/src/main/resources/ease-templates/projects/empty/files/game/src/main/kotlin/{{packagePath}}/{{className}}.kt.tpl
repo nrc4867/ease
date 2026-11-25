@@ -8,11 +8,16 @@ import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.render.Quad
 import dev.chieppa.ease.runtime.GameModule
 import dev.chieppa.ease.runtime.HostedWorld
+import dev.chieppa.ease.scene.types.SceneTypes
 
 /** {{projectName}}: one white square at the origin. */
 public class {{className}} : GameModule {
   override fun registerTypes(registry: CommandRegistry) {
     // ease:types
+  }
+
+  override fun registerSceneTypes(types: SceneTypes.Builder) {
+    // ease:scene-types
   }
 
   override fun hostSystems(systems: PhasedSystems) {
