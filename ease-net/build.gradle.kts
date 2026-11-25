@@ -6,4 +6,5 @@ plugins {
 dependencies {
   api(project(":ease-commands"))
   testImplementation(project(":ease-testing"))
+  testImplementation(project(":ease-scene"))
 }

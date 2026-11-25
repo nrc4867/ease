@@ -1,6 +1,5 @@
 package dev.chieppa.ease.assets.database
 
-import dev.chieppa.ease.assets.ContentHash
 import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.assets.meta.AssetMeta
 import dev.chieppa.ease.assets.meta.MetaFileException
@@ -20,6 +19,7 @@ internal class AssetRefresher(
   private val index: AssetIndex,
   private val problems: MutableMap<Path, AssetProblem>,
   private val cache: HashCache,
+  private val sources: SourceFiles,
 ) {
   private val released = LinkedHashSet<Guid>()
 
@@ -27,11 +27,11 @@ internal class AssetRefresher(
   fun refresh(source: Path, changes: MutableList<AssetChange>) {
     val absolute = root.resolve(source)
     val metaPath = MetaFiles.metaOf(absolute)
-    val hasSource = Files.isRegularFile(absolute)
+    val hasSource = sources.exists(source)
     val hasMeta = Files.isRegularFile(metaPath)
     problems.remove(source)
     when {
-      hasSource && hasMeta -> refreshPair(source, absolute, metaPath, changes)
+      hasSource && hasMeta -> refreshPair(source, metaPath, changes)
       hasSource -> {
         forget(source, changes)
         problems[source] = AssetProblem.SourceWithoutMeta(source)
@@ -66,12 +66,11 @@ internal class AssetRefresher(
 
   private fun refreshPair(
     source: Path,
-    absolute: Path,
     metaPath: Path,
     changes: MutableList<AssetChange>,
   ) {
     val meta = readMeta(source, metaPath, changes)
-    val hash = if (meta == null) null else hashOf(source, absolute)
+    val hash = if (meta == null) null else hashOf(source)
     if (meta != null && hash != null && claim(source, meta, changes)) {
       record(AssetRecord(meta.guid, source, hash), changes)
     }
@@ -105,9 +104,9 @@ internal class AssetRefresher(
     }
 
   /** The hash of the source, or null after recording that it cannot be read now. */
-  private fun hashOf(source: Path, absolute: Path): String? =
+  private fun hashOf(source: Path): String? =
     try {
-      ContentHash.of(absolute)
+      sources.hash(source)
     } catch (failure: IOException) {
       problems[source] = AssetProblem.UnreadableSource(source, failure.message.orEmpty())
       null
@@ -119,7 +118,7 @@ internal class AssetRefresher(
    */
   private fun claim(source: Path, meta: AssetMeta, changes: MutableList<AssetChange>): Boolean {
     val other = index[meta.guid]?.takeIf { it.path != source }
-    val holder = other?.takeIf { Files.isRegularFile(root.resolve(it.path)) }
+    val holder = other?.takeIf { sources.exists(it.path) }
     if (holder == null) {
       other?.let { forget(it.path, changes) }
       return true

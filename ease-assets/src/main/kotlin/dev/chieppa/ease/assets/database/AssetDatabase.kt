@@ -2,6 +2,8 @@ package dev.chieppa.ease.assets.database
 
 import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.assets.GuidSource
+import dev.chieppa.ease.assets.associations.FileAssociationRegistry
+import dev.chieppa.ease.assets.associations.FileAssociations
 import dev.chieppa.ease.assets.meta.AssetMeta
 import dev.chieppa.ease.assets.meta.MetaFiles
 import dev.chieppa.ease.platform.files.FileWatcher
@@ -18,6 +20,10 @@ import java.nio.file.Path
  * itself in git, never in the meta files. A meta file whose source is gone finds the file it moved
  * to through the hash the cache recorded for its old path.
  *
+ * A source is a file or a folder that a `FolderAsset` contributor in the file associations names,
+ * such as a scene folder: the folder has the meta file beside it, and the files inside it belong to
+ * its asset, so they need no meta files and a change to any of them changes the folder's asset.
+ *
  * Loading rejects a project with a GUID used twice, a meta file without a source (unless a new file
  * with the recorded hash takes it over) or a source without a meta file. After loading, such files
  * are reported in [problems] instead of stopping the running game.
@@ -28,13 +34,15 @@ private constructor(
   public val root: Path,
   private val watcher: FileWatcher,
   private val guids: GuidSource,
+  associations: FileAssociations,
 ) {
   private val index = AssetIndex()
   private val problemsByPath = LinkedHashMap<Path, AssetProblem>()
-  private val collector = ChangeCollector(root)
+  private val sources = SourceFiles(root, associations)
+  private val collector = ChangeCollector(root, sources)
   private val cache = HashCache(root)
-  private val orphans = OrphanMatcher(root, cache)
-  private val refresher = AssetRefresher(root, index, problemsByPath, cache)
+  private val orphans = OrphanMatcher(root, cache, sources)
+  private val refresher = AssetRefresher(root, index, problemsByPath, cache, sources)
 
   /** Every asset, in no particular order. */
   public val assets: Collection<AssetRecord>
@@ -49,6 +57,13 @@ private constructor(
 
   /** The asset whose source is at [path], relative to [root], or null when there is none. */
   public fun at(path: Path): AssetRecord? = index.at(path)
+
+  /**
+   * The bytes of [record]'s source as they are on disk now: a file's contents, or a folder asset's
+   * `FolderPack`, whose hash is what the record's content hash is taken from. Throws `IOException`
+   * when it cannot be read.
+   */
+  public fun read(record: AssetRecord): ByteArray = sources.read(record.path)
 
   /**
    * Applies the file changes collected since the last sync, then returns what happened to the
@@ -67,12 +82,13 @@ private constructor(
   }
 
   /**
-   * Gives the source file at [path] (relative to [root]) a meta file with a new GUID, as importing
-   * a new file does. Throws [IllegalStateException] when the file is missing or has a meta file.
+   * Gives the source at [path] (relative to [root]), a file or a folder asset, a meta file with a
+   * new GUID, as importing a new file does. Throws [IllegalStateException] when the source is
+   * missing or has a meta file.
    */
   public fun adopt(path: Path): AssetRecord {
     val absolute = root.resolve(path)
-    check(Files.isRegularFile(absolute)) { "No source file at $path to adopt" }
+    check(sources.exists(path)) { "No source at $path to adopt" }
     val meta = MetaFiles.metaOf(absolute)
     check(!Files.exists(meta)) { "$path already has a meta file" }
     MetaFiles.write(meta, AssetMeta(guid = guids.next()))
@@ -91,9 +107,9 @@ private constructor(
     }
   }
 
-  /** [source], plus everything the database knows under it when it is not a file. */
+  /** [source], plus everything the database knows under it when it is not a source on disk. */
   private fun withContents(source: Path): List<Path> =
-    if (Files.isRegularFile(root.resolve(source))) {
+    if (sources.exists(source)) {
       listOf(source)
     } else {
       listOf(source) +
@@ -111,7 +127,7 @@ private constructor(
         .filter { Files.isRegularFile(it) }
         .map { root.relativize(it) }
         .filter { !ProjectPaths.isHidden(it) }
-        .map { if (MetaFiles.isMeta(it)) MetaFiles.sourceOf(it) else it }
+        .map { sources.sourceOf(it) }
         .distinct()
         .toList()
     }
@@ -141,16 +157,17 @@ private constructor(
 
   public companion object {
     /**
-     * Reads every asset under [root] and watches it with [watcher]. Throws [AssetDatabaseRejected],
-     * naming each file, when a GUID is used twice, a meta file has no source or a source has no
-     * meta file.
+     * Reads every asset under [root] and watches it with [watcher]; [associations] names the
+     * folders that are single assets. Throws [AssetDatabaseRejected], naming each file, when a GUID
+     * is used twice, a meta file has no source or a source has no meta file.
      */
     public fun load(
       root: Path,
       watcher: FileWatcher,
       guids: GuidSource = GuidSource.random,
+      associations: FileAssociations = FileAssociationRegistry(),
     ): AssetDatabase {
-      val database = AssetDatabase(root.toAbsolutePath().normalize(), watcher, guids)
+      val database = AssetDatabase(root.toAbsolutePath().normalize(), watcher, guids, associations)
       database.scan()
       watcher.watch(database.root)
       return database
