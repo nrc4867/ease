@@ -13,8 +13,8 @@ private const val COPY_ALIGNMENT = 4L
 
 /**
  * A buffer of at least [bytes] on [context]'s device, for [use]. Its size is rounded up to a
- * multiple of 4 bytes and is never zero, as WebGPU asks. Making, writing and reading one are
- * load-time work: [read] allocates and blocks.
+ * multiple of 4 bytes and is never zero, as WebGPU asks; a size past the device's limits throws.
+ * Making, writing and reading one are load-time work: [read] allocates and blocks.
  */
 public class GpuBuffer(
   private val context: GpuContext,
@@ -28,6 +28,17 @@ public class GpuBuffer(
   /** The buffer's size in bytes. */
   public val bytes: Long = maxOf(COPY_ALIGNMENT, aligned(bytes))
 
+  init {
+    val limits = context.limits
+    require(this.bytes <= limits.maxBufferSize) {
+      "A buffer of ${this.bytes} bytes is larger than the device's ${limits.maxBufferSize}"
+    }
+    require(use == BufferUse.UNIFORM || this.bytes <= limits.maxStorageBufferBindingSize) {
+      "A $use buffer of ${this.bytes} bytes is larger than one storage binding covers, " +
+        "${limits.maxStorageBufferBindingSize}"
+    }
+  }
+
   internal val handle: MemorySegment =
     createBuffer(
       context.device,
@@ -38,6 +49,7 @@ public class GpuBuffer(
   /** Queues a write of the first [count] bytes of [data] into this buffer from its start. */
   public fun write(data: MemorySegment, count: Long = data.byteSize()) {
     require(count in 0..bytes) { "$count bytes do not fit a buffer of $bytes" }
+    require(count <= data.byteSize()) { "$count bytes are more than the ${data.byteSize()} given" }
     require(count % COPY_ALIGNMENT == 0L) { "Writes are multiples of 4 bytes, not $count" }
     if (count > 0) wgpu_h.wgpuQueueWriteBuffer(context.queue, handle, 0, data, count)
   }

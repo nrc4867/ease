@@ -108,7 +108,13 @@ public class LitMeshPass(
 
   private fun buffersOf(frame: MeshFrame, index: Int): MeshBuffers {
     val computed = frame.computed[index]
-    if (computed != null) return computed.buffers
+    if (computed != null) {
+      check(!computed.closed) { "Draw $index's computed mesh is closed" }
+      require(computed.context === context) {
+        "Draw $index's computed mesh lives on another device than this pass"
+      }
+      return computed.buffers
+    }
     return GpuMesh.of(context, checkNotNull(frame.meshes[index]) { "No draw $index" })
   }
 

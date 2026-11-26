@@ -1,8 +1,7 @@
 package dev.chieppa.ease.sdf.mesh
 
-import dev.chieppa.ease.sdf.mesh.SurfaceNets.AXES
+import dev.chieppa.ease.sdf.SdfConstants.AXES
 import dev.chieppa.ease.sdf.mesh.SurfaceNets.NONE
-import dev.chieppa.ease.sdf.mesh.SurfaceNets.coordinate
 
 /**
  * The cell and edge rules of surface nets over one grid's [samples], as the GPU kernels'
@@ -86,8 +85,8 @@ internal class CellEdges(private val grid: SdfGrid, private val samples: FloatAr
   }
 
   private fun crossing(axis: Int, from: Int, to: Int, t: Float): Float {
-    val a = coordinate(grid, axis, from)
-    val b = coordinate(grid, axis, to)
+    val a = grid.coordinate(axis, from)
+    val b = grid.coordinate(axis, to)
     return a + (b - a) * t
   }
 

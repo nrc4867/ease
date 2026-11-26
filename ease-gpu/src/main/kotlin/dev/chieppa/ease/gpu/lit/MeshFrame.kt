@@ -74,6 +74,7 @@ public class MeshFrame(public val capacity: Int) {
    * returns its index, as [add] does for a [MeshData].
    */
   public fun add(mesh: ComputedMesh): Int {
+    require(!mesh.closed) { "A closed computed mesh cannot be drawn" }
     check(count < capacity) { "More than $capacity draws; make the frame larger" }
     computed[count] = mesh
     return count++

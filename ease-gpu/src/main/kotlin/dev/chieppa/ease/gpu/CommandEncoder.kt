@@ -37,6 +37,12 @@ public class CommandEncoder internal constructor(address: Long, private val cont
     FrameCalls.releaseEncoder(address)
   }
 
+  /** Drops this encoder's commands without submitting them, as when recording failed. */
+  public fun discard() {
+    checkNotNull(context) { "A borrowed encoder is discarded by its owner" }
+    FrameCalls.releaseEncoder(address)
+  }
+
   public companion object {
     /** A new encoder on [context]'s device. */
     public fun on(context: GpuContext): CommandEncoder = CommandEncoder(0L, context).restart()

@@ -2,6 +2,7 @@ package dev.chieppa.ease.gpu
 
 import dev.chieppa.ease.gpu.ffi.createInstance
 import dev.chieppa.ease.gpu.ffi.createSurface
+import dev.chieppa.ease.gpu.ffi.deviceLimits
 import dev.chieppa.ease.gpu.ffi.readString
 import dev.chieppa.ease.gpu.ffi.requestAdapter
 import dev.chieppa.ease.gpu.ffi.requestDevice
@@ -39,6 +40,9 @@ private constructor(
   public val surface: WindowSurface? = surfaceHandle?.let {
     WindowSurface(this, it, checkNotNull(adapter))
   }
+
+  /** What the device allows, read once when first asked. */
+  public val limits: GpuLimits by lazy { deviceLimits(device) }
 
   private val reusableEncoder = CommandEncoder(0L, this)
 

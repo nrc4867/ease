@@ -4,7 +4,10 @@ import dev.chieppa.ease.sdf.field.DistanceField
 import dev.chieppa.ease.sdf.mesh.SdfGrid
 import dev.chieppa.ease.sdf.mesh.SdfMesh
 import dev.chieppa.ease.sdf.mesh.SurfaceNets
+import dev.chieppa.ease.sdf.shape.Capsule
 import dev.chieppa.ease.sdf.shape.Sphere
+import dev.chieppa.ease.sdf.shape.moved
+import dev.chieppa.ease.sdf.shape.subtract
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.test.Test
@@ -67,8 +70,9 @@ class SurfaceNetsTest {
 
   @Test
   fun `the same tree and grid give the same mesh bytes`() {
-    val first = SurfaceNets.mesh(TestCave.field(), TestCave.grid())
-    val second = SurfaceNets.mesh(TestCave.field(), TestCave.grid())
+    val shape = Sphere(RADIUS).subtract(Capsule(1f, 0.7f).moved(0.3f, 0f, 0.2f), blend = 0.3f)
+    val first = SurfaceNets.mesh(DistanceField(shape), grid)
+    val second = SurfaceNets.mesh(DistanceField(shape), grid)
 
     assertContentEquals(
       first.positions.map(Float::toRawBits),
@@ -76,21 +80,6 @@ class SurfaceNetsTest {
     )
     assertContentEquals(first.normals.map(Float::toRawBits), second.normals.map(Float::toRawBits))
     assertContentEquals(first.indices, second.indices)
-    val colliderA = first.triangleMesh()
-    val colliderB = second.triangleMesh()
-    assertEquals(colliderA.triangleCount, colliderB.triangleCount)
-    for (triangle in 0 until colliderA.triangleCount) {
-      for (corner in 0 until 3) {
-        val vertex = colliderA.corner(triangle, corner)
-        assertEquals(vertex, colliderB.corner(triangle, corner))
-        for (axis in 0 until 3) {
-          assertEquals(
-            colliderA.position(vertex, axis).toRawBits(),
-            colliderB.position(vertex, axis).toRawBits(),
-          )
-        }
-      }
-    }
   }
 
   /** How far [triangle]'s front normal points away from the sphere's center. */

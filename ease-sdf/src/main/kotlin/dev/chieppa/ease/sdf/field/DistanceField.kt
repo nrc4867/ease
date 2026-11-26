@@ -1,30 +1,19 @@
 package dev.chieppa.ease.sdf.field
 
-import dev.chieppa.ease.memory.NativeWriter
+import dev.chieppa.ease.sdf.SdfConstants.AXES
+import dev.chieppa.ease.sdf.SdfConstants.ROW_FLOATS
 import dev.chieppa.ease.sdf.shape.SdfShape
-import java.lang.foreign.MemorySegment
 
 /**
- * A [shape] compiled once into the program both sides run: [distance] evaluates it in Kotlin, and
- * [wgsl] is the same program as a WGSL function, `sdf_field(p: vec3f) -> f32`, reading its
- * parameters from `sdf_nodes`, an `array<SdfNode>` a shader binds and fills with [writeNodes].
- * Evaluating allocates nothing but reuses registers, so use one field from one thread at a time.
+ * A [shape] compiled once into a [program]: [distance] runs it in Kotlin, and ease-sdf-gpu writes
+ * the same program as WGSL. Evaluating allocates nothing but reuses registers, so use one field
+ * from one thread at a time.
  */
 public class DistanceField(public val shape: SdfShape) {
-  internal val program: SdfProgram = SdfCompiler.compile(shape)
+  /** The compiled program, which ease-sdf-gpu turns into WGSL. */
+  public val program: SdfProgram = SdfCompiler.compile(shape)
   private val points = FloatArray(program.pointRegisters * AXES)
   private val distances = FloatArray(program.distanceRegisters)
-
-  /** The WGSL of `sdf_field`, after the distance functions it calls. */
-  public val wgsl: String = SdfWgsl.field(program)
-
-  /** How many [SdfNode]s [writeNodes] writes. */
-  public val nodeCount: Int
-    get() = program.nodeCount
-
-  /** Bytes [writeNodes] writes. */
-  public val nodeBytes: Long
-    get() = nodeCount * SdfNodeWriter.STRUCT_SIZE
 
   /** The signed distance from ([x], [y], [z]) to the shape's surface: negative inside. */
   public fun distance(x: Float, y: Float, z: Float): Float {
@@ -33,34 +22,6 @@ public class DistanceField(public val shape: SdfShape) {
     points[2] = z
     for (instruction in 0 until program.size) run(instruction)
     return distances[program.result]
-  }
-
-  /** Writes every node's parameters into [segment], from its start, as `array<SdfNode>`. */
-  public fun writeNodes(segment: MemorySegment) {
-    require(segment.byteSize() >= nodeBytes) {
-      "${segment.byteSize()} bytes cannot hold $nodeCount nodes"
-    }
-    val writer = NativeWriter().begin(segment)
-    val rows =
-      listOf(
-        SdfNodeWriter::inverse0,
-        SdfNodeWriter::inverse1,
-        SdfNodeWriter::inverse2,
-        SdfNodeWriter::values,
-      )
-    for (node in 0 until nodeCount) {
-      rows.forEachIndexed { row, write ->
-        val at = row * ROW
-        write(
-          writer,
-          program.parameter(node, at),
-          program.parameter(node, at + 1),
-          program.parameter(node, at + 2),
-          program.parameter(node, at + AXES),
-        )
-      }
-      writer.next(SdfNodeWriter.STRUCT_SIZE)
-    }
   }
 
   private fun run(instruction: Int) {
@@ -107,7 +68,7 @@ public class DistanceField(public val shape: SdfShape) {
     val y = points[source * AXES + 1]
     val z = points[source * AXES + 2]
     for (row in 0 until AXES) {
-      val at = row * ROW
+      val at = row * ROW_FLOATS
       val mx = program.parameter(node, at)
       val my = program.parameter(node, at + 1)
       val mz = program.parameter(node, at + 2)
@@ -117,9 +78,4 @@ public class DistanceField(public val shape: SdfShape) {
   }
 
   private fun value(node: Int, index: Int): Float = program.parameter(node, SdfOps.VALUES + index)
-
-  private companion object {
-    const val AXES = 3
-    const val ROW = 4
-  }
 }

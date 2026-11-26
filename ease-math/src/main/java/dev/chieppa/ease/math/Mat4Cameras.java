@@ -7,7 +7,7 @@ public final class Mat4Cameras {
   /** Writes a perspective projection looking down -Z, mapping depth from 0 at near to 1 at far. */
   public static void perspective(
       float fovY, float aspect, float near, float far, float[] dst, int d) {
-    float f = 1 / (float) Math.tan(fovY * 0.5f);
+    float f = 1 / (float) Trig.tan(fovY * 0.5f);
     float range = near - far;
     java.util.Arrays.fill(dst, d, d + 16, 0f);
     dst[d] = f / aspect;

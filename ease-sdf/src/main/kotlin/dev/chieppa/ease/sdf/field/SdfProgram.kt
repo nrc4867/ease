@@ -2,35 +2,48 @@ package dev.chieppa.ease.sdf.field
 
 /**
  * A shape tree flattened into straight-line instructions over registers, the one form both the
- * Kotlin evaluator and the generated WGSL run: [instructions] as [SdfOps] lays them out, [nodes]
- * holding each node's [SdfOps.NODE_FLOATS] parameters in [SdfNode]'s layout, point register 0 as
- * the point asked about, and the distance in register [result].
+ * Kotlin evaluator and generated WGSL run. Each instruction has an [op] from [SdfOps], writes
+ * register [target], reads registers [first] and [second], and takes its parameters from [node]:
+ * [SdfOps.NODE_FLOATS] floats, three affine rows then four values. Point register 0 is the point
+ * asked about; the distance ends in register [result]. Children come before parents and every
+ * result gets a new register, so the same tree always gives the same program.
  */
-internal class SdfProgram(
-  val instructions: IntArray,
-  val nodes: FloatArray,
-  val pointRegisters: Int,
-  val distanceRegisters: Int,
-  val result: Int,
+public class SdfProgram
+internal constructor(
+  private val instructions: IntArray,
+  private val nodes: FloatArray,
+  /** How many point registers the program uses. */
+  public val pointRegisters: Int,
+  /** How many distance registers the program uses. */
+  public val distanceRegisters: Int,
+  /** The distance register holding the answer. */
+  public val result: Int,
 ) {
   /** How many instructions there are. */
-  val size: Int
+  public val size: Int
     get() = instructions.size / SdfOps.WIDTH
 
   /** How many nodes hold parameters. */
-  val nodeCount: Int
+  public val nodeCount: Int
     get() = nodes.size / SdfOps.NODE_FLOATS
 
-  fun op(instruction: Int): Int = instructions[instruction * SdfOps.WIDTH + SdfOps.OP]
+  /** The opcode of [instruction]. */
+  public fun op(instruction: Int): Int = at(instruction, SdfOps.OP)
 
-  fun target(instruction: Int): Int = instructions[instruction * SdfOps.WIDTH + SdfOps.TARGET]
+  /** The register [instruction] writes. */
+  public fun target(instruction: Int): Int = at(instruction, SdfOps.TARGET)
 
-  fun first(instruction: Int): Int = instructions[instruction * SdfOps.WIDTH + SdfOps.FIRST]
+  /** The first register [instruction] reads. */
+  public fun first(instruction: Int): Int = at(instruction, SdfOps.FIRST)
 
-  fun second(instruction: Int): Int = instructions[instruction * SdfOps.WIDTH + SdfOps.SECOND]
+  /** The second register [instruction] reads, for joins. */
+  public fun second(instruction: Int): Int = at(instruction, SdfOps.SECOND)
 
-  fun node(instruction: Int): Int = instructions[instruction * SdfOps.WIDTH + SdfOps.NODE]
+  /** The node whose parameters [instruction] reads. */
+  public fun node(instruction: Int): Int = at(instruction, SdfOps.NODE)
 
   /** Parameter [index] (0 to 15) of [node]. */
-  fun parameter(node: Int, index: Int): Float = nodes[node * SdfOps.NODE_FLOATS + index]
+  public fun parameter(node: Int, index: Int): Float = nodes[node * SdfOps.NODE_FLOATS + index]
+
+  private fun at(instruction: Int, slot: Int): Int = instructions[instruction * SdfOps.WIDTH + slot]
 }

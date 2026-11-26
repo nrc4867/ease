@@ -10,7 +10,8 @@ import com.github.quillraven.fleks.ComponentType
  * on it report, both by the names the game gave them, empty for the first layer and the default
  * surface. Its Jolt body is built from a copy of [mesh] when the entity gains it. Code adds it to
  * entities of its own world, on host and clients alike; it is never saved in a scene or sent to
- * peers, and an entity has either a [Collider] or a mesh collider, not both.
+ * peers. An entity has either a [Collider] or a mesh collider: adding one to an entity holding the
+ * other throws. To change the mesh, layer or surface, replace the component; the body is rebuilt.
  */
 public class MeshCollider(
   public val mesh: TriangleMesh,

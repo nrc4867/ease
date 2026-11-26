@@ -1,12 +1,11 @@
 package dev.chieppa.ease.sdf.mesh
 
-import dev.chieppa.ease.physics.body.MeshCollider
-import dev.chieppa.ease.physics.body.TriangleMesh
+import dev.chieppa.ease.sdf.SdfConstants.AXES
 
 /**
  * A distance field's surface as triangles: [positions] and unit [normals], three floats per vertex,
  * and [indices], three per triangle, counter-clockwise seen from outside the solid. The same field
- * and grid always give the same arrays, bit for bit.
+ * and grid always give the same arrays, bit for bit, on every machine.
  */
 public class SdfMesh(
   public val positions: FloatArray,
@@ -20,15 +19,4 @@ public class SdfMesh(
   /** How many triangles the mesh has. */
   public val triangleCount: Int
     get() = indices.size / AXES
-
-  /** The triangles for a collider. */
-  public fun triangleMesh(): TriangleMesh = TriangleMesh(positions, indices)
-
-  /** A static collider of these triangles on [layer] with [surface], both by name. */
-  public fun collider(layer: String = "", surface: String = ""): MeshCollider =
-    MeshCollider(triangleMesh(), layer, surface)
-
-  private companion object {
-    const val AXES = 3
-  }
 }

@@ -16,7 +16,7 @@ private const val INDEX_BYTES = 4L
  * buffers.
  */
 public class ComputedMesh(
-  context: GpuContext,
+  internal val context: GpuContext,
   public val vertexCount: Int,
   public val indexCount: Int,
 ) : AutoCloseable {
@@ -43,7 +43,13 @@ public class ComputedMesh(
       override val indexCount: Int = this@ComputedMesh.indexCount
     }
 
+  /** Whether [close] freed its buffers, after which nothing may draw it. */
+  public var closed: Boolean = false
+    private set
+
   override fun close() {
+    if (closed) return
+    closed = true
     vertices.close()
     indices.close()
   }

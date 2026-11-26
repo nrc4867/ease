@@ -1,6 +1,8 @@
 package dev.chieppa.ease.sdf.field
 
 import dev.chieppa.ease.math.Quat
+import dev.chieppa.ease.sdf.SdfConstants.AXES
+import dev.chieppa.ease.sdf.SdfConstants.ROW_FLOATS
 import dev.chieppa.ease.sdf.shape.Box
 import dev.chieppa.ease.sdf.shape.Capsule
 import dev.chieppa.ease.sdf.shape.Combined
@@ -89,17 +91,15 @@ internal class SdfCompiler private constructor() {
       val mx = inverse[row * AXES] / shape.scale
       val my = inverse[row * AXES + 1] / shape.scale
       val mz = inverse[row * AXES + 2] / shape.scale
-      rows[row * ROW] = mx
-      rows[row * ROW + 1] = my
-      rows[row * ROW + 2] = mz
-      rows[row * ROW + AXES] = -(mx * shape.x + my * shape.y + mz * shape.z)
+      rows[row * ROW_FLOATS] = mx
+      rows[row * ROW_FLOATS + 1] = my
+      rows[row * ROW_FLOATS + 2] = mz
+      rows[row * ROW_FLOATS + AXES] = -(mx * shape.x + my * shape.y + mz * shape.z)
     }
     return rows
   }
 
   internal companion object {
-    private const val AXES = 3
-    private const val ROW = 4
     private const val VALUE_COUNT = 4
 
     /** [shape] as a program. */

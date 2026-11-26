@@ -58,14 +58,43 @@ class MeshColliderTest {
   }
 
   @Test
-  fun `an entity with both kinds of collider is refused`() {
-    assertFailsWith<IllegalArgumentException> {
+  fun `a mesh collider added to an entity with a collider is refused`() {
+    val entity =
       test.world.entity {
         it += TestWorld.placed(0f, 0f, 0f, 0f)
         it += Collider()
-        it += MeshCollider(floor())
       }
+
+    assertFailsWith<IllegalArgumentException> {
+      with(test.world) { entity.configure { it += MeshCollider(floor()) } }
     }
+  }
+
+  @Test
+  fun `a collider added to an entity with a mesh collider is refused`() {
+    val entity = meshEntity(floor())
+
+    assertFailsWith<IllegalArgumentException> {
+      with(test.world) { entity.configure { it += Collider() } }
+    }
+  }
+
+  @Test
+  fun `replacing the mesh collider rebuilds the body`() {
+    val floor = meshEntity(floor())
+    test.step()
+    val hit = RayHit()
+    assertTrue(test.physics.raycast(2f, 3f, 2f, 0f, -1f, 0f, 10f, hit))
+    assertEquals(0, hit.surface)
+
+    with(test.world) {
+      floor.configure { it += MeshCollider(raisedFloor(), surface = "stone") }
+    }
+    test.step()
+
+    assertTrue(test.physics.raycast(2f, 3f, 2f, 0f, -1f, 0f, 10f, hit))
+    assertEquals(2f, hit.distance, TOLERANCE)
+    assertEquals(1, hit.surface)
   }
 
   private fun meshEntity(mesh: TriangleMesh, surface: String = "") =
@@ -78,6 +107,13 @@ class MeshColliderTest {
   private fun floor() =
     TriangleMesh(
       floatArrayOf(-10f, 0f, -10f, -10f, 0f, 10f, 10f, 0f, 10f, 10f, 0f, -10f),
+      QUAD,
+    )
+
+  /** A square 20 units across at y = 1, facing up. */
+  private fun raisedFloor() =
+    TriangleMesh(
+      floatArrayOf(-10f, 1f, -10f, -10f, 1f, 10f, 10f, 1f, 10f, 10f, 1f, -10f),
       QUAD,
     )
 

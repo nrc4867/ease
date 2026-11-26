@@ -8,5 +8,9 @@
  * <p>The record types ({@code Vec3}, {@code Quat}, {@code Mat4}, ...) are immutable and allocate.
  * The holder classes ({@code Vec3s}, {@code Quats}, {@code Mat4s}, ...) operate on {@code float[]}
  * with offsets, allocate nothing, and accept a destination that aliases a source.
+ *
+ * <p>Trigonometry goes through {@code Trig} and {@code StrictMath}, and the rest uses only
+ * correctly rounded operations, so every JVM computes the same bits: host and clients agree on what
+ * they derive. Neither allocates on the paths the holder classes take.
  */
 package dev.chieppa.ease.math;

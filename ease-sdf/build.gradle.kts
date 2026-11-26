@@ -1,24 +1,9 @@
-import dev.chieppa.ease.build.JoltNatives
-import dev.chieppa.ease.build.WebgpuNatives
-
-// Distance fields: shapes combined with smooth CSG, evaluated in Kotlin and in generated WGSL,
-// meshed on the GPU for drawing and on the CPU for static colliders.
-plugins {
-  id("ease.kotlin-module")
-  id("com.google.devtools.ksp")
-}
-
-val joltJni = libs.versions.jolt.jni.get()
+// Distance fields on the CPU: shapes built from code with transforms and smooth CSG, compiled into
+// one program evaluated in Kotlin, and surface nets meshing. Depends only on ease-math, so any
+// layer above it can use it; ease-sdf-gpu adds the GPU side.
+plugins { id("ease.kotlin-module") }
 
 dependencies {
-  api(project(":ease-gpu"))
-  api(project(":ease-physics"))
-  ksp(project(":ease-codegen"))
+  api(project(":ease-math"))
   testImplementation(project(":ease-testing"))
-  testRuntimeOnly(JoltNatives.natives(providers, joltJni))
-  testRuntimeOnly(
-    project.dependencies.variantOf(libs.webgpu.native.ffm) {
-      classifier(WebgpuNatives.classifier(providers))
-    }
-  )
 }

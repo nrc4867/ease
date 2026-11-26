@@ -1,5 +1,6 @@
 package dev.chieppa.ease.sdf.mesh
 
+import dev.chieppa.ease.sdf.SdfConstants.AXES
 import dev.chieppa.ease.sdf.field.DistanceField
 import kotlin.math.sqrt
 
@@ -21,9 +22,9 @@ public object SurfaceNets {
       grid.cornerOf(index, corner)
       samples[index] =
         field.distance(
-          coordinate(grid, X, corner[X]),
-          coordinate(grid, Y, corner[Y]),
-          coordinate(grid, Z, corner[Z]),
+          grid.coordinate(X, corner[X]),
+          grid.coordinate(Y, corner[Y]),
+          grid.coordinate(Z, corner[Z]),
         )
     }
     val edges = CellEdges(grid, samples)
@@ -68,21 +69,9 @@ public object SurfaceNets {
     }
   }
 
-  /** The world coordinate along [axis] of corner [index]. */
-  internal fun coordinate(grid: SdfGrid, axis: Int, index: Int): Float {
-    val origin =
-      when (axis) {
-        X -> grid.originX
-        Y -> grid.originY
-        else -> grid.originZ
-      }
-    return origin + grid.cellSize * index.toFloat()
-  }
-
   /** Central differences reach this fraction of a cell either side of a vertex. */
-  internal const val NORMAL_STEP = 0.5f
+  public const val NORMAL_STEP: Float = 0.5f
   internal const val NONE = -1
-  internal const val AXES = 3
   internal const val X = 0
   internal const val Y = 1
   internal const val Z = 2

@@ -2,13 +2,13 @@ package dev.chieppa.ease.gpu.compute
 
 import dev.chieppa.ease.gpu.CommandEncoder
 import dev.chieppa.ease.gpu.GpuContext
+import dev.chieppa.ease.gpu.GpuException
 import dev.chieppa.ease.gpu.ffi.BufferBinding
 import dev.chieppa.ease.gpu.ffi.createComputeBindGroup
 import dev.chieppa.ease.gpu.ffi.createComputePipeline
 import dev.chieppa.ease.gpu.ffi.createShaderModule
 import dev.chieppa.ease.gpu.ffi.recordDispatch
 import dev.chieppa.webgpu.ffi.wgpu_h
-import java.lang.foreign.MemorySegment
 
 /**
  * A compute shader's entry point, compiled from [wgsl] on [context]'s device. Its bind group
@@ -22,10 +22,16 @@ public class ComputeKernel(
   private val label: String = entryPoint,
 ) : AutoCloseable {
   private val shader = createShaderModule(context.device, wgsl, label)
-  private val pipeline =
-    createComputePipeline(context.device, shader, entryPoint, label).also {
+  private val pipeline = createComputePipeline(context.device, shader, entryPoint, label)
+
+  init {
+    try {
       context.checkErrors()
+    } catch (failure: GpuException) {
+      close()
+      throw failure
     }
+  }
 
   /** A bind group for [group] of this kernel, binding [buffers] at bindings 0, 1, 2 and on. */
   public fun bind(group: Int, buffers: List<GpuBuffer>): ComputeBindings {
@@ -60,13 +66,5 @@ public class ComputeKernel(
   public companion object {
     /** The most workgroups one dimension of a dispatch may have, WebGPU's default limit. */
     public const val MAX_WORKGROUPS: Int = 65_535
-  }
-}
-
-/** A bind group made by [ComputeKernel.bind]. Close it when no dispatch needs it any more. */
-public class ComputeBindings internal constructor(internal val handle: MemorySegment) :
-  AutoCloseable {
-  override fun close() {
-    wgpu_h.wgpuBindGroupRelease(handle)
   }
 }

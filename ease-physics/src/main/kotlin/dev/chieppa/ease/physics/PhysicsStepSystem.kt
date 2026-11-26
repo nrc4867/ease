@@ -9,6 +9,7 @@ import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.replication.Replication
 import dev.chieppa.ease.ecs.replication.replication
 import dev.chieppa.ease.physics.body.Collider
+import dev.chieppa.ease.physics.body.MeshCollider
 import dev.chieppa.ease.physics.body.MotionKind
 import dev.chieppa.ease.physics.body.RigidBody
 import dev.chieppa.ease.physics.jolt.JoltShapes
@@ -30,6 +31,9 @@ public class PhysicsStepSystem(public val physics: PhysicsWorld) :
   private var triggers = BooleanArray(INITIAL_ENTITIES)
 
   override fun onAddEntity(entity: Entity) {
+    require(entity hasNo MeshCollider) {
+      "Entity ${entity.id} has both a Collider and a MeshCollider; give it one"
+    }
     build(entity, signatureOf(entity))
   }
 

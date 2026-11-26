@@ -58,8 +58,8 @@ class DistanceFieldTest {
 
   @Test
   fun `the same tree gives the same distances, bit for bit`() {
-    val first = TestCave.field()
-    val second = TestCave.field()
+    val first = DistanceField(TREE)
+    val second = DistanceField(TREE)
     for (step in 0 until SAMPLES) {
       val x = step * 0.37f - 15f
       val y = step * 0.11f - 6f
@@ -68,19 +68,23 @@ class DistanceFieldTest {
     }
   }
 
-  @Test
-  fun `the generated WGSL has a line per instruction and reads parameters by node`() {
-    val wgsl = DistanceField(Sphere(1f).union(Box(1f, 1f, 1f).moved(2f, 0f, 0f), 0.5f)).wgsl
-    assertTrue("fn sdf_field(p0: vec3f) -> f32" in wgsl)
-    assertTrue("let p1 = sdf_transform(p0, sdf_nodes[" in wgsl)
-    assertTrue("sdf_union(d0, " in wgsl)
-  }
-
   private fun assertDistance(expected: Float, shape: SdfShape, x: Float, y: Float, z: Float) {
     assertEquals(expected, DistanceField(shape).distance(x, y, z), TOLERANCE)
   }
 
   private companion object {
+    /** A block with a blended pair of tunnels carved through it, turned and scaled. */
+    val TREE: SdfShape =
+      Box(8f, 4f, 6f)
+        .subtract(
+          Capsule(6f, 1.5f)
+            .rotated(Quat(0f, 0f, 0.70710677f, 0.70710677f))
+            .union(Sphere(2.5f), 0.8f),
+          blend = 0.4f,
+        )
+        .rotated(Quat(0f, 0.38268343f, 0f, 0.9238795f))
+        .scaled(1.3f)
+
     const val QUARTER = 0.70710677f
     const val TOLERANCE = 1.0e-5f
     const val SAMPLES = 100
