@@ -40,6 +40,12 @@ enum class Layer {
   /** Jolt bodies, collision layers, surfaces, queries, volumes and the character controller. */
   PHYSICS,
 
+  /**
+   * Skeletons, clips, blending and state machines; poses, sockets, animation events and the probes
+   * they run.
+   */
+  ANIMATION,
+
   /** Whole projects as git holds them: checks over every file, fixes, the merge driver. */
   PROJECT,
 

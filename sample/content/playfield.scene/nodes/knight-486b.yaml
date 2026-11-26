@@ -1,0 +1,29 @@
+components:
+  ease.Animator:
+    animator: "500f140b-90fe-46de-bdbd-befd23f67e56"
+  ease.LocalTransform:
+    rotationW: 0.70710677
+    rotationX: 0.0
+    rotationY: 0.70710677
+    rotationZ: 0.0
+    scaleX: 1.0
+    scaleY: 1.0
+    scaleZ: 1.0
+    x: -3.0
+    "y": -4.5
+    z: 1.5
+  sample.Stroller:
+    acceleration: 1.6
+    direction: 1.0
+    pause: 1.5
+    reach: 3.0
+    speed: 0.8
+    waiting: 1.0
+    walked: 0.0
+formatVersion: 1
+id: "486b54129f64428b"
+instance:
+  asset: "f9cd5f95-5c21-4573-95f6-f8d27b2065a3"
+  overrides: {}
+name: Knight
+order: zzp

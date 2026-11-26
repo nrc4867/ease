@@ -1,5 +1,6 @@
 package dev.chieppa.ease.importers.gltf
 
+import dev.chieppa.ease.animation.assets.registerAnimationAssets
 import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.assets.associations.FileAssociationRegistry
 import dev.chieppa.ease.assets.database.AssetDatabase
@@ -14,6 +15,7 @@ import dev.chieppa.ease.scene.assets.registerScenes
 import dev.chieppa.ease.textures.registerTextureLoader
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.serialization.json.JsonObject
 
 /**
  * A content folder for tests: test-resource files copied in with meta files, the engine's importers
@@ -29,12 +31,20 @@ internal class ImportedProject(private val root: Path) {
   init {
     associations.registerScenes()
     associations.registerRenderAssets()
+    associations.registerAnimationAssets()
     associations.registerTextureLoader()
     EngineImporters().registerContributors(associations)
   }
 
-  /** Copies the test resource [resource] in as [name] with a meta file, and returns its GUID. */
-  fun add(resource: String, name: String = resource.substringAfterLast('/')): Guid {
+  /**
+   * Copies the test resource [resource] in as [name] with a meta file holding [settings], and
+   * returns its GUID.
+   */
+  fun add(
+    resource: String,
+    name: String = resource.substringAfterLast('/'),
+    settings: JsonObject? = null,
+  ): Guid {
     val guid = Guid(0, ++next)
     val file = root.resolve(name)
     Files.createDirectories(file.parent)
@@ -42,7 +52,7 @@ internal class ImportedProject(private val root: Path) {
       .use {
         Files.copy(it, file)
       }
-    MetaFiles.write(MetaFiles.metaOf(file), AssetMeta(guid = guid))
+    MetaFiles.write(MetaFiles.metaOf(file), AssetMeta(guid = guid, settings = settings))
     return guid
   }
 

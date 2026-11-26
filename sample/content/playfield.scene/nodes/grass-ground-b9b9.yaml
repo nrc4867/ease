@@ -1,0 +1,36 @@
+components:
+  ease.Collider:
+    halfHeight: 0.5
+    halfX: 2.0
+    halfY: 0.1
+    halfZ: 1.0
+    layer: ""
+    radius: 0.5
+    shape: BOX
+    surface: grass
+  ease.LocalTransform:
+    rotationW: 1.0
+    rotationX: 0.0
+    rotationY: 0.0
+    rotationZ: 0.0
+    scaleX: 4.0
+    scaleY: 0.2
+    scaleZ: 2.0
+    x: 2.0
+    "y": -4.6
+    z: 1.5
+  ease.Material:
+    blue: 0.16
+    emissiveBlue: 0.0
+    emissiveGreen: 0.0
+    emissiveRed: 0.0
+    green: 0.45
+    metallic: 0.0
+    red: 0.2
+    roughness: 0.5
+  ease.Mesh:
+    shape: CUBE
+formatVersion: 1
+id: b9b950eb97aa4d8e
+name: "Grass ground"
+order: zzr

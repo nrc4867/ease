@@ -1,4 +1,4 @@
-package dev.chieppa.ease.render.assets.animation
+package dev.chieppa.ease.animation.assets
 
 /**
  * A cooked skin: the joints a skinned mesh's joint indices name, each by the local id (16 hex

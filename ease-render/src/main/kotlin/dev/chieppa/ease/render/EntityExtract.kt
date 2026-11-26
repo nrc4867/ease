@@ -2,7 +2,10 @@ package dev.chieppa.ease.render
 
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
+import dev.chieppa.ease.animation.skinning.SkinPalettes
 import dev.chieppa.ease.gpu.lit.MaterialFloats
+import dev.chieppa.ease.gpu.mesh.SkinVertices
+import dev.chieppa.ease.memory.MAT4_FLOATS
 import dev.chieppa.ease.render.assets.MaterialAsset
 import dev.chieppa.ease.render.scene.Camera
 import dev.chieppa.ease.render.scene.CustomMesh
@@ -22,9 +25,15 @@ private const val COLOR_CHANNELS = 3
  * parents through [WorldTransforms], when the world has it), moved by a correction offset, and
  * whichever of a mesh, a camera and a light it carries. A [MeshRef] draws its mesh asset in place
  * of any built-in [Mesh], and a [MaterialRef] its material asset in place of any inline [Material];
- * the assets come through [assets]. One per snapshot writer, so copying allocates nothing.
+ * the assets come through [assets]. A mesh asset with joints on a node with a `SkinRef` is drawn
+ * skinned, its joint matrices worked out by [palettes]. One per snapshot writer, so copying
+ * allocates nothing.
  */
-internal class EntityExtract(private val snapshot: RenderSnapshot, private val assets: DrawAssets) {
+internal class EntityExtract(
+  private val snapshot: RenderSnapshot,
+  private val assets: DrawAssets,
+  private val palettes: SkinPalettes,
+) {
   private val transform = FloatArray(TRANSFORM_FLOATS)
 
   /** Writes [entity] of [world], drawn ([dx], [dy], [dz]) from where it is. */
@@ -45,8 +54,18 @@ internal class EntityExtract(private val snapshot: RenderSnapshot, private val a
       transform[2] += dz
       val id = entity.id
       snapshot.writeTransform(id, transform)
+      writeMesh(world, entity, worlds)
+      entity.getOrNull(Camera)?.let { writeCamera(id, it) }
+      entity.getOrNull(DirectionalLight)?.let { writeLight(id, it) }
+    }
+
+  /** Lists [entity] among the snapshot's meshes when it draws one, with its material and skin. */
+  private fun writeMesh(world: World, entity: Entity, worlds: WorldTransforms?) =
+    with(world) {
+      val id = entity.id
       val custom = entity.getOrNull(CustomMesh)?.mesh
-      val asset = entity.getOrNull(MeshRef)?.mesh?.let { assets.mesh(it.guid)?.mesh }
+      val meshAsset = entity.getOrNull(MeshRef)?.mesh?.let { assets.mesh(it.guid) }
+      val asset = meshAsset?.mesh
       val shape = entity.getOrNull(Mesh)?.shape
       val builtIn = shape != null && entity.getOrNull(MeshRef) == null
       if (custom != null || asset != null || builtIn) {
@@ -58,10 +77,24 @@ internal class EntityExtract(private val snapshot: RenderSnapshot, private val a
         val drawnShape = if (custom == null && asset == null) shape else null
         snapshot.addMesh(id, drawnShape, custom ?: asset, textures)
         snapshot.materialAssets[id] = materialAsset
+        val skin = meshAsset?.skin
+        if (custom == null && skin != null) writeSkin(world, entity, skin, worlds)
       }
-      entity.getOrNull(Camera)?.let { writeCamera(id, it) }
-      entity.getOrNull(DirectionalLight)?.let { writeLight(id, it) }
     }
+
+  private fun writeSkin(
+    world: World,
+    entity: Entity,
+    skin: SkinVertices,
+    worlds: WorldTransforms?,
+  ) {
+    val joints = palettes.jointCount(world, entity)
+    if (joints == 0) return
+    val skins = snapshot.skins
+    skins.reserve(joints)
+    val written = palettes.write(world, entity, worlds, skins.palette, skins.joints * MAT4_FLOATS)
+    if (written > 0) skins.add(entity.id, skin, written)
+  }
 
   private fun writeAssetMaterial(id: Int, material: MaterialAsset) {
     val values = snapshot.materials

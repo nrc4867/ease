@@ -1,0 +1,72 @@
+parameters:
+  -
+    drive: MOTION_SPEED
+    initial: 0.0
+    name: speed
+probes:
+  -
+    at: foot.l
+    depth: 0.5
+    event: footstepLeft
+    lift: 0.25
+    name: leftFoot
+  -
+    at: foot.r
+    depth: 0.5
+    event: footstepRight
+    lift: 0.25
+    name: rightFoot
+sockets:
+  -
+    bone: handslot.l
+    name: handLeft
+    x: 0.0
+    "y": 0.0
+    z: 0.0
+  -
+    bone: handslot.r
+    name: handRight
+    x: 0.0
+    "y": 0.0
+    z: 0.0
+start: ""
+states:
+  -
+    blend: null
+    clip: "0405b3b3-c8b9-5e49-9778-2ff1acffcbee"
+    loop: true
+    name: idle
+    speed: 1.0
+  -
+    blend:
+      parameter: speed
+      points:
+        -
+          at: 0.0
+          clip: "0405b3b3-c8b9-5e49-9778-2ff1acffcbee"
+        -
+          at: 0.8
+          clip: "9b4270f2-b997-5d34-9fd8-f67227b9ffeb"
+    clip: null
+    loop: true
+    name: move
+    speed: 1.0
+transitions:
+  -
+    conditions:
+      -
+        parameter: speed
+        test: ABOVE
+        value: 0.05
+    duration: 0.25
+    from: idle
+    to: move
+  -
+    conditions:
+      -
+        parameter: speed
+        test: BELOW
+        value: 0.05
+    duration: 0.25
+    from: move
+    to: idle

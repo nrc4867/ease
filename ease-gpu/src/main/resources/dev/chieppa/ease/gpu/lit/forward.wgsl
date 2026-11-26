@@ -1,11 +1,14 @@
 // The engine's forward lighting around a material template's surface function. The structs it
 // names come before it, written by ease-codegen from their @GpuStruct classes; the template's
 // `surface` comes after it. Bind groups: 0 frame and view, 1 the material's textures, 2 the
-// template's per-draw parameters (one read-only storage array at binding 0), 3 objects.
+// template's per-draw parameters (one read-only storage array at binding 0), 3 objects and the
+// frame's joint matrices.
 
 @group(0) @binding(0) var<uniform> frame: FrameData;
 @group(0) @binding(1) var<uniform> view: ViewData;
 @group(3) @binding(0) var<storage, read> objects: array<ObjectData>;
+// Every skinned draw's joint matrices, each draw's from its object's jointOffset on.
+@group(3) @binding(1) var<storage, read> joints: array<mat4x4f>;
 
 // The draw's textures, one per slot; an empty slot holds white, or a flat normal.
 @group(1) @binding(0) var base_color_texture: texture_2d<f32>;
@@ -66,18 +69,45 @@ struct Varyings {
   @location(4) tangent: vec4f,
 }
 
-@vertex
-fn vertex_main(in: VertexIn, @builtin(instance_index) draw: u32) -> Varyings {
+// A skinned vertex's second stream: the four joints it follows and how much each pulls.
+struct SkinIn {
+  @location(4) joints: vec4<u32>,
+  @location(5) weights: vec4f,
+}
+
+// Places a vertex of draw `draw`, first bent by `skin` in the draw's own space.
+fn place(in: VertexIn, draw: u32, skin: mat4x4f) -> Varyings {
   let placed = objects[draw];
-  let world = placed.model * vec4f(in.position, 1.0);
+  let world = placed.model * skin * vec4f(in.position, 1.0);
   var out: Varyings;
   out.clip = view.viewProjection * world;
   out.world_position = world.xyz;
-  out.normal = (placed.normalMatrix * vec4f(in.normal, 0.0)).xyz;
+  out.normal = (placed.normalMatrix * skin * vec4f(in.normal, 0.0)).xyz;
   out.uv = in.uv;
-  out.tangent = vec4f((placed.model * vec4f(in.tangent.xyz, 0.0)).xyz, in.tangent.w);
+  out.tangent = vec4f((placed.model * skin * vec4f(in.tangent.xyz, 0.0)).xyz, in.tangent.w);
   out.draw = draw;
   return out;
+}
+
+@vertex
+fn vertex_main(in: VertexIn, @builtin(instance_index) draw: u32) -> Varyings {
+  return place(in, draw, mat4x4f(
+    vec4f(1.0, 0.0, 0.0, 0.0),
+    vec4f(0.0, 1.0, 0.0, 0.0),
+    vec4f(0.0, 0.0, 1.0, 0.0),
+    vec4f(0.0, 0.0, 0.0, 1.0),
+  ));
+}
+
+// A skinned vertex: its joints' matrices blended by its weights, then placed as any other.
+@vertex
+fn vertex_skinned(in: VertexIn, skin_in: SkinIn, @builtin(instance_index) draw: u32) -> Varyings {
+  let first = u32(objects[draw].jointOffset);
+  let skin = joints[first + skin_in.joints.x] * skin_in.weights.x
+    + joints[first + skin_in.joints.y] * skin_in.weights.y
+    + joints[first + skin_in.joints.z] * skin_in.weights.z
+    + joints[first + skin_in.joints.w] * skin_in.weights.w;
+  return place(in, draw, skin);
 }
 
 // GGX normal distribution.

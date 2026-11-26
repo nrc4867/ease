@@ -8,11 +8,6 @@ import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.scene.node.Parent
 import dev.chieppa.ease.scene.runtime.SceneNodes
 
-/** Floats of one world transform: position x, y, z, rotation x, y, z, w, scale x, y, z. */
-public const val WORLD_TRANSFORM_FLOATS: Int = 10
-
-private const val ROTATION_AT = 3
-private const val SCALE_AT = 7
 private const val QUAT_W = 3
 private const val NEVER = -1L
 private const val IN_PROGRESS = -2L
@@ -30,6 +25,9 @@ private const val IN_PROGRESS = -2L
  * physics included, an entity's world transform in the current pass, working it out on demand when
  * the pass has not reached it yet ([invalidate] starts a pass early). Arrays are indexed by entity
  * id and grow only when an id passes them, so a steady world allocates nothing.
+ *
+ * A node [posed] answers for, such as an animated bone, is placed by the transform it gives in
+ * place of its `LocalTransform`, so its children follow the pose.
  */
 public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
   IteratingSystem(family { all(LocalTransform, Parent) }) {
@@ -39,6 +37,12 @@ public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
   private val local = FloatArray(WORLD_TRANSFORM_FLOATS)
   private val math = TransformMath()
   private var nodes: SceneNodes? = null
+
+  /**
+   * What places posed nodes, such as an animation system's bones; null places every node by its
+   * `LocalTransform`.
+   */
+  public var posed: PosedTransforms? = null
 
   override fun onInit() {
     nodes = world.systemOrNull<SceneNodes>()
@@ -68,7 +72,7 @@ public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
   public fun write(entity: Entity, dst: FloatArray, at: Int) {
     with(world) {
       if (entity hasNo Parent) {
-        writeLocal(world, entity, dst, at)
+        writeOwn(entity, dst, at)
         return
       }
     }
@@ -83,8 +87,12 @@ public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
     if (stamps[id] == pass) return
     val base = id * WORLD_TRANSFORM_FLOATS
     stamps[id] = IN_PROGRESS
-    writeLocal(world, entity, values, base)
-    val parent = parentOf(entity)
+    // Writing a posed node can resolve other nodes and grow the store, so the write may land in the
+    // array this pass started with: carry it over.
+    val written = values
+    val own = writeOwn(entity, written, base)
+    if (written !== values) System.arraycopy(written, base, values, base, WORLD_TRANSFORM_FLOATS)
+    val parent = if (own == PosedTransforms.WORLD) Entity.NONE else parentOf(entity)
     if (parent != Entity.NONE && stamps.getOrElse(parent.id) { NEVER } != IN_PROGRESS) {
       val parentBase = parentWorld(parent)
       compose(parentBase, base)
@@ -99,8 +107,19 @@ public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
       resolve(parent)
       return parent.id * WORLD_TRANSFORM_FLOATS
     }
-    writeLocal(world, parent, local, 0)
+    writeOwn(parent, local, 0)
     return -1
+  }
+
+  /**
+   * Writes [entity]'s own transform into [dst] at [at]: its pose when [posed] gives one, else its
+   * local transform. Returns what [PosedTransforms.write] said, [PosedTransforms.UNPOSED] for a
+   * local transform.
+   */
+  private fun writeOwn(entity: Entity, dst: FloatArray, at: Int): Int {
+    val result = posed?.write(entity, dst, at) ?: PosedTransforms.UNPOSED
+    if (result == PosedTransforms.UNPOSED) writeLocal(world, entity, dst, at)
+    return result
   }
 
   private fun parentOf(entity: Entity): Entity {
@@ -138,13 +157,13 @@ public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
       dst[at] = t.x
       dst[at + 1] = t.y
       dst[at + 2] = t.z
-      dst[at + ROTATION_AT] = t.rotationX
-      dst[at + ROTATION_AT + 1] = t.rotationY
-      dst[at + ROTATION_AT + 2] = t.rotationZ
-      dst[at + ROTATION_AT + QUAT_W] = t.rotationW
-      dst[at + SCALE_AT] = t.scaleX
-      dst[at + SCALE_AT + 1] = t.scaleY
-      dst[at + SCALE_AT + 2] = t.scaleZ
+      dst[at + TRANSFORM_ROTATION_AT] = t.rotationX
+      dst[at + TRANSFORM_ROTATION_AT + 1] = t.rotationY
+      dst[at + TRANSFORM_ROTATION_AT + 2] = t.rotationZ
+      dst[at + TRANSFORM_ROTATION_AT + QUAT_W] = t.rotationW
+      dst[at + TRANSFORM_SCALE_AT] = t.scaleX
+      dst[at + TRANSFORM_SCALE_AT + 1] = t.scaleY
+      dst[at + TRANSFORM_SCALE_AT + 2] = t.scaleZ
     }
   }
 }

@@ -3,6 +3,8 @@ package dev.chieppa.ease.render
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
+import dev.chieppa.ease.animation.runtime.AnimationAssets
+import dev.chieppa.ease.animation.skinning.SkinPalettes
 import dev.chieppa.ease.assets.loading.AssetStore
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.prediction.CorrectionOffsets
@@ -18,8 +20,9 @@ import dev.chieppa.ease.scene.transform.WorldTransforms
  * [DirectionalLight] into [snapshot] once per tick at its world transform, each drawn [offsets]
  * away from its position while a corrected prediction settles. Mesh and material assets load
  * through [assets]; one that fails is listed in [assetProblems] and not drawn until the store next
- * reloads something, when it is tried again. Register it in `Phase.EXTRACT`, after everything that
- * moves entities and after the world's `WorldTransforms`.
+ * reloads something, when it is tried again. Skinned meshes are written with their joint matrices
+ * this tick. Register it in `Phase.EXTRACT`, after everything that moves entities and after the
+ * world's `WorldTransforms`.
  */
 public class ExtractSystem(
   private val snapshot: RenderSnapshot,
@@ -33,7 +36,8 @@ public class ExtractSystem(
     }
   ) {
   private val drawAssets = DrawAssets(assets)
-  private val extract = EntityExtract(snapshot, drawAssets)
+  private val extract =
+    EntityExtract(snapshot, drawAssets, SkinPalettes(assets?.let(AnimationAssets::of)))
   private var worlds: WorldTransforms? = null
 
   /** The mesh and material assets that failed to load, one line each, until they are retried. */

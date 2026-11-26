@@ -1,6 +1,8 @@
 package dev.chieppa.ease.render
 
 import com.github.quillraven.fleks.World
+import dev.chieppa.ease.animation.runtime.AnimationAssets
+import dev.chieppa.ease.animation.skinning.SkinPalettes
 import dev.chieppa.ease.assets.loading.AssetStore
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.render.scene.Camera
@@ -20,7 +22,8 @@ public fun RenderSnapshot.extractFrom(world: World, assets: AssetStore? = null) 
     all(LocalTransform)
     any(Mesh, MeshRef, CustomMesh, Camera, DirectionalLight)
   }
-  val extract = EntityExtract(this, DrawAssets(assets))
+  val extract =
+    EntityExtract(this, DrawAssets(assets), SkinPalettes(assets?.let(AnimationAssets::of)))
   val worlds = world.systemOrNull<WorldTransforms>()
   worlds?.invalidate()
   begin()

@@ -21,9 +21,9 @@ public const val DEFAULT_DRAW_CAPACITY: Int = 4096
  * light, in the lit material template with a depth buffer. With no camera it only clears. With a
  * camera whose lens has a [LensProblem] it only clears and hands [problems] the problem's message,
  * once until the lens changes. A mesh draws with its `SurfaceTextures`, or else with the textures
- * of its material asset, loaded through [assets] (see [MaterialTextureCache]). Holds room for
- * [capacity] meshes and the built-in shapes' meshes, made once, so drawing a frame allocates
- * nothing on the heap.
+ * of its material asset, loaded through [assets] (see [MaterialTextureCache]); a skinned mesh draws
+ * bent by the joint matrices the snapshot holds for it. Holds room for [capacity] meshes and the
+ * built-in shapes' meshes, made once, so drawing a frame allocates nothing on the heap.
  */
 public class WorldRenderer(
   context: GpuContext,
@@ -77,6 +77,10 @@ public class WorldRenderer(
     val asset = snapshot.materialAssets[id]
     val textures = snapshot.textures(id) ?: asset?.let { materialTextures?.of(it) }
     frame.textures(index, textures)
+    val skins = snapshot.skins
+    skins.skin(id)?.let {
+      frame.skin(index, it, skins.palette, skins.paletteFrom(id), skins.jointCount(id))
+    }
     snapshot.transformInto(id, alpha, transform, 0)
     draws.write(transform, frame.models, frame.normals, index)
     System.arraycopy(

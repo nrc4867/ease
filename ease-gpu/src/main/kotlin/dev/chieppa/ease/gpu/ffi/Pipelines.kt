@@ -72,9 +72,10 @@ internal fun createDepthPipeline(
   device: MemorySegment,
   shader: MemorySegment,
   format: Int,
-  vertices: VertexLayout,
+  vertices: List<VertexLayout>,
   layout: MemorySegment,
   label: String,
+  entryPoint: String = "vertex_main",
 ): MemorySegment =
   Arena.ofConfined().use { arena ->
     val descriptor = arena.struct(WGPURenderPipelineDescriptor.layout())
@@ -82,9 +83,9 @@ internal fun createDepthPipeline(
     WGPURenderPipelineDescriptor.layout(descriptor, layout)
     val vertex = WGPURenderPipelineDescriptor.vertex(descriptor)
     WGPUVertexState.module(vertex, shader)
-    arena.setString(WGPUVertexState.entryPoint(vertex), "vertex_main")
-    WGPUVertexState.bufferCount(vertex, 1)
-    WGPUVertexState.buffers(vertex, vertexBuffer(arena, vertices))
+    arena.setString(WGPUVertexState.entryPoint(vertex), entryPoint)
+    WGPUVertexState.bufferCount(vertex, vertices.size.toLong())
+    WGPUVertexState.buffers(vertex, vertexBuffers(arena, vertices))
     val primitive = WGPURenderPipelineDescriptor.primitive(descriptor)
     WGPUPrimitiveState.topology(primitive, wgpu_h.WGPUPrimitiveTopology_TriangleList())
     WGPUPrimitiveState.frontFace(primitive, wgpu_h.WGPUFrontFace_CCW())
@@ -101,21 +102,28 @@ internal fun createDepthPipeline(
     wgpu_h.wgpuDeviceCreateRenderPipeline(device, descriptor)
   }
 
-private fun vertexBuffer(arena: Arena, vertices: VertexLayout): MemorySegment {
-  val count = vertices.attributes.size.toLong()
-  val attributes = arena.allocate(WGPUVertexAttribute.layout(), count)
-  vertices.attributes.forEachIndexed { location, attribute ->
-    val entry = WGPUVertexAttribute.asSlice(attributes, location.toLong())
-    WGPUVertexAttribute.format(entry, floatFormat(attribute.components))
-    WGPUVertexAttribute.offset(entry, attribute.offset)
-    WGPUVertexAttribute.shaderLocation(entry, location)
+/** The buffer layouts of [vertices], one after another, as the descriptor takes them. */
+private fun vertexBuffers(arena: Arena, vertices: List<VertexLayout>): MemorySegment {
+  val layouts = arena.allocate(WGPUVertexBufferLayout.layout(), vertices.size.toLong())
+  vertices.forEachIndexed { index, buffer ->
+    val count = buffer.attributes.size.toLong()
+    val attributes = arena.allocate(WGPUVertexAttribute.layout(), count)
+    buffer.attributes.forEachIndexed { position, attribute ->
+      val entry = WGPUVertexAttribute.asSlice(attributes, position.toLong())
+      val format =
+        if (attribute.unsigned16) wgpu_h.WGPUVertexFormat_Uint16x4()
+        else floatFormat(attribute.components)
+      WGPUVertexAttribute.format(entry, format)
+      WGPUVertexAttribute.offset(entry, attribute.offset)
+      WGPUVertexAttribute.shaderLocation(entry, buffer.firstLocation + position)
+    }
+    val layout = WGPUVertexBufferLayout.asSlice(layouts, index.toLong())
+    WGPUVertexBufferLayout.stepMode(layout, wgpu_h.WGPUVertexStepMode_Vertex())
+    WGPUVertexBufferLayout.arrayStride(layout, buffer.stride)
+    WGPUVertexBufferLayout.attributeCount(layout, count)
+    WGPUVertexBufferLayout.attributes(layout, attributes)
   }
-  val layout = arena.struct(WGPUVertexBufferLayout.layout())
-  WGPUVertexBufferLayout.stepMode(layout, wgpu_h.WGPUVertexStepMode_Vertex())
-  WGPUVertexBufferLayout.arrayStride(layout, vertices.stride)
-  WGPUVertexBufferLayout.attributeCount(layout, count)
-  WGPUVertexBufferLayout.attributes(layout, attributes)
-  return layout
+  return layouts
 }
 
 @Suppress("MagicNumber") // Component counts, named by the formats they pick.
