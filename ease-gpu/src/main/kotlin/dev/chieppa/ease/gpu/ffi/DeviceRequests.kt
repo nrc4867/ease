@@ -15,6 +15,7 @@ import dev.chieppa.webgpu.ffi.WGPUUncapturedErrorCallbackInfo
 import dev.chieppa.webgpu.ffi.wgpu_h
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
+import java.lang.foreign.ValueLayout.JAVA_INT
 
 /**
  * A wgpu instance. On Windows it compiles Direct3D 12 shaders with FXC, which ships with Windows,
@@ -60,8 +61,9 @@ internal fun requestAdapter(instance: MemorySegment, surface: MemorySegment?): M
   }
 
 /**
- * A device on [adapter]. [errors] gets every error wgpu reports for it outside a call, and its
- * loss; the callbacks live in [callbacks], which must outlive the device.
+ * A device on [adapter], with block-compressed textures (BC1 to BC7) turned on when the adapter has
+ * them. [errors] gets every error wgpu reports for it outside a call, and its loss; the callbacks
+ * live in [callbacks], which must outlive the device.
  */
 internal fun requestDevice(
   instance: MemorySegment,
@@ -71,6 +73,14 @@ internal fun requestDevice(
 ): MemorySegment =
   Arena.ofConfined().use { arena ->
     val descriptor = arena.struct(WGPUDeviceDescriptor.layout())
+    val blockCompression = wgpu_h.WGPUFeatureName_TextureCompressionBC()
+    if (wgpu_h.wgpuAdapterHasFeature(adapter, blockCompression) != 0) {
+      WGPUDeviceDescriptor.requiredFeatureCount(descriptor, 1)
+      WGPUDeviceDescriptor.requiredFeatures(
+        descriptor,
+        arena.allocateFrom(JAVA_INT, blockCompression),
+      )
+    }
     WGPUUncapturedErrorCallbackInfo.callback(
       WGPUDeviceDescriptor.uncapturedErrorCallbackInfo(descriptor),
       WGPUUncapturedErrorCallback.allocate(

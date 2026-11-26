@@ -1,7 +1,5 @@
 package dev.chieppa.ease.gpu.ffi
 
-import dev.chieppa.webgpu.ffi.WGPUBindGroupDescriptor
-import dev.chieppa.webgpu.ffi.WGPUBindGroupEntry
 import dev.chieppa.webgpu.ffi.WGPUBufferDescriptor
 import dev.chieppa.webgpu.ffi.wgpu_h
 import java.lang.foreign.Arena
@@ -28,23 +26,5 @@ internal fun createBufferBindGroup(
   pipeline: MemorySegment,
   buffers: List<BufferBinding>,
   group: Int = 0,
-): MemorySegment {
-  val layout = wgpu_h.wgpuRenderPipelineGetBindGroupLayout(pipeline, group)
-  val bindGroup =
-    Arena.ofConfined().use { arena ->
-      val entries = arena.allocate(WGPUBindGroupEntry.layout(), buffers.size.toLong())
-      buffers.forEachIndexed { index, binding ->
-        val entry = WGPUBindGroupEntry.asSlice(entries, index.toLong())
-        WGPUBindGroupEntry.binding(entry, index)
-        WGPUBindGroupEntry.buffer(entry, binding.buffer)
-        WGPUBindGroupEntry.size(entry, binding.bytes)
-      }
-      val descriptor = arena.struct(WGPUBindGroupDescriptor.layout())
-      WGPUBindGroupDescriptor.layout(descriptor, layout)
-      WGPUBindGroupDescriptor.entryCount(descriptor, buffers.size.toLong())
-      WGPUBindGroupDescriptor.entries(descriptor, entries)
-      wgpu_h.wgpuDeviceCreateBindGroup(device, descriptor)
-    }
-  wgpu_h.wgpuBindGroupLayoutRelease(layout)
-  return bindGroup
-}
+): MemorySegment =
+  createBindGroup(device, pipeline, buffers.map { Binding.Buffer(it.buffer, it.bytes) }, group)

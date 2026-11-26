@@ -31,6 +31,9 @@ enum class Layer {
    */
   ASSETS,
 
+  /** Cooked media formats, such as textures, with their importers and loaders. */
+  MEDIA,
+
   /** Nodes, scenes, prefabs and sublevels, their merge-safe files and their reloads. */
   SCENE,
 

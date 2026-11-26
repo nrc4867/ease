@@ -6,6 +6,8 @@ import dev.chieppa.ease.gpu.ffi.deviceLimits
 import dev.chieppa.ease.gpu.ffi.readString
 import dev.chieppa.ease.gpu.ffi.requestAdapter
 import dev.chieppa.ease.gpu.ffi.requestDevice
+import dev.chieppa.ease.gpu.lit.TextureBindings
+import dev.chieppa.ease.gpu.texture.SamplerCache
 import dev.chieppa.ease.memory.DEFAULT_BYTES_PER_FRAME
 import dev.chieppa.ease.memory.FrameArena
 import dev.chieppa.ease.memory.MemoryChecks
@@ -35,6 +37,23 @@ private constructor(
   public val frames: FrameArena,
 ) : AutoCloseable {
   internal val queue: MemorySegment = wgpu_h.wgpuDeviceGetQueue(device)
+
+  /**
+   * Whether the device samples block-compressed textures (BC5, BC7 and the rest). Ease asks for
+   * them whenever the adapter has them; without them, compressed textures are decoded before
+   * upload.
+   */
+  public val supportsBlockCompression: Boolean =
+    wgpu_h.wgpuDeviceHasFeature(device, wgpu_h.WGPUFeatureName_TextureCompressionBC()) != 0
+
+  /** The samplers made on this device, one per filter and wrap, made on first use. */
+  internal val samplers: SamplerCache = SamplerCache(device)
+
+  private var madeTextureBindings: TextureBindings? = null
+
+  /** The texture group's layout and default textures lit passes share, made on first use. */
+  internal val textureBindings: TextureBindings
+    get() = madeTextureBindings ?: TextureBindings(this).also { madeTextureBindings = it }
 
   /** The surface of the window this context was opened for, or null when it has none. */
   public val surface: WindowSurface? = surfaceHandle?.let {
@@ -81,6 +100,8 @@ private constructor(
 
   override fun close() {
     surface?.close()
+    madeTextureBindings?.close()
+    samplers.close()
     wgpu_h.wgpuQueueRelease(queue)
     wgpu_h.wgpuDeviceRelease(device)
     adapter?.let(wgpu_h::wgpuAdapterRelease)

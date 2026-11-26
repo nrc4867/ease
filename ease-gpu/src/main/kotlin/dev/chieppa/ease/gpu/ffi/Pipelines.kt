@@ -64,19 +64,22 @@ internal fun createColorPipeline(
 /**
  * A render pipeline drawing triangles with [shader]'s `vertex_main` and `fragment_main` from one
  * vertex buffer of [vertices] into one color target of [format] and a depth buffer, nearer
- * fragments winning; counter-clockwise faces are the front and back faces are culled. Its layout is
- * the one wgpu derives from the shader.
+ * fragments winning; counter-clockwise faces are the front and back faces are culled, with the
+ * pipeline [layout] given.
  */
+@Suppress("LongParameterList") // One pipeline description, as wgpu takes it.
 internal fun createDepthPipeline(
   device: MemorySegment,
   shader: MemorySegment,
   format: Int,
   vertices: VertexLayout,
+  layout: MemorySegment,
   label: String,
 ): MemorySegment =
   Arena.ofConfined().use { arena ->
     val descriptor = arena.struct(WGPURenderPipelineDescriptor.layout())
     arena.setString(WGPURenderPipelineDescriptor.label(descriptor), label)
+    WGPURenderPipelineDescriptor.layout(descriptor, layout)
     val vertex = WGPURenderPipelineDescriptor.vertex(descriptor)
     WGPUVertexState.module(vertex, shader)
     arena.setString(WGPUVertexState.entryPoint(vertex), "vertex_main")

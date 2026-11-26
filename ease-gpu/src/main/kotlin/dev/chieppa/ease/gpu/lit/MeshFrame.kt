@@ -47,6 +47,7 @@ public class MeshFrame(public val capacity: Int) {
   public val materials: FloatArray = FloatArray(capacity * MaterialFloats.COUNT)
   internal val meshes = arrayOfNulls<MeshData>(capacity)
   internal val computed = arrayOfNulls<ComputedMesh>(capacity)
+  private val textureSets = arrayOfNulls<MaterialTextures>(capacity)
 
   /** How many draws the frame holds. */
   public var count: Int = 0
@@ -56,6 +57,7 @@ public class MeshFrame(public val capacity: Int) {
   public fun clearDraws() {
     meshes.fill(null, 0, count)
     computed.fill(null, 0, count)
+    textureSets.fill(null, 0, count)
     count = 0
   }
 
@@ -85,6 +87,15 @@ public class MeshFrame(public val capacity: Int) {
     require(index in 0 until count) { "No draw $index among $count" }
     return meshes[index]
   }
+
+  /** Sets the textures draw [index] samples; null samples the pass's defaults. */
+  public fun textures(index: Int, textures: MaterialTextures?) {
+    require(index in 0 until count) { "No draw $index among $count" }
+    textureSets[index] = textures
+  }
+
+  /** The textures draw [index] samples, or null for the pass's defaults. */
+  public fun textures(index: Int): MaterialTextures? = textureSets[index]
 
   /**
    * Sets draw [index]'s lit material: linear base color, roughness and metallic from 0 to 1, and

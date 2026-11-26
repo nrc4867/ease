@@ -2,6 +2,7 @@ package dev.chieppa.ease.render
 
 import dev.chieppa.ease.ecs.DEFAULT_ENTITY_CAPACITY
 import dev.chieppa.ease.gpu.lit.MaterialFloats
+import dev.chieppa.ease.gpu.lit.MaterialTextures
 import dev.chieppa.ease.gpu.mesh.MeshData
 import dev.chieppa.ease.math.Quats
 import dev.chieppa.ease.render.scene.MeshShape
@@ -28,9 +29,9 @@ public const val QUAT_W: Int = 3
  * The read-only view of a world that rendering works from, written once per tick by
  * [ExtractSystem]. For every entity with a transform and a mesh, camera or light it holds the
  * transform at the previous and the current tick, so a frame between ticks can blend them; for each
- * mesh drawn this tick its shape or runtime mesh and its material; and the [camera] and [light] the
- * world is seen through and lit by. Arrays are indexed by entity id and grow only when an id passes
- * their capacity; a steady world writes it without allocating.
+ * mesh drawn this tick its shape or runtime mesh, its material and its textures; and the [camera]
+ * and [light] the world is seen through and lit by. Arrays are indexed by entity id and grow only
+ * when an id passes their capacity; a steady world writes it without allocating.
  */
 public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
   init {
@@ -42,6 +43,7 @@ public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
   internal var materials = FloatArray(initialCapacity * MaterialFloats.COUNT)
   internal var shapes = arrayOfNulls<MeshShape>(initialCapacity)
   internal var customMeshes = arrayOfNulls<MeshData>(initialCapacity)
+  internal var textures = arrayOfNulls<MaterialTextures>(initialCapacity)
   private var writtenAt = LongArray(initialCapacity) { NEVER }
   private var drawn = IntArray(initialCapacity)
 
@@ -70,6 +72,9 @@ public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
 
   /** The runtime mesh entity [id] draws, or null when it draws a built-in shape. */
   public fun customMesh(id: Int): MeshData? = customMeshes[id]
+
+  /** The textures entity [id] draws with, or null for the defaults. */
+  public fun textures(id: Int): MaterialTextures? = textures[id]
 
   /** Material float [field] of entity [id], packed as [MaterialFloats] says. */
   public fun material(id: Int, field: Int): Float = materials[id * MaterialFloats.COUNT + field]
@@ -118,10 +123,11 @@ public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
     writtenAt[id] = extracts
   }
 
-  /** Lists entity [id] among this tick's meshes, drawing [shape] or [custom]. */
-  internal fun addMesh(id: Int, shape: MeshShape?, custom: MeshData?) {
+  /** Lists entity [id] among this tick's meshes, drawing [shape] or [custom] with [surface]. */
+  internal fun addMesh(id: Int, shape: MeshShape?, custom: MeshData?, surface: MaterialTextures?) {
     shapes[id] = shape
     customMeshes[id] = custom
+    textures[id] = surface
     drawn[count++] = id
   }
 
@@ -133,6 +139,7 @@ public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
     materials = materials.copyOf(grown * MaterialFloats.COUNT)
     shapes = shapes.copyOf(grown)
     customMeshes = customMeshes.copyOf(grown)
+    textures = textures.copyOf(grown)
     val old = writtenAt.size
     writtenAt = writtenAt.copyOf(grown).also { it.fill(NEVER, old) }
     drawn = drawn.copyOf(grown)

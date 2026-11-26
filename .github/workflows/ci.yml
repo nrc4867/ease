@@ -80,6 +80,13 @@ jobs:
       # ease import on the sample's content: the sample's own palette importer runs headless.
       - run: ./gradlew :sample:sampleImport
         working-directory: ease
+      # Texture cooking on this OS, compared with the other two by the cooked-bytes job.
+      - run: ./gradlew :ease-textures:cookManifest
+        working-directory: ease
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cook-manifest-ubuntu-latest
+          path: ease/ease-textures/build/cook-manifest.txt
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
@@ -158,6 +165,13 @@ jobs:
       - run: ./gradlew :ease-platform:windowSmoke
         working-directory: ease
         shell: bash
+      - run: ./gradlew :ease-textures:cookManifest
+        working-directory: ease
+        shell: bash
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cook-manifest-${{ matrix.os }}
+          path: ease/ease-textures/build/cook-manifest.txt
       # Windows runners have no GPU adapter, so the player draws the sample only on macOS here and
       # on Linux in the lavapipe job.
       - if: matrix.os == 'macos-latest'
@@ -190,19 +204,42 @@ jobs:
       - run: bash tools/check-templates.sh "$RUNNER_TEMP/templates"
         working-directory: ease
 
+  # Cooked textures must be the same bytes on every OS: each OS job cooked the test images and
+  # uploaded the hashes; any difference fails here.
+  cooked-bytes:
+    name: Cooked bytes match across OSes
+    runs-on: ubuntu-latest
+    needs: [changes, check, platforms]
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: cook-manifest-*
+          path: manifests
+      - run: |
+          set -e
+          ls manifests
+          linux=manifests/cook-manifest-ubuntu-latest/cook-manifest.txt
+          test -s "$linux"
+          for os in windows-latest macos-latest; do
+            echo "Comparing $os with Linux"
+            diff "$linux" "manifests/cook-manifest-$os/cook-manifest.txt"
+          done
+
   # The one check main's ruleset requires: green when the changed files were read and every code job
   # passed, or was skipped for a Markdown-only change.
   ci:
     name: CI
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [changes, check, gpu, platforms, templates]
+    needs: [changes, check, gpu, platforms, templates, cooked-bytes]
     if: always()
     steps:
       - env:
           CODE: ${{ needs.changes.outputs.code }}
           CHANGES: ${{ needs.changes.result }}
-          RESULTS: ${{ needs.check.result }} ${{ needs.gpu.result }} ${{ needs.platforms.result }} ${{ needs.templates.result }}
+          RESULTS: ${{ needs.check.result }} ${{ needs.gpu.result }} ${{ needs.platforms.result }} ${{ needs.templates.result }} ${{ needs['cooked-bytes'].result }}
         run: |
           echo "changes $CHANGES, code '$CODE', jobs $RESULTS"
           test "$CHANGES" = success

@@ -13,6 +13,10 @@ internal object Flags {
   const val BUFFER_UNIFORM = 0x40L
   const val BUFFER_STORAGE = 0x80L
   const val TEXTURE_COPY_SRC = 0x1L
+  const val TEXTURE_COPY_DST = 0x2L
+  const val TEXTURE_BINDING = 0x4L
   const val TEXTURE_RENDER_ATTACHMENT = 0x10L
   const val MAP_READ = 0x1L
+  const val STAGE_VERTEX = 0x1L
+  const val STAGE_FRAGMENT = 0x2L
 }

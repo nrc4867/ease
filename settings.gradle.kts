@@ -60,6 +60,8 @@ include(":ease-platform")
 
 include(":ease-assets")
 
+include(":ease-textures")
+
 include(":ease-scene")
 
 include(":ease-physics")

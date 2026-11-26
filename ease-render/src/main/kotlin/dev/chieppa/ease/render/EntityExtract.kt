@@ -9,6 +9,7 @@ import dev.chieppa.ease.render.scene.CustomMesh
 import dev.chieppa.ease.render.scene.DirectionalLight
 import dev.chieppa.ease.render.scene.Material
 import dev.chieppa.ease.render.scene.Mesh
+import dev.chieppa.ease.render.scene.SurfaceTextures
 
 /**
  * Copies one entity into a [RenderSnapshot]: its transform, moved by a correction offset, and
@@ -38,7 +39,8 @@ internal class EntityExtract(private val snapshot: RenderSnapshot) {
       val mesh = entity.getOrNull(Mesh)
       if (custom != null || mesh != null) {
         writeMaterial(id, entity.getOrNull(Material))
-        snapshot.addMesh(id, if (custom == null) mesh?.shape else null, custom?.mesh)
+        val shape = if (custom == null) mesh?.shape else null
+        snapshot.addMesh(id, shape, custom?.mesh, entity.getOrNull(SurfaceTextures)?.textures)
       }
       entity.getOrNull(Camera)?.let { writeCamera(id, it) }
       entity.getOrNull(DirectionalLight)?.let { writeLight(id, it) }
