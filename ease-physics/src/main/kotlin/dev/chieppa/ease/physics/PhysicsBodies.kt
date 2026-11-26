@@ -29,7 +29,7 @@ internal class PhysicsBodies(private val physics: PhysicsWorld) : AutoCloseable 
   fun motionOf(entity: Entity): Int = motionOf[entity.id]
 
   /** Whether Jolt simulates [entity]'s dynamic body, rather than moving it kinematically. */
-  fun isSimulated(entity: Entity): Boolean = simulated[entity.id]
+  fun isSimulated(entity: Entity): Boolean = simulated.getOrElse(entity.id) { false }
 
   /**
    * Makes [entity]'s dynamic body simulated when [authority], and kinematic otherwise, as the
@@ -87,6 +87,8 @@ internal class PhysicsBodies(private val physics: PhysicsWorld) : AutoCloseable 
     physics.bodyInterface.removeBody(id)
     physics.bodyInterface.destroyBody(id)
     bodyOf[entity.id] = NO_BODY
+    motionOf[entity.id] = STATIC
+    simulated[entity.id] = false
   }
 
   /**

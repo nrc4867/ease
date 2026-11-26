@@ -1,24 +1,22 @@
 package dev.chieppa.ease.assets.importing
 
-import dev.chieppa.ease.assets.ContentHash
 import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.assets.associations.FileAssociations
 import dev.chieppa.ease.assets.associations.Registration
 import dev.chieppa.ease.assets.database.AssetDatabase
 import dev.chieppa.ease.assets.database.AssetProblem
-import dev.chieppa.ease.assets.database.AssetRecord
 import dev.chieppa.ease.assets.meta.MetaFiles
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlinx.serialization.json.JsonObject
 
 /**
  * Runs the importers over a project's assets. Each source gets the one importer the file
  * associations pick for it, or the one its sidecar or nearest folder preset names; its settings are
  * the folder presets' settings with the sidecar's on top. The cooked assets are kept in this
- * machine's cache under a hash of source, settings and importer version, so [refresh] runs an
- * importer only when one of those changed.
+ * machine's cache under a hash of source, settings, importer version and every other file the
+ * importer read through its [ImportContext], so [refresh] runs an importer only when one of those
+ * changed. Each cooked asset is also known by its sub-asset GUID ([subAsset]).
  *
  * A source whose import fails, or whose importer is unknown or ambiguous, is listed in [problems]
  * and keeps its last good result. A source no importer matches has no result: when an importer's
@@ -27,9 +25,12 @@ import kotlinx.serialization.json.JsonObject
  */
 public class ImportService(
   private val database: AssetDatabase,
-  private val associations: FileAssociations,
+  associations: FileAssociations,
 ) : AutoCloseable {
   private val cache = ImportCache(database.root)
+  private val attempts = ImportAttempts(database.root)
+  private val sources = SourceImport(database, associations, cache, attempts)
+  private val index = CookedIndex(cache, attempts)
   private val listener: Registration = associations.onChange {
     if (it === Importer.kind) refreshAfterChange()
   }
@@ -40,6 +41,39 @@ public class ImportService(
 
   /** The last good cooked assets of [guid], sorted by name; empty when it has none. */
   public fun cooked(guid: Guid): List<CookedAsset> = cache.read(guid)
+
+  /** The names of [guid]'s last good cooked assets, sorted; empty when it has none. */
+  public fun cookedNames(guid: Guid): List<String> = cache.names(guid)
+
+  /** The file holding [guid]'s cooked asset [name], or null when its last good result has none. */
+  public fun cookedFile(guid: Guid, name: String): Path? = cache.file(guid, name)
+
+  /**
+   * The cooked asset whose sub-asset GUID is [guid] (its source's GUID named by its name), or null
+   * when no last good result holds one.
+   */
+  public fun subAsset(guid: Guid): SubAsset? = index.subAsset(guid)
+
+  /**
+   * The sources whose last good result read the file at [path] (from the content folder) besides
+   * their own source, or whose latest failed import asked for it.
+   */
+  public fun dependents(path: Path): List<Guid> = index.dependents(path)
+
+  /**
+   * Imports the one source [guid] again when its inputs changed, as [refresh] would, and returns
+   * whether a new result was stored. A failure is kept in [problems] in place of any earlier one
+   * for that source.
+   */
+  public fun refresh(guid: Guid): Boolean {
+    val record = database[guid] ?: return false
+    val outcome = sources.importOne(record)
+    problems =
+      problems.filter { it.source != record.path } +
+        listOfNotNull((outcome as? Outcome.Failed)?.let { ImportProblem(record.path, it.reason) })
+    index.rebuild()
+    return outcome is Outcome.Done && outcome.ran
+  }
 
   /**
    * Imports every source that has no result for its current inputs, and removes the results of
@@ -52,7 +86,7 @@ public class ImportService(
     var upToDate = 0
     for (record in database.assets.sortedBy { it.path.toString() }) {
       if (Files.isDirectory(database.root.resolve(record.path))) continue
-      when (val outcome = importOne(record)) {
+      when (val outcome = sources.importOne(record)) {
         is Outcome.Skipped -> Unit
         is Outcome.Failed -> {
           keep += record.guid
@@ -78,6 +112,7 @@ public class ImportService(
       }
     }
     problems = found
+    index.rebuild()
     return ImportReport(imported, upToDate, found)
   }
 
@@ -107,62 +142,5 @@ public class ImportService(
 
   override fun close() {
     listener.close()
-  }
-
-  private fun importOne(record: AssetRecord): Outcome =
-    try {
-      importChosen(record, Choice.of(database, associations, record))
-    } catch (failure: ChoiceFailure) {
-      Outcome.Failed(failure.message.orEmpty())
-    }
-
-  private fun importChosen(record: AssetRecord, choice: Choice): Outcome =
-    choice.importer?.let { readAndImport(record, it, choice.settings) } ?: Outcome.Skipped
-
-  private fun readAndImport(record: AssetRecord, importer: Importer, settings: JsonObject) =
-    try {
-      importBytes(record, importer, settings, database.read(record))
-    } catch (failure: IOException) {
-      Outcome.Failed("cannot be read: ${failure.message}")
-    }
-
-  private fun importBytes(
-    record: AssetRecord,
-    importer: Importer,
-    settings: JsonObject,
-    bytes: ByteArray,
-  ): Outcome {
-    val key = ImportKey.of(importer, ContentHash.of(bytes), settings)
-    return if (cache.currentKey(record.guid) == key) {
-      Outcome.Done(ran = false)
-    } else {
-      run(record, importer, key, settings, bytes)
-    }
-  }
-
-  @Suppress("TooGenericExceptionCaught") // An importer is contributor code; any failure is data.
-  private fun run(
-    record: AssetRecord,
-    importer: Importer,
-    key: String,
-    settings: JsonObject,
-    bytes: ByteArray,
-  ) =
-    try {
-      val cooked = importer.import(bytes, settings)
-      cache.store(record.guid, record.path, key, cooked.sortedBy { it.name })
-      Outcome.Done(ran = true)
-    } catch (failure: IOException) {
-      Outcome.Failed("cannot be imported: ${failure.message}")
-    } catch (failure: RuntimeException) {
-      Outcome.Failed("${importer.id} failed: ${failure.message}")
-    }
-
-  private sealed interface Outcome {
-    data object Skipped : Outcome
-
-    class Done(val ran: Boolean) : Outcome
-
-    class Failed(val reason: String) : Outcome
   }
 }

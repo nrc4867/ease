@@ -5,9 +5,6 @@ import dev.chieppa.ease.gpu.compute.BufferUse
 import dev.chieppa.ease.gpu.compute.GpuBuffer
 import java.lang.foreign.MemorySegment
 
-/** Bytes one index takes. */
-private const val INDEX_BYTES = 4L
-
 /**
  * A triangle mesh that lives only on one device, written there by compute shaders rather than
  * uploaded: [vertexCount] vertices in [MeshData]'s layout and [indexCount] 32-bit indices, three
@@ -59,8 +56,9 @@ public class ComputedMesh(
 
     /**
      * WGSL defining `mesh_write_vertex(index: u32, position: vec3f, normal: vec3f)`, which writes
-     * one vertex in this mesh's layout, with zero texture coordinates, into `mesh_vertices`: a
-     * `var<storage, read_write> mesh_vertices: array<f32>` the shader binds to [vertices].
+     * one vertex in this mesh's layout, with zero texture coordinates and the default tangent (1,
+     * 0, 0, +1), into `mesh_vertices`: a `var<storage, read_write> mesh_vertices: array<f32>` the
+     * shader binds to [vertices].
      */
     public val WRITE_VERTEX_WGSL: String =
       """
@@ -74,6 +72,10 @@ public class ComputedMesh(
         mesh_vertices[at + ${NORMAL_OFFSET / Float.SIZE_BYTES + 2}u] = normal.z;
         mesh_vertices[at + ${UV_OFFSET / Float.SIZE_BYTES}u] = 0.0;
         mesh_vertices[at + ${UV_OFFSET / Float.SIZE_BYTES + 1}u] = 0.0;
+        mesh_vertices[at + ${TANGENT_OFFSET / Float.SIZE_BYTES}u] = 1.0;
+        mesh_vertices[at + ${TANGENT_OFFSET / Float.SIZE_BYTES + 1}u] = 0.0;
+        mesh_vertices[at + ${TANGENT_OFFSET / Float.SIZE_BYTES + 2}u] = 0.0;
+        mesh_vertices[at + ${TANGENT_OFFSET / Float.SIZE_BYTES + 3}u] = 1.0;
       }
       """
         .trimIndent()

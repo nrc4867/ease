@@ -54,6 +54,8 @@ include(":ease-serialization")
 
 include(":ease-sdf")
 
+include(":ease-gltf")
+
 include(":ease-commands")
 
 include(":ease-platform")
@@ -75,6 +77,8 @@ include(":ease-gpu")
 include(":ease-render")
 
 include(":ease-sdf-gpu")
+
+include(":ease-importers")
 
 include(":ease-runtime")
 

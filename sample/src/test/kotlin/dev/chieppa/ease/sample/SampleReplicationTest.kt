@@ -10,11 +10,14 @@ import dev.chieppa.ease.ecs.replication.DecodeStatus
 import dev.chieppa.ease.ecs.replication.NetworkIdentity
 import dev.chieppa.ease.ecs.replication.ReplicatedFields
 import dev.chieppa.ease.ecs.replication.ReplicatedSerializer
+import dev.chieppa.ease.render.scene.MaterialRef
+import dev.chieppa.ease.render.scene.MeshRef
 import dev.chieppa.ease.runtime.LocalHost
 import dev.chieppa.ease.runtime.loop.FixedStep
 import dev.chieppa.ease.scene.node.NodeKey
 import dev.chieppa.ease.scene.node.NodeName
 import dev.chieppa.ease.scene.node.Parent
+import dev.chieppa.ease.scene.types.SceneTypes
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -60,9 +63,16 @@ class SampleReplicationTest {
     return serializers.single { it.type == component.type() }.name
   }
 
-  /** Whether [component] is a node's key, name or parent, which a scene node's spawn names. */
+  /**
+   * Whether [component] is a node's key, name or parent, which a scene node's spawn names, or an
+   * asset slot, which each peer builds from its own files.
+   */
   private fun isNode(component: Component<*>): Boolean =
-    component is NodeKey || component is NodeName || component is Parent
+    component is NodeKey ||
+      component is NodeName ||
+      component is Parent ||
+      component is MeshRef ||
+      component is MaterialRef
 
   @Test
   fun `the sample registers a serializer for every component its entities carry`() {
@@ -100,8 +110,12 @@ class SampleReplicationTest {
       }
     }
 
-    // Every component a scene node holds replicates.
-    val nodeTypes = content.nodes().sumOf { it.components.size }
+    // Every component a scene node holds replicates, but for asset slots; a placed node's parent
+    // and name are named by its spawn.
+    val nodeTypes =
+      content.placed().sumOf { node ->
+        node.components.keys.count { it !in ASSET_SLOTS && it !in SceneTypes.STRUCTURAL }
+      }
     assertEquals(nodeTypes + COURIER_TYPES, checked)
   }
 
@@ -110,5 +124,6 @@ class SampleReplicationTest {
     const val TICKS = 45
     const val COURIER = "sample.Courier"
     const val COURIER_TYPES = 5
+    val ASSET_SLOTS = setOf("ease.MeshRef", "ease.MaterialRef")
   }
 }

@@ -8,8 +8,10 @@ import dev.chieppa.ease.render.scene.CameraReplicated
 import dev.chieppa.ease.render.scene.DirectionalLight
 import dev.chieppa.ease.render.scene.DirectionalLightReplicated
 import dev.chieppa.ease.render.scene.Material
+import dev.chieppa.ease.render.scene.MaterialRef
 import dev.chieppa.ease.render.scene.MaterialReplicated
 import dev.chieppa.ease.render.scene.Mesh
+import dev.chieppa.ease.render.scene.MeshRef
 import dev.chieppa.ease.render.scene.MeshReplicated
 import dev.chieppa.ease.scene.commands.registerSceneCommands
 import dev.chieppa.ease.scene.types.SceneTypes
@@ -37,6 +39,8 @@ internal class WorldTypes(module: GameModule) {
       SceneTypes.build(this) {
         component(Mesh, Mesh.serializer())
         component(Material, Material.serializer())
+        component(MeshRef, MeshRef.serializer())
+        component(MaterialRef, MaterialRef.serializer())
         component(Camera, Camera.serializer())
         component(DirectionalLight, DirectionalLight.serializer())
         module.registerSceneTypes(this)

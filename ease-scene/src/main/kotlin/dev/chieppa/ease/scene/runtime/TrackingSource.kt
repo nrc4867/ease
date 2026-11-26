@@ -28,8 +28,7 @@ internal class TrackingSource(private val store: AssetStore) : SceneSource {
   }
 
   /** A resolver for [types] that reads files through this source. */
-  fun resolver(types: SceneTypes): SceneResolver =
-    SceneResolver(types, this) { store.database[it] != null }
+  fun resolver(types: SceneTypes): SceneResolver = SceneResolver(types, this) { store.has(it) }
 
   /** Has [placed] track the files this source used. */
   fun trackIn(placed: PlacedScene) {

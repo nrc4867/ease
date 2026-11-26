@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
   api(project(":ease-platform"))
+  api(project(":ease-memory"))
   api(project(":ease-commands"))
   api(project(":ease-serialization"))
   api(project(":ease-annotations"))

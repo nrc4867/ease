@@ -46,8 +46,8 @@ public class ResolvedScenes(
     return scene
   }
 
-  /** Whether this peer's asset database has an asset [asset]. */
-  public fun hasAsset(asset: Guid): Boolean = store.database[asset] != null
+  /** Whether this peer has an asset [asset]: a source, or a cooked sub-asset of one. */
+  public fun hasAsset(asset: Guid): Boolean = store.has(asset)
 
   public companion object {
     /** How many placements a cache keeps by default. */

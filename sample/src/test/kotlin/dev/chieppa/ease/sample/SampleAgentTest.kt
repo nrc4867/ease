@@ -47,7 +47,7 @@ class SampleAgentTest {
 
     assertEquals(0, queried.text("tick").toInt())
     val entities = queried.list("entities")
-    assertEquals(agent.content.nodes().size, entities.size)
+    assertEquals(agent.content.placed().size, entities.size)
     val cubes = entities.map { it.toString() }.filter { "\"type\":\"sample.Velocity\"" in it }
     assertEquals(agent.content.cubes().size, cubes.size)
     cubes.forEach { text ->

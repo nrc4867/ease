@@ -40,7 +40,7 @@ class SampleAgentGpuTest {
     assertTrue(names.containsAll(listOf("ease.LocalTransform", "ease.Mesh", "sample.Velocity")))
 
     val world = agent.json(agent.call("query")).list("entities")
-    assertEquals(agent.content.nodes().size, world.size)
+    assertEquals(agent.content.placed().size, world.size)
 
     val capture =
       agent.call(

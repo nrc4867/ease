@@ -37,7 +37,7 @@ class SceneGateTest {
     run.step(SPAWN_TICKS)
 
     val scene = run.content.playfield()
-    val keys = SampleContent.keysOf(scene)
+    val keys = run.content.placedKeysOf(scene)
     assertEquals(keys, run.keys(run.local.host.world))
     assertEquals(keys, run.keys(run.client.world.world))
     val client = run.client.world.world
@@ -45,7 +45,7 @@ class SceneGateTest {
       val replica = run.node(client, NodeKey.of(emptyList(), node.id))
       assertEquals(node.name, with(client) { replica[NodeName].name }, "named from its file")
     }
-    assertEquals(scene.nodes.size + 1, client.numEntities, "the nodes and the courier")
+    assertEquals(keys.size + 1, client.numEntities, "the nodes and the courier")
   }
 
   @Test
@@ -102,7 +102,7 @@ class SceneGateTest {
   fun `a scene edited on disk mid-run reloads into host and client`() {
     run.step(RUN_TICKS)
     val edited = edit(run.content.playfield())
-    val keys = SampleContent.keysOf(edited)
+    val keys = run.content.placedKeysOf(edited)
 
     run.content.edit(edited)
     val reached =

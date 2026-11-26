@@ -51,6 +51,8 @@ struct VertexIn {
   @location(0) position: vec3f,
   @location(1) normal: vec3f,
   @location(2) uv: vec2f,
+  // The tangent, and in w the bitangent's handedness: bitangent = cross(normal, tangent.xyz) * w.
+  @location(3) tangent: vec4f,
 }
 
 struct Varyings {

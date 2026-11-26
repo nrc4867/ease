@@ -1,0 +1,19 @@
+components:
+  ease.LocalTransform:
+    rotationW: 0.5
+    rotationX: 0.5
+    rotationY: 0.5
+    rotationZ: 0.5
+    scaleX: 3.0
+    scaleY: 3.0
+    scaleZ: 3.0
+    x: 0.0
+    "y": 5.4
+    z: -0.75
+formatVersion: 1
+id: c4a5e0d71b3f9a26
+instance:
+  asset: "451ee7d5-f1e0-44a5-94cd-bbd74a116e7d"
+  overrides: {}
+name: Car
+order: zzn
