@@ -18,8 +18,8 @@ public final class Quats {
       return;
     }
     float half = angle * 0.5f;
-    float s = (float) Math.sin(half) / len;
-    set(dst, d, ax * s, ay * s, az * s, (float) Math.cos(half));
+    float s = (float) Trig.sin(half) / len;
+    set(dst, d, ax * s, ay * s, az * s, (float) Trig.cos(half));
   }
 
   /** Writes {@code a * b}: the rotation that applies {@code b} first, then {@code a}. */
@@ -97,10 +97,10 @@ public final class Quats {
     float wa = 1 - t;
     float wb = t;
     if (dot < NEARLY_PARALLEL) {
-      float theta = (float) Math.acos(dot);
-      float invSin = 1 / (float) Math.sin(theta);
-      wa = (float) Math.sin((1 - t) * theta) * invSin;
-      wb = (float) Math.sin(t * theta) * invSin;
+      float theta = (float) StrictMath.acos(dot);
+      float invSin = 1 / (float) Trig.sin(theta);
+      wa = (float) Trig.sin((1 - t) * theta) * invSin;
+      wb = (float) Trig.sin(t * theta) * invSin;
     }
     float x = wa * a[ao] + wb * bx;
     float y = wa * a[ao + 1] + wb * by;

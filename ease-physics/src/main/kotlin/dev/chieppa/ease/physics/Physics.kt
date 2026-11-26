@@ -19,16 +19,18 @@ import dev.chieppa.ease.scene.types.SceneTypes
 public object Physics {
   /**
    * Adds a new [PhysicsWorld] built from [settings] to the world [systems] builds, with its systems
-   * in the physics phase: bodies kept in step with colliders and stepped, characters made for
-   * character controllers, then trigger volumes checked. Call it from `GameModule.systems`, so
-   * every world, host and client, has the colliders its predicted characters walk against. Returns
-   * the new physics world, which the world closes when it is disposed.
+   * in the physics phase: mesh colliders' bodies kept in step, bodies kept in step with colliders
+   * and stepped, characters made for character controllers, then trigger volumes checked. Call it
+   * from `GameModule.systems`, so every world, host and client, has the colliders its predicted
+   * characters walk against. Returns the new physics world, which the world closes when it is
+   * disposed.
    */
   public fun addTo(
     systems: PhasedSystems,
     settings: PhysicsSettings = PhysicsSettings(),
   ): PhysicsWorld {
     val physics = PhysicsWorld(settings)
+    systems.add(Phase.PHYSICS, MeshColliderSystem(physics))
     systems.add(Phase.PHYSICS, PhysicsStepSystem(physics))
     systems.add(Phase.PHYSICS, CharacterBodiesSystem(physics))
     systems.add(Phase.PHYSICS, TriggerSystem(physics))

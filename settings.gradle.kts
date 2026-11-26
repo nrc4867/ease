@@ -52,6 +52,8 @@ include(":ease-ecs")
 
 include(":ease-serialization")
 
+include(":ease-sdf")
+
 include(":ease-commands")
 
 include(":ease-platform")
@@ -69,6 +71,8 @@ include(":ease-net")
 include(":ease-gpu")
 
 include(":ease-render")
+
+include(":ease-sdf-gpu")
 
 include(":ease-runtime")
 

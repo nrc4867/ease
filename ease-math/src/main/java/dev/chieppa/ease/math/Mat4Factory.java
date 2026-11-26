@@ -34,7 +34,7 @@ final class Mat4Factory {
   }
 
   static Mat4 perspective(float fovY, float aspect, float near, float far) {
-    float f = 1 / (float) Math.tan(fovY * 0.5f);
+    float f = 1 / (float) Trig.tan(fovY * 0.5f);
     float range = near - far;
     return new Mat4(
         f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, far / range, -1, 0, 0, near * far / range, 0);

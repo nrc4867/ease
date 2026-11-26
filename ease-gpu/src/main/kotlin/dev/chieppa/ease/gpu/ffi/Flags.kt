@@ -6,6 +6,7 @@ package dev.chieppa.ease.gpu.ffi
  */
 internal object Flags {
   const val BUFFER_MAP_READ = 0x1L
+  const val BUFFER_COPY_SRC = 0x4L
   const val BUFFER_COPY_DST = 0x8L
   const val BUFFER_INDEX = 0x10L
   const val BUFFER_VERTEX = 0x20L

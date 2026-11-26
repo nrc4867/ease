@@ -9,8 +9,10 @@ import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.replication.Replication
 import dev.chieppa.ease.ecs.replication.replication
 import dev.chieppa.ease.physics.body.Collider
+import dev.chieppa.ease.physics.body.MeshCollider
 import dev.chieppa.ease.physics.body.MotionKind
 import dev.chieppa.ease.physics.body.RigidBody
+import dev.chieppa.ease.physics.jolt.JoltShapes
 import dev.chieppa.ease.physics.volume.TriggerVolume
 
 /**
@@ -29,6 +31,9 @@ public class PhysicsStepSystem(public val physics: PhysicsWorld) :
   private var triggers = BooleanArray(INITIAL_ENTITIES)
 
   override fun onAddEntity(entity: Entity) {
+    require(entity hasNo MeshCollider) {
+      "Entity ${entity.id} has both a Collider and a MeshCollider; give it one"
+    }
     build(entity, signatureOf(entity))
   }
 
@@ -50,7 +55,12 @@ public class PhysicsStepSystem(public val physics: PhysicsWorld) :
         else -> PhysicsBodies.KINEMATIC
       }
     val trigger = entity has TriggerVolume
-    physics.bodies.add(entity, entity[Collider], entity[LocalTransform], motion, trigger)
+    val collider = entity[Collider]
+    val layer = if (trigger) physics.joltLayers.trigger else physics.layers.resolve(collider.layer)
+    val surface = physics.surfaces.resolve(collider.surface)
+    JoltShapes.of(collider).use { shape ->
+      physics.bodies.add(entity, shape, entity[LocalTransform], motion, layer, surface, trigger)
+    }
     if (entity.id >= signatures.size) {
       val size = maxOf(entity.id + 1, signatures.size * 2)
       signatures = signatures.copyOf(size)

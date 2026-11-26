@@ -13,8 +13,8 @@ public record Quat(float x, float y, float z, float w) {
       return IDENTITY;
     }
     float half = angle * 0.5f;
-    float s = (float) Math.sin(half) / len;
-    return new Quat(axis.x() * s, axis.y() * s, axis.z() * s, (float) Math.cos(half));
+    float s = (float) Trig.sin(half) / len;
+    return new Quat(axis.x() * s, axis.y() * s, axis.z() * s, (float) Trig.cos(half));
   }
 
   /** The rotation that applies {@code o} first, then this one. */
@@ -63,10 +63,10 @@ public record Quat(float x, float y, float z, float w) {
     float wa = 1 - t;
     float wb = t;
     if (cos < NEARLY_PARALLEL) {
-      float theta = (float) Math.acos(cos);
-      float invSin = 1 / (float) Math.sin(theta);
-      wa = (float) Math.sin((1 - t) * theta) * invSin;
-      wb = (float) Math.sin(t * theta) * invSin;
+      float theta = (float) StrictMath.acos(cos);
+      float invSin = 1 / (float) Trig.sin(theta);
+      wa = (float) Trig.sin((1 - t) * theta) * invSin;
+      wb = (float) Trig.sin(t * theta) * invSin;
     }
     wb *= sign;
     return new Quat(wa * x + wb * o.x, wa * y + wb * o.y, wa * z + wb * o.z, wa * w + wb * o.w)
