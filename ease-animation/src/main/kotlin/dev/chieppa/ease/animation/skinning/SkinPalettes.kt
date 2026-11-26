@@ -8,26 +8,23 @@ import dev.chieppa.ease.animation.scene.SkinRef
 import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.math.Mat4Inverse
 import dev.chieppa.ease.math.Mat4s
+import dev.chieppa.ease.memory.MAT4_FLOATS
 import dev.chieppa.ease.scene.node.LocalId
 import dev.chieppa.ease.scene.node.NodeKey
 import dev.chieppa.ease.scene.runtime.NodeIndex
 import dev.chieppa.ease.scene.runtime.SceneNodes
+import dev.chieppa.ease.scene.transform.TRANSFORM_ROTATION_AT
+import dev.chieppa.ease.scene.transform.TRANSFORM_SCALE_AT
 import dev.chieppa.ease.scene.transform.WORLD_TRANSFORM_FLOATS
 import dev.chieppa.ease.scene.transform.WorldTransforms
-
-private const val ROTATION_AT = 3
-private const val SCALE_AT = 7
-
-/** Floats of one 4x4 matrix. */
-private const val MAT4_FLOATS = 16
 
 /**
  * Works out skinned meshes' joint matrices: for a node with a [SkinRef], each joint's world
  * transform times its inverse bind matrix, taken into the node's own space, so a drawer places the
  * skinned mesh with the node's (interpolated) model matrix and the matrices bend it into the pose.
  * Joints are found as the skin names them, by id in the same prefab placement as the node, and kept
- * per entity until a node comes or goes or the assets change. Writing a palette allocates nothing
- * once its entity is bound.
+ * per entity until a joint's node is replaced, a node comes or goes, or the assets change. Writing
+ * a palette allocates nothing once its entity is bound.
  */
 public class SkinPalettes(private val assets: AnimationAssets?) {
   private var bindings = arrayOfNulls<SkinBinding>(INITIAL)
@@ -65,7 +62,16 @@ public class SkinPalettes(private val assets: AnimationAssets?) {
   /** Writes the inverse of [entity]'s world matrix into [inverse]; false when it has none. */
   private fun meshInverse(world: World, entity: Entity, worlds: WorldTransforms?): Boolean {
     place(world, entity, worlds)
-    Mat4s.fromTransform(transform, 0, transform, ROTATION_AT, transform, SCALE_AT, scratch, 0)
+    Mat4s.fromTransform(
+      transform,
+      0,
+      transform,
+      TRANSFORM_ROTATION_AT,
+      transform,
+      TRANSFORM_SCALE_AT,
+      scratch,
+      0,
+    )
     return Mat4Inverse.inverseAffine(scratch, 0, inverse, 0)
   }
 
@@ -86,7 +92,16 @@ public class SkinPalettes(private val assets: AnimationAssets?) {
         Mat4s.identity(dst, out)
       } else {
         place(world, node, worlds)
-        Mat4s.fromTransform(transform, 0, transform, ROTATION_AT, transform, SCALE_AT, joint, 0)
+        Mat4s.fromTransform(
+          transform,
+          0,
+          transform,
+          TRANSFORM_ROTATION_AT,
+          transform,
+          TRANSFORM_SCALE_AT,
+          joint,
+          0,
+        )
         Mat4s.mul(joint, 0, inverseBinds, index * MAT4_FLOATS, scratch, 0)
         Mat4s.mul(inverse, 0, scratch, 0, dst, out)
       }
@@ -142,7 +157,10 @@ public class SkinPalettes(private val assets: AnimationAssets?) {
   }
 }
 
-/** One skinned entity's joints, found through the scene's node index. */
+/**
+ * One skinned entity's joints, found through the scene's node index; it [matches] while every
+ * joint's key still finds the same live node and no node came or went.
+ */
 private class SkinBinding(
   val entity: Entity,
   val guid: Guid,
@@ -155,7 +173,11 @@ private class SkinBinding(
     entity: Entity,
     guid: Guid,
     index: NodeIndex,
-  ): Boolean = this.entity == entity && this.guid == guid && index.size == nodes
+  ): Boolean {
+    var same = this.entity == entity && this.guid == guid && index.size == nodes
+    for (joint in joints.indices) same = same && index[keys[joint]] == joints[joint]
+    return same
+  }
 
   companion object {
     fun bind(

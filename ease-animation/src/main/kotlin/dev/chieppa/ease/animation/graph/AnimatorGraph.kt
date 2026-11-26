@@ -8,38 +8,6 @@ import dev.chieppa.ease.animation.assets.ParameterDrive
 import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.scene.node.LocalId
 
-/** A clip as a graph plays it: the joint each channel drives, and its events by normalized time. */
-internal class GraphClip(val guid: Guid, val asset: ClipAsset, val joints: IntArray) {
-  /** Each event's time as a share of the clip's duration, 0 to 1. */
-  val eventPhases: FloatArray =
-    FloatArray(asset.events.size) {
-      if (asset.duration > 0f) asset.events[it].time / asset.duration else 0f
-    }
-}
-
-/**
- * One state: the graph clips it plays ([clips], indices into the graph's), along [parameter] at
- * [points] when it blends (-1 and one clip when it does not).
- */
-internal class GraphState(
-  val name: String,
-  val clips: IntArray,
-  val points: FloatArray,
-  val parameter: Int,
-  val loop: Boolean,
-  val speed: Float,
-)
-
-/** A transition: from a state (-1 for any) to one, when every condition holds. */
-internal class GraphTransition(
-  val from: Int,
-  val to: Int,
-  val parameters: IntArray,
-  val above: BooleanArray,
-  val values: FloatArray,
-  val duration: Float,
-)
-
 /**
  * An animator asset made ready to play: names resolved to indices and clips to the joints they
  * drive. [joints] lists, by prefab local id, every node any clip drives, in first-use order; a pose
@@ -72,7 +40,7 @@ internal class AnimatorGraph(
     /**
      * Compiles [asset], loading its clips through [clip]. Throws [IllegalArgumentException] naming
      * what is wrong: no states, a clip that does not load, an unknown state or parameter, blend
-     * points out of order.
+     * points out of order, a negative speed.
      */
     fun compile(asset: AnimatorAsset, clip: (Guid) -> ClipAsset?): AnimatorGraph =
       Compiler(asset, clip).run()
@@ -117,6 +85,9 @@ internal class AnimatorGraph(
     }
 
     private fun state(state: AnimatorState): GraphState {
+      require(state.speed >= 0f) {
+        "State ${state.name} plays at speed ${state.speed}; a state cannot play backwards"
+      }
       val blend = state.blend
       if (blend == null) {
         val guid = requireNotNull(state.clip) { "State ${state.name} names no clip and no blend" }

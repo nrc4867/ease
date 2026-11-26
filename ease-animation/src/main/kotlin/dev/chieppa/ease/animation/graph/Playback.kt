@@ -32,6 +32,10 @@ internal class Playback(val graph: AnimatorGraph) {
   var previousPhase: Float = 0f
     private set
 
+  /** How many times [state] looped round in the last advance. */
+  var wraps: Int = 0
+    private set
+
   /** The state being faded from, or -1. */
   var fromState: Int = NONE
     private set
@@ -40,6 +44,8 @@ internal class Playback(val graph: AnimatorGraph) {
     private set
 
   private var fromPrevious = 0f
+  private var fromWraps = 0
+  private var stepWraps = 0
   private var fadeElapsed = 0f
   private var fadeDuration = 0f
 
@@ -55,9 +61,11 @@ internal class Playback(val graph: AnimatorGraph) {
     if (fromState == NONE) takeTransition()
     previousPhase = phase
     phase = step(state, phase, seconds)
+    wraps = stepWraps
     if (fromState != NONE) {
       fromPrevious = fromPhase
       fromPhase = step(fromState, fromPhase, seconds)
+      fromWraps = stepWraps
       fadeElapsed += seconds
       if (fadeElapsed >= fadeDuration) fromState = NONE
     }
@@ -74,6 +82,10 @@ internal class Playback(val graph: AnimatorGraph) {
 
   val eventPhase: Float
     get() = if (eventState == state) phase else fromPhase
+
+  /** How many times [eventState] looped round in the last advance. */
+  val eventWraps: Int
+    get() = if (eventState == state) wraps else fromWraps
 
   /**
    * The weight of clip [clip] (an index into the state's own clips) within state [state], from the
@@ -138,6 +150,7 @@ internal class Playback(val graph: AnimatorGraph) {
     state = target
     phase = 0f
     previousPhase = 0f
+    wraps = 0
   }
 
   private fun holds(transition: GraphTransition): Boolean {
@@ -150,13 +163,17 @@ internal class Playback(val graph: AnimatorGraph) {
     return true
   }
 
-  /** [phase] of [state] moved on by [seconds], wrapped when it loops and held at 1 when not. */
+  /**
+   * [phase] of [state] moved on by [seconds], wrapped when it loops and held at 1 when not; how
+   * many times it wrapped is left in [stepWraps].
+   */
   private fun step(state: Int, phase: Float, seconds: Float): Float {
     val graphState = graph.states[state]
     val duration = duration(state)
-    if (duration <= 0f) return 0f
-    val moved = phase + seconds * graphState.speed / duration
-    return if (graphState.loop) moved - floor(moved) else minOf(moved, 1f)
+    val moved = if (duration > 0f) phase + seconds * graphState.speed / duration else 0f
+    val whole = if (graphState.loop) floor(moved) else 0f
+    stepWraps = whole.toInt()
+    return if (graphState.loop) moved - whole else minOf(moved, 1f)
   }
 
   /** State [state]'s duration in seconds: its clips' durations, weighted. */

@@ -4,12 +4,8 @@ import dev.chieppa.ease.animation.assets.ChannelPath
 import dev.chieppa.ease.animation.assets.ClipChannel
 import dev.chieppa.ease.animation.assets.Interpolation
 import dev.chieppa.ease.math.Quats
-
-/** Where a pose's rotation starts within one joint's floats. */
-internal const val POSE_ROTATION_AT: Int = 3
-
-/** Where a pose's scale starts within one joint's floats. */
-internal const val POSE_SCALE_AT: Int = 7
+import dev.chieppa.ease.scene.transform.TRANSFORM_ROTATION_AT
+import dev.chieppa.ease.scene.transform.TRANSFORM_SCALE_AT
 
 private const val CUBIC_PARTS = 3
 private const val QUAT = 4
@@ -50,8 +46,8 @@ internal object ChannelSampler {
   /** Where [path]'s floats start within one joint's. */
   private fun offsetOf(path: ChannelPath): Int =
     when (path) {
-      ChannelPath.ROTATION -> POSE_ROTATION_AT
-      ChannelPath.SCALE -> POSE_SCALE_AT
+      ChannelPath.ROTATION -> TRANSFORM_ROTATION_AT
+      ChannelPath.SCALE -> TRANSFORM_SCALE_AT
       else -> 0
     }
 

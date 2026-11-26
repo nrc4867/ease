@@ -7,9 +7,9 @@ import dev.chieppa.ease.scene.transform.WorldTransforms
 /**
  * Reports the clip events an animator's playback passed in its last advance, to [events], and runs
  * the probes listening for each through [probes]. Events come from the heaviest clip of the state
- * with the larger share of a crossfade, so a blend or a fade reports each footstep once; an event
- * fires when playback passes its time, wrapping round with a looping state. Reporting allocates
- * nothing.
+ * with the larger share of a crossfade, so a blend or a fade reports each footstep once. An event
+ * fires each time playback passes its time: once per loop the advance went round, so an advance of
+ * a whole cycle or more fires every event once per cycle. Reporting allocates nothing.
  */
 internal class EventDispatch(private val events: AnimationEvents, private val probes: ProbeRunner) {
   /** Reports [instance]'s events, its probes placed through [poses] and [worlds]. */
@@ -20,13 +20,14 @@ internal class EventDispatch(private val events: AnimationEvents, private val pr
     val clip = instance.graph.clips[graphState.clips[playback.heaviestClip(state)]]
     val from = playback.eventPrevious
     val to = playback.eventPhase
-    val wrapped = to < from
+    val wraps = playback.eventWraps
     val phases = clip.eventPhases
     for (index in phases.indices) {
       val at = phases[index]
-      val passed = if (wrapped) at > from || at <= to else at > from && at <= to
-      if (passed) {
-        val name = clip.asset.events[index].name
+      // Times k + at passed in (from, wraps + to], for whole k.
+      val passed = wraps + (if (to >= at) 1 else 0) - (if (from >= at) 1 else 0)
+      val name = clip.asset.events[index].name
+      repeat(passed) {
         events.clipEvent(instance.entity, name)
         probes.run(instance, name, poses, worlds)
       }

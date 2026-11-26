@@ -20,12 +20,17 @@ internal class AnimatorInstances(private val assets: AnimationAssets?) {
   private val graphs = HashMap<Guid, AnimatorGraph>()
   private var seenChanges = assets?.changes ?: 0
   private var graphVersion = 0
+  private var tick = 0
 
   /** Why each animator asset that cannot play cannot, by GUID. */
   val refused = LinkedHashMap<Guid, String>()
 
-  /** Starts every animator over when the assets changed since the last call. */
-  fun followAssets() {
+  /**
+   * Starts a tick: until [of] finds an animator again, [playing] does not answer for it. Every
+   * animator starts over when the assets changed since the last tick.
+   */
+  fun beginTick() {
+    tick++
     val changes = assets?.changes ?: 0
     if (changes == seenChanges) return
     seenChanges = changes
@@ -35,29 +40,34 @@ internal class AnimatorInstances(private val assets: AnimationAssets?) {
   }
 
   /**
-   * The instance playing [entity]'s animator in [world], bound to its joints through [index], or
-   * null when it has no animator asset that plays.
+   * The instance playing [entity]'s animator in [world] this tick, bound to its joints through
+   * [index], or null when it is not a live node with an animator asset that plays; then any
+   * instance it had is dropped.
    */
   fun of(world: World, entity: Entity, index: NodeIndex): AnimatorInstance? {
-    val guid = with(world) { entity[Animator] }.animator?.guid
-    val graph = (if (guid == null) null else graphOf(guid)) ?: return null
+    val live = world.contains(entity)
+    val guid = if (live) with(world) { entity.getOrNull(Animator) }?.animator?.guid else null
+    val key = if (live) with(world) { entity.getOrNull(NodeKey) } else null
+    val graph = if (guid == null || key == null) null else graphOf(guid)
+    if (graph == null || key == null) {
+      if (instances.getOrNull(entity.id)?.entity == entity) instances[entity.id] = null
+      return null
+    }
     if (entity.id >= instances.size) {
       instances = instances.copyOf(maxOf(entity.id + 1, instances.size * 2))
     }
     val existing = instances[entity.id]
     val instance =
       if (existing != null && existing.plays(entity, graph, graphVersion)) existing
-      else
-        AnimatorInstance(entity, with(world) { entity[NodeKey] }, graph, graphVersion).also {
-          instances[entity.id] = it
-        }
+      else AnimatorInstance(entity, key, graph, graphVersion).also { instances[entity.id] = it }
     if (!instance.stillBound(world, index)) instance.bind(world, index)
+    instance.seen = tick
     return instance
   }
 
-  /** The instance last bound for [entity], or null when it has none. */
+  /** The instance that played [entity]'s animator this tick, or null when none did. */
   fun playing(entity: Entity): AnimatorInstance? =
-    instances.getOrNull(entity.id)?.takeIf { it.entity == entity }
+    instances.getOrNull(entity.id)?.takeIf { it.entity == entity && it.seen == tick }
 
   private fun graphOf(guid: Guid): AnimatorGraph? {
     val compiled = graphs[guid]

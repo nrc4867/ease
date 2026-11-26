@@ -23,13 +23,22 @@ import kotlinx.serialization.json.floatOrNull
  * ```
  *
  * Events come out sorted by time, then name. A setting naming a clip the file lacks, or an event
- * without a name or a time, fails the import.
+ * without a name, without a time or past the clip's end, fails the import, naming the setting.
  */
 internal class ClipSettings(settings: JsonObject) {
-  private val clips: Map<String, List<ClipEvent>> = read(settings)
+  private val clips: Map<String, List<SetEvent>> = read(settings)
 
-  /** The events set for the clip named [name]; none when it has no settings. */
-  fun events(name: String): List<ClipEvent> = clips[name].orEmpty()
+  /**
+   * The events set for the clip named [name], [duration] seconds long; none when it has no
+   * settings. Fails when an event's time is past the clip's end.
+   */
+  fun events(name: String, duration: Float): List<ClipEvent> =
+    clips[name].orEmpty().map { set ->
+      if (set.event.time > duration) {
+        fail("${set.path}.time", "is ${set.event.time} s, past the clip's end at $duration s")
+      }
+      set.event
+    }
 
   /** Fails when a setting names a clip not among [cooked]. */
   fun checkNames(cooked: List<String>) {
@@ -39,13 +48,13 @@ internal class ClipSettings(settings: JsonObject) {
     }
   }
 
-  private fun read(settings: JsonObject): Map<String, List<ClipEvent>> {
+  private fun read(settings: JsonObject): Map<String, List<SetEvent>> {
     val clips = settings["clips"] ?: return emptyMap()
     val byName = clips as? JsonObject ?: fail("settings.clips", "is not a map of animation names")
     return byName.mapValues { (name, clip) -> events(clip, "settings.clips.$name") }
   }
 
-  private fun events(clip: JsonElement, path: String): List<ClipEvent> {
+  private fun events(clip: JsonElement, path: String): List<SetEvent> {
     val fields = clip as? JsonObject ?: fail(path, "is not a map")
     val list = fields["events"] ?: return emptyList()
     val events = list as? JsonArray ?: fail("$path.events", "is not a list")
@@ -57,10 +66,13 @@ internal class ClipSettings(settings: JsonObject) {
         val time = (event["time"] as? JsonPrimitive)?.floatOrNull
         if (name.isNullOrEmpty()) fail("$at.name", "is missing")
         if (time == null || time < 0f) fail("$at.time", "is not a time in seconds")
-        ClipEvent(name, time)
+        SetEvent(ClipEvent(name, time), at)
       }
-      .sortedWith(compareBy({ it.time }, { it.name }))
+      .sortedWith(compareBy({ it.event.time }, { it.event.name }))
   }
+
+  /** An event as set, with the path of its setting. */
+  private class SetEvent(val event: ClipEvent, val path: String)
 
   private fun fail(path: String, problem: String): Nothing = throw ImportException("$path $problem")
 }

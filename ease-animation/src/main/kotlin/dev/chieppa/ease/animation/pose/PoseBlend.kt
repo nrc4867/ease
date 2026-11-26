@@ -1,6 +1,8 @@
 package dev.chieppa.ease.animation.pose
 
 import dev.chieppa.ease.math.Quats
+import dev.chieppa.ease.scene.transform.TRANSFORM_ROTATION_AT
+import dev.chieppa.ease.scene.transform.TRANSFORM_SCALE_AT
 import dev.chieppa.ease.scene.transform.WORLD_TRANSFORM_FLOATS
 
 /**
@@ -16,18 +18,18 @@ internal object PoseBlend {
   fun blend(from: FloatArray, to: FloatArray, t: Float, dst: FloatArray, joints: Int) {
     for (joint in 0 until joints) {
       val at = joint * WORLD_TRANSFORM_FLOATS
-      for (axis in 0 until POSE_ROTATION_AT) dst[at + axis] = lerp(from, to, at + axis, t)
-      for (axis in POSE_SCALE_AT until WORLD_TRANSFORM_FLOATS) {
+      for (axis in 0 until TRANSFORM_ROTATION_AT) dst[at + axis] = lerp(from, to, at + axis, t)
+      for (axis in TRANSFORM_SCALE_AT until WORLD_TRANSFORM_FLOATS) {
         dst[at + axis] = lerp(from, to, at + axis, t)
       }
       Quats.slerp(
         from,
-        at + POSE_ROTATION_AT,
+        at + TRANSFORM_ROTATION_AT,
         to,
-        at + POSE_ROTATION_AT,
+        at + TRANSFORM_ROTATION_AT,
         t,
         dst,
-        at + POSE_ROTATION_AT,
+        at + TRANSFORM_ROTATION_AT,
       )
     }
   }

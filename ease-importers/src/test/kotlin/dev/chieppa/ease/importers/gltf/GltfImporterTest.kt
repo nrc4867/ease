@@ -115,6 +115,27 @@ class GltfImporterTest {
   }
 
   @Test
+  fun `a clip event set past the clip's end fails the import, naming its setting`() {
+    val settings = buildJsonObject {
+      putJsonObject("clips") {
+        putJsonObject("clip0") {
+          putJsonArray("events") {
+            addJsonObject {
+              put("name", "late")
+              put("time", 60f)
+            }
+          }
+        }
+      }
+    }
+    project.add("khronos/SimpleSkin.gltf", settings = settings)
+    val (_, imports) = project.open()
+
+    val problem = imports.problems.single().message
+    assertTrue("settings.clips.clip0.events[0].time" in problem, problem)
+  }
+
+  @Test
   fun `a GLB imports from its binary chunk`() {
     val box = project.add("khronos/BoxVertexColors.glb")
     val (store, imports) = project.open()

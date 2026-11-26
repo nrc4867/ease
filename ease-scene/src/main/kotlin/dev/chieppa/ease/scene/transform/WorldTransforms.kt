@@ -8,11 +8,6 @@ import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.scene.node.Parent
 import dev.chieppa.ease.scene.runtime.SceneNodes
 
-/** Floats of one world transform: position x, y, z, rotation x, y, z, w, scale x, y, z. */
-public const val WORLD_TRANSFORM_FLOATS: Int = 10
-
-private const val ROTATION_AT = 3
-private const val SCALE_AT = 7
 private const val QUAT_W = 3
 private const val NEVER = -1L
 private const val IN_PROGRESS = -2L
@@ -92,7 +87,11 @@ public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
     if (stamps[id] == pass) return
     val base = id * WORLD_TRANSFORM_FLOATS
     stamps[id] = IN_PROGRESS
-    val own = writeOwn(entity, values, base)
+    // Writing a posed node can resolve other nodes and grow the store, so the write may land in the
+    // array this pass started with: carry it over.
+    val written = values
+    val own = writeOwn(entity, written, base)
+    if (written !== values) System.arraycopy(written, base, values, base, WORLD_TRANSFORM_FLOATS)
     val parent = if (own == PosedTransforms.WORLD) Entity.NONE else parentOf(entity)
     if (parent != Entity.NONE && stamps.getOrElse(parent.id) { NEVER } != IN_PROGRESS) {
       val parentBase = parentWorld(parent)
@@ -158,13 +157,13 @@ public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
       dst[at] = t.x
       dst[at + 1] = t.y
       dst[at + 2] = t.z
-      dst[at + ROTATION_AT] = t.rotationX
-      dst[at + ROTATION_AT + 1] = t.rotationY
-      dst[at + ROTATION_AT + 2] = t.rotationZ
-      dst[at + ROTATION_AT + QUAT_W] = t.rotationW
-      dst[at + SCALE_AT] = t.scaleX
-      dst[at + SCALE_AT + 1] = t.scaleY
-      dst[at + SCALE_AT + 2] = t.scaleZ
+      dst[at + TRANSFORM_ROTATION_AT] = t.rotationX
+      dst[at + TRANSFORM_ROTATION_AT + 1] = t.rotationY
+      dst[at + TRANSFORM_ROTATION_AT + 2] = t.rotationZ
+      dst[at + TRANSFORM_ROTATION_AT + QUAT_W] = t.rotationW
+      dst[at + TRANSFORM_SCALE_AT] = t.scaleX
+      dst[at + TRANSFORM_SCALE_AT + 1] = t.scaleY
+      dst[at + TRANSFORM_SCALE_AT + 2] = t.scaleZ
     }
   }
 }

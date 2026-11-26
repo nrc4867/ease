@@ -2,6 +2,7 @@ package dev.chieppa.ease.gpu.lit
 
 import dev.chieppa.ease.gpu.GpuContext
 import dev.chieppa.ease.memory.DEFAULT_SLICE_ALIGNMENT
+import dev.chieppa.ease.memory.MAT4_BYTES
 import dev.chieppa.ease.memory.MAT4_FLOATS
 import dev.chieppa.ease.memory.NativeWriter
 import dev.chieppa.webgpu.ffi.wgpu_h
@@ -12,7 +13,6 @@ private const val VIEW_SITE = "LitMeshPass.view"
 private const val MATERIALS_SITE = "LitMeshPass.materials"
 private const val OBJECTS_SITE = "LitMeshPass.objects"
 private const val JOINTS_SITE = "LitMeshPass.joints"
-private const val MAT4_BYTES = MAT4_FLOATS * Float.SIZE_BYTES
 
 /**
  * Writes a [MeshFrame]'s uniforms and per-draw data through the generated struct writers into
@@ -89,7 +89,7 @@ internal class FrameUploads(private val context: GpuContext, private val writer:
     writer.begin(slice)
     for (joint in 0 until count) {
       writer.mat4(0, frame.joints, joint * MAT4_FLOATS)
-      writer.next(MAT4_BYTES.toLong())
+      writer.next(MAT4_BYTES)
     }
     upload(joints, slice.segment, bytes)
   }

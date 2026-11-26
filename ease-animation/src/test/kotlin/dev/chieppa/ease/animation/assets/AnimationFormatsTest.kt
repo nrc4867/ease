@@ -43,6 +43,20 @@ class AnimationFormatsTest {
   }
 
   @Test
+  fun `a version 1 clip, written before clips carried events, reads with none`() {
+    val clip = ClipAsset("still", 1f, emptyList(), emptyList())
+    val current = ClipFormat.write(clip)
+    // Version 1 is the same layout without the trailing event count.
+    val versionOne = current.copyOf(current.size - Int.SIZE_BYTES)
+    versionOne[Int.SIZE_BYTES] = 1
+
+    val read = ClipFormat.load(guid, versionOne)
+
+    assertEquals("still", read.name)
+    assertEquals(emptyList(), read.events)
+  }
+
+  @Test
   fun `an animator asset is canonical text that reads back`() {
     val bytes = AnimatorFormat.write(TestRig.animator())
     val read = AnimatorFormat.read(bytes)

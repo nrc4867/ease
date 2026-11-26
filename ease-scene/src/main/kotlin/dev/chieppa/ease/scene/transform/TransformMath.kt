@@ -2,8 +2,6 @@ package dev.chieppa.ease.scene.transform
 
 import dev.chieppa.ease.math.Quats
 
-private const val ROTATION_AT = 3
-private const val SCALE_AT = 7
 private const val AXES = 3
 
 /**
@@ -27,12 +25,20 @@ public class TransformMath {
     dst: FloatArray,
     d: Int,
   ) {
-    for (axis in 0 until AXES) point[axis] = parent[p + SCALE_AT + axis] * child[c + axis]
-    Quats.rotate(parent, p + ROTATION_AT, point, 0, point, 0)
+    for (axis in 0 until AXES) point[axis] = parent[p + TRANSFORM_SCALE_AT + axis] * child[c + axis]
+    Quats.rotate(parent, p + TRANSFORM_ROTATION_AT, point, 0, point, 0)
     for (axis in 0 until AXES) {
-      dst[d + SCALE_AT + axis] = parent[p + SCALE_AT + axis] * child[c + SCALE_AT + axis]
+      dst[d + TRANSFORM_SCALE_AT + axis] =
+        parent[p + TRANSFORM_SCALE_AT + axis] * child[c + TRANSFORM_SCALE_AT + axis]
     }
-    Quats.mul(parent, p + ROTATION_AT, child, c + ROTATION_AT, dst, d + ROTATION_AT)
+    Quats.mul(
+      parent,
+      p + TRANSFORM_ROTATION_AT,
+      child,
+      c + TRANSFORM_ROTATION_AT,
+      dst,
+      d + TRANSFORM_ROTATION_AT,
+    )
     for (axis in 0 until AXES) dst[d + axis] = parent[p + axis] + point[axis]
   }
 }

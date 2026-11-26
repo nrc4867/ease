@@ -3,7 +3,6 @@ package dev.chieppa.ease.importers.gltf
 import dev.chieppa.ease.animation.assets.ChannelPath
 import dev.chieppa.ease.animation.assets.ClipAsset
 import dev.chieppa.ease.animation.assets.ClipChannel
-import dev.chieppa.ease.animation.assets.ClipEvent
 import dev.chieppa.ease.animation.assets.Interpolation
 import dev.chieppa.ease.animation.assets.SkinAsset
 import dev.chieppa.ease.gltf.GltfFile
@@ -41,8 +40,8 @@ internal class AnimationCooker(private val file: GltfFile) {
     )
   }
 
-  /** The clip of animation [index], called [name], firing [events]. */
-  fun clip(index: Int, name: String, events: List<ClipEvent> = emptyList()): ClipAsset {
+  /** The clip of animation [index], called [name] when the animation has no name. */
+  fun clip(index: Int, name: String): ClipAsset {
     val path = "animations[$index]"
     val animation = file.root.animations[index]
     var duration = 0f
@@ -63,7 +62,7 @@ internal class AnimationCooker(private val file: GltfFile) {
         times.lastOrNull()?.let { duration = maxOf(duration, it) }
         ClipChannel(NodeIds.node(target).text, channelPath, interpolation, times, values)
       }
-    return ClipAsset(animation.name ?: name, duration, channels, events)
+    return ClipAsset(animation.name ?: name, duration, channels)
   }
 
   private fun checkCounts(

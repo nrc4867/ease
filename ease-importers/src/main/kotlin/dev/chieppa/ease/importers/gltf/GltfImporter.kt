@@ -1,6 +1,7 @@
 package dev.chieppa.ease.importers.gltf
 
 import dev.chieppa.ease.animation.assets.CLIP_EXTENSION
+import dev.chieppa.ease.animation.assets.ClipAsset
 import dev.chieppa.ease.animation.assets.ClipFormat
 import dev.chieppa.ease.animation.assets.SKIN_EXTENSION
 import dev.chieppa.ease.animation.assets.SkinFormat
@@ -132,7 +133,10 @@ public class GltfImporter(private val textures: TextureCooker? = null) : Importe
       root.animations.indices.map { index ->
         val name = names.take(root.animations[index].name, "clip$index", CLIP_EXTENSION)
         val stem = name.substringBeforeLast('.')
-        out += CookedAsset(name, ClipFormat.write(animation.clip(index, stem, clips.events(stem))))
+        val cooked = animation.clip(index, stem)
+        val events = clips.events(stem, cooked.duration)
+        val clip = ClipAsset(cooked.name, cooked.duration, cooked.channels, events)
+        out += CookedAsset(name, ClipFormat.write(clip))
         stem
       }
     clips.checkNames(clipNames)

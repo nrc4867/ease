@@ -3,6 +3,8 @@ package dev.chieppa.ease.animation.runtime
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
 import dev.chieppa.ease.scene.transform.PosedTransforms
+import dev.chieppa.ease.scene.transform.TRANSFORM_ROTATION_W
+import dev.chieppa.ease.scene.transform.TRANSFORM_SCALE_AT
 import dev.chieppa.ease.scene.transform.TransformMath
 import dev.chieppa.ease.scene.transform.WORLD_TRANSFORM_FLOATS
 import dev.chieppa.ease.scene.transform.WorldTransforms
@@ -87,10 +89,10 @@ internal class AnimatedPoses(private val world: World) : PosedTransforms {
     if (bone == Entity.NONE || transforms == null) return false
     transforms.write(bone, dst, 0)
     own.fill(0f)
-    own[ROTATION_W] = 1f
+    own[TRANSFORM_ROTATION_W] = 1f
     for (axis in 0 until AXES) {
       own[axis] = instance.socketOffsets[index * AXES + axis]
-      own[SCALE_AT + axis] = 1f
+      own[TRANSFORM_SCALE_AT + axis] = 1f
     }
     math.compose(dst, 0, own, 0, dst, 0)
     return true
@@ -115,7 +117,5 @@ internal class AnimatedPoses(private val world: World) : PosedTransforms {
   private companion object {
     const val INITIAL = 256
     const val AXES = 3
-    const val ROTATION_W = 6
-    const val SCALE_AT = 7
   }
 }

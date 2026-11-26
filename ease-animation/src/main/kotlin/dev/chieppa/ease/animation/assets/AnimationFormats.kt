@@ -8,6 +8,9 @@ private const val SKIN_MAGIC = 0x4E4B5345 // "ESKN"
 private const val CLIP_MAGIC = 0x50494C45 // "ELIP"
 private const val SKIN_VERSION = 1
 private const val CLIP_VERSION = 2
+
+/** The first clip version that carries events. */
+private const val CLIP_EVENTS_VERSION = 2
 private const val NONE = ""
 
 /**
@@ -64,7 +67,7 @@ public object ClipFormat : AssetLoader<ClipAsset> {
 
   override fun load(guid: Guid, bytes: ByteArray): ClipAsset {
     val input = BinaryIn(bytes)
-    header(input, CLIP_MAGIC, CLIP_VERSION, "clip")
+    val version = header(input, CLIP_MAGIC, CLIP_VERSION, "clip")
     val name = input.string()
     val duration = input.float()
     val channels =
@@ -77,13 +80,17 @@ public object ClipFormat : AssetLoader<ClipAsset> {
           input.floats(),
         )
       }
-    val events = List(input.count()) { ClipEvent(input.string(), input.float()) }
+    val events =
+      if (version < CLIP_EVENTS_VERSION) emptyList()
+      else List(input.count()) { ClipEvent(input.string(), input.float()) }
     return ClipAsset(name, duration, channels, events)
   }
 }
 
-private fun header(input: BinaryIn, magic: Int, expected: Int, what: String) {
+/** Reads a cooked file's magic and version, up to [newest], and returns the version. */
+private fun header(input: BinaryIn, magic: Int, newest: Int, what: String): Int {
   require(input.int() == magic) { "not a cooked $what" }
   val version = input.int()
-  require(version == expected) { "cooked $what version $version, this build reads $expected" }
+  require(version in 1..newest) { "cooked $what version $version, this build reads 1 to $newest" }
+  return version
 }

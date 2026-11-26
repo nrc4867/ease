@@ -56,7 +56,7 @@ public class AnimatorSystem(
       worlds = world.systemOrNull<WorldTransforms>()?.also { it.posed = poses }
       poses.worlds = worlds
     }
-    instances.followAssets()
+    instances.beginTick()
     worlds?.invalidate()
     activeCount = 0
     poses.clear()

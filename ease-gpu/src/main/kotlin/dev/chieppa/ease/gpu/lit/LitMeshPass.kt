@@ -23,6 +23,7 @@ import dev.chieppa.ease.gpu.mesh.TANGENT_OFFSET
 import dev.chieppa.ease.gpu.mesh.UV_OFFSET
 import dev.chieppa.ease.gpu.mesh.VERTEX_BYTES
 import dev.chieppa.ease.gpu.mesh.WEIGHTS_OFFSET
+import dev.chieppa.ease.memory.MAT4_BYTES
 import dev.chieppa.ease.memory.NativeWriter
 import dev.chieppa.webgpu.ffi.wgpu_h
 import java.lang.foreign.Arena
@@ -57,7 +58,6 @@ private val SKIN_STREAM =
 
 private const val MAIN_ENTRY = "vertex_main"
 private const val SKINNED_ENTRY = "vertex_skinned"
-private const val MAT4_BYTES = 64L
 
 /**
  * Draws a [MeshFrame] of up to [capacity] meshes (and up to [jointCapacity] joint matrices for the

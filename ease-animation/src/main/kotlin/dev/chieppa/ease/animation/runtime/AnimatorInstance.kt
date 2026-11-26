@@ -8,13 +8,13 @@ import dev.chieppa.ease.animation.graph.PoseSampler
 import dev.chieppa.ease.scene.node.NodeKey
 import dev.chieppa.ease.scene.node.NodeName
 import dev.chieppa.ease.scene.runtime.NodeIndex
+import dev.chieppa.ease.scene.transform.TRANSFORM_ROTATION_W
+import dev.chieppa.ease.scene.transform.TRANSFORM_SCALE_AT
 import dev.chieppa.ease.scene.transform.WORLD_TRANSFORM_FLOATS
 import dev.chieppa.ease.scene.transform.WorldTransforms
 import kotlin.math.sqrt
 
 private const val AXES = 3
-private const val ROTATION_W = 6
-private const val SCALE_AT = 7
 
 /**
  * One animator entity's [graph] bound to its world: the entity of each joint, found under the
@@ -58,6 +58,9 @@ internal class AnimatorInstance(
   /** Whether this tick's pose is worked out. */
   var posed = false
 
+  /** The tick of [AnimatorInstances] this instance last played in. */
+  var seen = -1
+
   init {
     for (socket in sockets.indices) {
       socketOffsets[socket * AXES] = sockets[socket].x
@@ -79,8 +82,8 @@ internal class AnimatorInstance(
         WorldTransforms.writeLocal(world, node, rest, at)
       } else {
         rest.fill(0f, at, at + WORLD_TRANSFORM_FLOATS)
-        rest[at + ROTATION_W] = 1f
-        rest.fill(1f, at + SCALE_AT, at + WORLD_TRANSFORM_FLOATS)
+        rest[at + TRANSFORM_ROTATION_W] = 1f
+        rest.fill(1f, at + TRANSFORM_SCALE_AT, at + WORLD_TRANSFORM_FLOATS)
       }
     }
   }
