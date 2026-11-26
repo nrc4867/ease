@@ -11,12 +11,13 @@ import dev.chieppa.ease.importers.EngineImporters
 import dev.chieppa.ease.platform.files.ManualFileWatcher
 import dev.chieppa.ease.render.assets.registerRenderAssets
 import dev.chieppa.ease.scene.assets.registerScenes
+import dev.chieppa.ease.textures.registerTextureLoader
 import java.nio.file.Files
 import java.nio.file.Path
 
 /**
  * A content folder for tests: test-resource files copied in with meta files, the engine's importers
- * and the render and scene loaders registered, and every source imported.
+ * and the render, texture and scene loaders registered, and every source imported.
  */
 internal class ImportedProject(private val root: Path) {
   private var next = 0L
@@ -28,6 +29,7 @@ internal class ImportedProject(private val root: Path) {
   init {
     associations.registerScenes()
     associations.registerRenderAssets()
+    associations.registerTextureLoader()
     EngineImporters().registerContributors(associations)
   }
 

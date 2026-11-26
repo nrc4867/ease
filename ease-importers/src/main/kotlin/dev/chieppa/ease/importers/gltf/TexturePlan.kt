@@ -6,6 +6,7 @@ import dev.chieppa.ease.gltf.SiblingFiles
 import dev.chieppa.ease.gltf.Uris
 import dev.chieppa.ease.gltf.fail
 import dev.chieppa.ease.gltf.json.TextureRefJson
+import dev.chieppa.ease.textures.TextureUsage
 
 /** The extension of cooked textures. */
 internal const val TEXTURE_EXTENSION = "ktx2"
@@ -20,21 +21,21 @@ internal class TexturePlan(
   private val cooker: TextureCooker?,
   names: CookedNames,
 ) {
-  private val uses: Map<Pair<Int, ImageUsage>, String>
+  private val uses: Map<Pair<Int, TextureUsage>, String>
 
   init {
-    val wanted = LinkedHashSet<Pair<Int, ImageUsage>>()
+    val wanted = LinkedHashSet<Pair<Int, TextureUsage>>()
     file.root.materials.forEachIndexed { index, material ->
       val pbr = material.pbrMetallicRoughness
       val path = "materials[$index]"
-      fun want(ref: TextureRefJson?, usage: ImageUsage, slot: String) {
+      fun want(ref: TextureRefJson?, usage: TextureUsage, slot: String) {
         if (ref != null) wanted += imageOf(ref.index, "$path.$slot") to usage
       }
-      want(pbr.baseColorTexture, ImageUsage.COLOR_SRGB, "pbrMetallicRoughness.baseColorTexture")
-      want(pbr.metallicRoughnessTexture, ImageUsage.DATA_LINEAR, "pbrMetallicRoughness")
-      want(material.normalTexture, ImageUsage.NORMAL, "normalTexture")
-      want(material.occlusionTexture, ImageUsage.DATA_LINEAR, "occlusionTexture")
-      want(material.emissiveTexture, ImageUsage.COLOR_SRGB, "emissiveTexture")
+      want(pbr.baseColorTexture, TextureUsage.COLOR_SRGB, "pbrMetallicRoughness.baseColorTexture")
+      want(pbr.metallicRoughnessTexture, TextureUsage.DATA_LINEAR, "pbrMetallicRoughness")
+      want(material.normalTexture, TextureUsage.NORMAL, "normalTexture")
+      want(material.occlusionTexture, TextureUsage.DATA_LINEAR, "occlusionTexture")
+      want(material.emissiveTexture, TextureUsage.COLOR_SRGB, "emissiveTexture")
     }
     val shared = wanted.groupingBy { it.first }.eachCount()
     uses =
@@ -50,7 +51,7 @@ internal class TexturePlan(
   }
 
   /** The cooked name of texture [texture]'s image for [usage], or null when none is cooked. */
-  fun nameOf(texture: Int, usage: ImageUsage): String? =
+  fun nameOf(texture: Int, usage: TextureUsage): String? =
     uses[imageOf(texture, "textures[$texture]") to usage]
 
   /** The cooked textures, read through [files], in the order the materials first use them. */

@@ -1,4 +1,5 @@
 import dev.chieppa.ease.build.JoltNatives
+import dev.chieppa.ease.build.LwjglNatives
 import dev.chieppa.ease.build.WebgpuNatives
 
 // The headless agent host: a game's world served to agents over MCP on 127.0.0.1. It runs whichever
@@ -32,6 +33,12 @@ dependencies {
       classifier(WebgpuNatives.classifier(providers))
     }
   )
+  // The image decoders' natives, for the textures a game's content imports.
+  for (library in listOf(libs.lwjgl.asProvider(), libs.lwjgl.stb, libs.lwjgl.tinyexr)) {
+    runtimeOnly(
+      project.dependencies.variantOf(library) { classifier(LwjglNatives.classifier(providers)) }
+    )
+  }
   kspTest(project(":ease-codegen"))
   testImplementation(libs.kotlinx.coroutines.test)
   testFixturesImplementation(libs.kotlinx.serialization.json)

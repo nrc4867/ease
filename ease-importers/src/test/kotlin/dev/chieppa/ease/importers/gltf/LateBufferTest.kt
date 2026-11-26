@@ -27,6 +27,7 @@ class LateBufferTest {
   fun `a mesh whose buffer appears later imports, draws and stops being a problem`() {
     val project = ImportedProject(folder)
     val car = project.add("models/car_sedan.gltf")
+    project.add("models/citybits_texture.png")
     val (store, imports) = project.open()
     val missing = imports.problems.single().message
     assertTrue("car_sedan.bin" in missing, missing)

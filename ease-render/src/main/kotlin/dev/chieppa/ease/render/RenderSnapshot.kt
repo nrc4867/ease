@@ -30,10 +30,10 @@ public const val QUAT_W: Int = 3
  * The read-only view of a world that rendering works from, written once per tick by
  * [ExtractSystem]. For every entity with a transform and a mesh, camera or light it holds the world
  * transform at the previous and the current tick, so a frame between ticks can blend them; for each
- * mesh drawn this tick its shape, runtime mesh or mesh asset, its material (and its material
- * asset, when it has one) and its textures; and the [camera] and [light] the world is seen through
- * and lit by. Arrays are indexed by entity id and grow only when an id passes their capacity; a
- * steady world writes it without allocating.
+ * mesh drawn this tick its shape, runtime mesh or mesh asset, its material (and its material asset,
+ * when it has one) and its textures; and the [camera] and [light] the world is seen through and lit
+ * by. Arrays are indexed by entity id and grow only when an id passes their capacity; a steady
+ * world writes it without allocating.
  */
 public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
   init {
@@ -78,11 +78,6 @@ public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
 
   /** The textures entity [id] draws with, or null for the defaults. */
   public fun textures(id: Int): MaterialTextures? = textures[id]
-  /**
-   * The material asset entity [id] draws with, whose parameters its material floats hold and whose
-   * textures a renderer binds; null when it draws an inline material.
-   */
-  public fun materialAsset(id: Int): MaterialAsset? = materialAssets[id]
 
   /** Material float [field] of entity [id], packed as [MaterialFloats] says. */
   public fun material(id: Int, field: Int): Float = materials[id * MaterialFloats.COUNT + field]

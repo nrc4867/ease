@@ -19,11 +19,11 @@ public object GameContent {
   /**
    * The assets under [root], scene and prefab folders and KTX2 textures included, watched by
    * [watcher] so a changed file reloads in the running game at the next tick. The importers of
-   * every `ContributorProvider` on [classLoader] (the engine's glTF importer and the game's own) and
-   * the texture importer run over it at once, and cooked assets load from their results; a source
-   * that fails to import is listed in the store's `imports.problems` and its assets do not load.
-   * Throws `AssetDatabaseRejected`, naming each file, when the folder has a GUID twice, a meta file
-   * without a source or a source without one.
+   * every `ContributorProvider` on [classLoader] (the engine's glTF importer and the game's own)
+   * and the texture importer run over it at once, and cooked assets load from their results; a
+   * source that fails to import is listed in the store's `imports.problems` and its assets do not
+   * load. Throws `AssetDatabaseRejected`, naming each file, when the folder has a GUID twice, a
+   * meta file without a source or a source without one.
    */
   public fun open(
     root: Path,

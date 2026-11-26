@@ -8,6 +8,7 @@ import dev.chieppa.ease.gltf.json.TextureRefJson
 import dev.chieppa.ease.render.assets.AlphaMode
 import dev.chieppa.ease.render.assets.MaterialAsset
 import dev.chieppa.ease.render.assets.TextureSlot
+import dev.chieppa.ease.textures.TextureUsage
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.floatOrNull
@@ -47,16 +48,16 @@ internal class MaterialCooker(
       alphaMode = alphaMode(material, path),
       alphaCutoff = material.alphaCutoff,
       doubleSided = material.doubleSided,
-      baseColorTexture = slot(pbr.baseColorTexture, ImageUsage.COLOR_SRGB, 1f),
-      metallicRoughnessTexture = slot(pbr.metallicRoughnessTexture, ImageUsage.DATA_LINEAR, 1f),
-      normalTexture = material.normalTexture?.let { slot(it, ImageUsage.NORMAL, it.scale) },
+      baseColorTexture = slot(pbr.baseColorTexture, TextureUsage.COLOR_SRGB, 1f),
+      metallicRoughnessTexture = slot(pbr.metallicRoughnessTexture, TextureUsage.DATA_LINEAR, 1f),
+      normalTexture = material.normalTexture?.let { slot(it, TextureUsage.NORMAL, it.scale) },
       occlusionTexture =
-        material.occlusionTexture?.let { slot(it, ImageUsage.DATA_LINEAR, it.strength) },
-      emissiveTexture = slot(material.emissiveTexture, ImageUsage.COLOR_SRGB, 1f),
+        material.occlusionTexture?.let { slot(it, TextureUsage.DATA_LINEAR, it.strength) },
+      emissiveTexture = slot(material.emissiveTexture, TextureUsage.COLOR_SRGB, 1f),
     )
   }
 
-  private fun slot(ref: TextureRefJson?, usage: ImageUsage, amount: Float): TextureSlot? {
+  private fun slot(ref: TextureRefJson?, usage: TextureUsage, amount: Float): TextureSlot? {
     val name = ref?.let { textures.nameOf(it.index, usage) }
     return name?.let { TextureSlot(guid.named(it), checkNotNull(ref).texCoord, amount) }
   }

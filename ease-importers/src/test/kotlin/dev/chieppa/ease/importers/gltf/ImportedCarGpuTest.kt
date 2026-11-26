@@ -2,6 +2,7 @@ package dev.chieppa.ease.importers.gltf
 
 import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.World
+import dev.chieppa.ease.assets.loading.AssetStore
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.phasedWorld
@@ -69,7 +70,7 @@ class ImportedCarGpuTest {
     }
     world.update(DELTA)
 
-    val pixels = draw()
+    val pixels = draw(store)
 
     assertEquals(emptyList(), world.system<ExtractSystem>().assetProblems.toList())
     val clear = MeshFrame.DEFAULT_CLEAR
@@ -82,6 +83,7 @@ class ImportedCarGpuTest {
     assertTrue(!near(front, clear) && !near(rear, clear), "${hex(front)} ${hex(rear)}")
     assertTrue(near(between, clear), "below the body, between the wheels: ${hex(between)}")
     assertTrue(near(pixels.rgb(0, 0), clear) && near(pixels.rgb(size.width - 1, 0), clear))
+    assertTrue(CarColors.isTextured(body), "the body is untextured white: ${hex(body)}")
   }
 
   /** Spawns [prefab]'s nodes as top-level nodes of [world], each with its parent link. */
@@ -97,9 +99,9 @@ class ImportedCarGpuTest {
     }
   }
 
-  private fun draw(): Pixels =
+  private fun draw(store: AssetStore): Pixels =
     GpuContext.open().use { gpu ->
-      WorldRenderer(gpu, capacity = 16).use { renderer ->
+      WorldRenderer(gpu, capacity = 16, assets = store).use { renderer ->
         OffscreenTarget(gpu, size).use { offscreen ->
           gpu.beginFrame()
           val encoder = gpu.frameEncoder()

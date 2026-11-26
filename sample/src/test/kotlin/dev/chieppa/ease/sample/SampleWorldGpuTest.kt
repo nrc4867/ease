@@ -75,13 +75,15 @@ class SampleWorldGpuTest {
     val body = pixels.rgb(bodyColumn, bodyRow)
     val wheel = pixels.rgb(wheelColumn, wheelRow)
     assertFalse(Rgb.close(body, clear), "no car body at ($bodyColumn, $bodyRow)")
+    assertTrue(isTextured(body), "the body is untextured white: ${Rgb.hex(body)}")
     assertFalse(Rgb.close(wheel, clear), "no wheel at ($wheelColumn, $wheelRow)")
     assertTrue(Rgb.close(pixels.rgb(aboveColumn, aboveRow), clear), "something above the car")
   }
 
   private fun render(snapshot: RenderSnapshot = sample.hosted.snapshot): Pixels =
     GpuContext.open().use { gpu ->
-      WorldRenderer(gpu, capacity = sample.nodes.size).use { renderer ->
+      WorldRenderer(gpu, capacity = sample.nodes.size, assets = sample.content.assets).use {
+        renderer ->
         OffscreenTarget(gpu, size).use { offscreen ->
           gpu.beginFrame()
           val encoder = gpu.frameEncoder()
@@ -92,7 +94,17 @@ class SampleWorldGpuTest {
       }
     }
 
+  /**
+   * Whether [rgb] is darker than the white an untextured car draws, in every channel: the car's
+   * palette atlas, sampled at the small mip levels a distant car uses, comes out a mid grey.
+   */
+  private fun isTextured(rgb: Int): Boolean =
+    maxOf(rgb shr 16 and 0xFF, rgb shr 8 and 0xFF, rgb and 0xFF) < CAR_BRIGHTEST
+
   private companion object {
+    /** The brightest channel the textured car body reaches. */
+    const val CAR_BRIGHTEST = 0xC0
+
     const val TICKS = 10
 
     /** Enough ticks for the local client to join and build the scene's nodes. */

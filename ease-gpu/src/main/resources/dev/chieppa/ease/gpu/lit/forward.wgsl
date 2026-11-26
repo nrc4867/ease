@@ -25,6 +25,8 @@ const PI: f32 = 3.14159265;
 struct SurfaceInput {
   world_position: vec3f,
   normal: vec3f,
+  // The world-space tangent, and in w the bitangent's handedness, as the vertex gave them.
+  tangent: vec4f,
   uv: vec2f,
   // The draw's index, which picks its parameters in the template's group 2 array.
   draw: u32,
@@ -61,6 +63,7 @@ struct Varyings {
   @location(1) normal: vec3f,
   @location(2) uv: vec2f,
   @location(3) @interpolate(flat) draw: u32,
+  @location(4) tangent: vec4f,
 }
 
 @vertex
@@ -72,6 +75,7 @@ fn vertex_main(in: VertexIn, @builtin(instance_index) draw: u32) -> Varyings {
   out.world_position = world.xyz;
   out.normal = (placed.normalMatrix * vec4f(in.normal, 0.0)).xyz;
   out.uv = in.uv;
+  out.tangent = vec4f((placed.model * vec4f(in.tangent.xyz, 0.0)).xyz, in.tangent.w);
   out.draw = draw;
   return out;
 }
@@ -121,6 +125,7 @@ fn fragment_main(in: Varyings) -> @location(0) vec4f {
   var input: SurfaceInput;
   input.world_position = in.world_position;
   input.normal = normalize(in.normal);
+  input.tangent = in.tangent;
   input.uv = in.uv;
   input.draw = in.draw;
   let shaded = surface(input);
