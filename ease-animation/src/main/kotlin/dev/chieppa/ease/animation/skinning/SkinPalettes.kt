@@ -36,6 +36,8 @@ public class SkinPalettes(private val assets: AnimationAssets?) {
   private val inverse = FloatArray(MAT4_FLOATS)
   private val joint = FloatArray(MAT4_FLOATS)
   private val scratch = FloatArray(MAT4_FLOATS)
+  private var nodesWorld: World? = null
+  private var nodes: SceneNodes? = null
 
   /**
    * Writes [entity]'s joint matrices (16 floats each, column-major) into [dst] from [at] and
@@ -108,7 +110,7 @@ public class SkinPalettes(private val assets: AnimationAssets?) {
       bindings.fill(null)
     }
     val ref = with(world) { entity.getOrNull(SkinRef) }?.skin
-    val index = world.systemOrNull<SceneNodes>()?.index
+    val index = nodesOf(world)?.index
     val key = with(world) { entity.getOrNull(NodeKey) }
     if (ref == null || index == null || key == null) return null
     if (entity.id >= bindings.size) {
@@ -117,6 +119,15 @@ public class SkinPalettes(private val assets: AnimationAssets?) {
     val existing = bindings[entity.id]
     return if (existing != null && existing.matches(entity, ref.guid, index)) existing
     else bind(entity, key, ref.guid, index)
+  }
+
+  /** [world]'s scene nodes, looked up once per world: finding a system searches them all. */
+  private fun nodesOf(world: World): SceneNodes? {
+    if (world !== nodesWorld) {
+      nodesWorld = world
+      nodes = world.systemOrNull<SceneNodes>()
+    }
+    return nodes
   }
 
   private fun bind(entity: Entity, key: NodeKey, guid: Guid, index: NodeIndex): SkinBinding? {

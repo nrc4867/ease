@@ -38,6 +38,7 @@ public class AnimatorSystem(
   private lateinit var dispatch: EventDispatch
   private var nodes: SceneNodes? = null
   private var worlds: WorldTransforms? = null
+  private var looked = false
 
   /** Why each animator asset that cannot play cannot, one line each, and the assets' own. */
   public val problems: Collection<String>
@@ -49,7 +50,9 @@ public class AnimatorSystem(
   }
 
   override fun onTick() {
-    if (worlds == null) {
+    if (!looked) {
+      looked = true
+      nodes = world.systemOrNull<SceneNodes>()
       worlds = world.systemOrNull<WorldTransforms>()?.also { it.posed = poses }
       poses.worlds = worlds
     }
@@ -76,8 +79,11 @@ public class AnimatorSystem(
     active[activeCount++] = instance
   }
 
-  private fun sceneNodes(): SceneNodes? =
-    nodes ?: world.systemOrNull<SceneNodes>().also { nodes = it }
+  /** The world's scene nodes; looked up once, since finding a system searches them all. */
+  private fun sceneNodes(): SceneNodes? {
+    if (!looked) nodes = world.systemOrNull<SceneNodes>()
+    return nodes
+  }
 
   /** Places [follower] at its socket when its animator plays and has that socket. */
   private fun follow(follower: Entity) {
