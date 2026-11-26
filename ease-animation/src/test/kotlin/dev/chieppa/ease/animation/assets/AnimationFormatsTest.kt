@@ -49,7 +49,8 @@ class AnimationFormatsTest {
 
     assertContentEquals(bytes, AnimatorFormat.write(read))
     assertEquals(listOf("idle", "move"), read.states.map { it.name })
-    assertEquals(TestRig.WALK, read.states[1].blend?.points?.get(1)?.clip)
+    val walkPoint = read.states[1].blend?.points?.get(1)
+    assertEquals(TestRig.WALK, walkPoint?.clip)
     assertEquals("footstepLeft", read.probes[0].event)
   }
 }
