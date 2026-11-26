@@ -52,6 +52,12 @@ enum class Layer {
   /** The render graph and everything drawn through it. */
   RENDER,
 
+  /**
+   * The engine's importers: source files such as glTF turned into the cooked assets the layers
+   * below load.
+   */
+  IMPORT,
+
   /** Worlds, ticking, views and game modules, for every host. */
   RUNTIME,
 

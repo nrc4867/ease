@@ -3,11 +3,20 @@ package dev.chieppa.ease.sample
 import dev.chieppa.ease.assets.loading.AssetStore
 import dev.chieppa.ease.platform.files.FileChangeKind
 import dev.chieppa.ease.platform.files.ManualFileWatcher
+import dev.chieppa.ease.render.scene.Camera
+import dev.chieppa.ease.render.scene.DirectionalLight
+import dev.chieppa.ease.render.scene.Material
+import dev.chieppa.ease.render.scene.MaterialRef
+import dev.chieppa.ease.render.scene.Mesh
+import dev.chieppa.ease.render.scene.MeshRef
 import dev.chieppa.ease.runtime.GameContent
 import dev.chieppa.ease.scene.document.SceneDocument
 import dev.chieppa.ease.scene.document.SceneNode
 import dev.chieppa.ease.scene.files.SceneFolder
 import dev.chieppa.ease.scene.node.NodeKey
+import dev.chieppa.ease.scene.resolve.ResolvedNode
+import dev.chieppa.ease.scene.runtime.ResolvedScenes
+import dev.chieppa.ease.scene.types.SceneTypes
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.copyTo
@@ -35,8 +44,26 @@ internal class SampleContent(
   /** The watcher the content's database drains; [edit] publishes to it. */
   val watcher = ManualFileWatcher()
 
-  /** The assets the worlds load, the playfield scene among them. */
-  val assets: AssetStore = GameContent.open(folder, watcher)
+  /** The assets the worlds load, the playfield scene among them, opened on first use. */
+  val assets: AssetStore by lazy { GameContent.open(folder, watcher) }
+
+  /**
+   * The playfield scene's nodes as the host places them: its own nodes and those of the prefabs it
+   * places, such as the imported car's, from the files as the assets last read them.
+   */
+  fun placed(): List<ResolvedNode> =
+    ResolvedScenes(TYPES, assets).resolve(SampleGame.PLAYFIELD, null).nodes
+
+  /**
+   * The keys of [document]'s nodes placed as the outermost scene, with the keys the prefabs it
+   * places add, as text, sorted.
+   */
+  fun placedKeysOf(document: SceneDocument): List<String> {
+    val nested = placed().map { it.key }.filter { it.depth > 1 }
+    val placedIds = document.nodes.keys
+    return (nested.filter { it.idAt(0) in placedIds }.map { it.text } + Companion.keysOf(document))
+      .sorted()
+  }
 
   /** The playfield scene as its folder holds it now. */
   fun playfield(): SceneDocument = SceneFolder.read(folder.resolve(PLAYFIELD))
@@ -64,6 +91,17 @@ internal class SampleContent(
     const val PLAYFIELD = "playfield.scene"
 
     private const val VELOCITY = "sample.Velocity"
+
+    /** The component types the playfield and the car it places hold. */
+    private val TYPES = SceneTypes.build {
+      component(Mesh, Mesh.serializer())
+      component(Material, Material.serializer())
+      component(MeshRef, MeshRef.serializer())
+      component(MaterialRef, MaterialRef.serializer())
+      component(Camera, Camera.serializer())
+      component(DirectionalLight, DirectionalLight.serializer())
+      component(Velocity, Velocity.serializer())
+    }
     private const val CAMERA = "ease.Camera"
 
     /** The keys of [document]'s nodes placed as the outermost scene, as text, sorted. */

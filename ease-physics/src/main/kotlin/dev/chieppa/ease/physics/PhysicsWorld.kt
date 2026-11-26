@@ -79,6 +79,15 @@ public class PhysicsWorld(public val settings: PhysicsSettings = PhysicsSettings
   internal val triggers = TriggerTracker(this)
   private var closed = false
 
+  internal val refused = LinkedHashMap<Int, String>()
+
+  /**
+   * Why each collider that gets no body was refused, one line each, such as a dynamic body under a
+   * parent. A line goes when its entity is removed or changed so that it builds.
+   */
+  public val problems: Collection<String>
+    get() = refused.values
+
   /** How many bodies the world holds, characters not included. */
   public val bodyCount: Int
     get() = system.numBodies

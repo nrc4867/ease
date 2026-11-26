@@ -13,9 +13,9 @@ private const val SHORT_MASK = 0xFFFF
 private const val INT_MASK = 0xFFFF_FFFFL
 
 /**
- * Read-only little-endian bytes of a [MappedFile]: the whole file or a part of it. Each read is
- * named by what it reads, takes a byte offset from the region's start, and fails, naming the file
- * and the file offset, when it runs past the region's end.
+ * Read-only little-endian bytes of a [MappedFile], or of bytes on the heap through [of]: the whole
+ * of them or a part. Each read is named by what it reads, takes a byte offset from the region's
+ * start, and fails, naming the file and the file offset, when it runs past the region's end.
  */
 public class MappedRegion
 internal constructor(
@@ -58,6 +58,21 @@ internal constructor(
   public fun copyBytes(offset: Long, length: Int): ByteArray {
     inRange(offset, length.toLong())
     return bytes.asSlice(offset, length.toLong()).toArray(UINT8)
+  }
+
+  /** Copies the [length] bytes from [offset] into [target] at [targetOffset], native to native. */
+  public fun copyTo(offset: Long, target: MemorySegment, targetOffset: Long, length: Long) {
+    inRange(offset, length)
+    MemorySegment.copy(bytes, offset, target, targetOffset, length)
+  }
+
+  public companion object {
+    /**
+     * A region over [bytes], read in place without a copy, whose failed reads name it [name]: how
+     * bytes that never were a file, such as a decoded data URI, are read like a mapped one.
+     */
+    public fun of(bytes: ByteArray, name: String): MappedRegion =
+      MappedRegion(MemorySegment.ofArray(bytes), name, 0L)
   }
 
   private inline fun <T> read(offset: Long, size: Int, value: (Long) -> T): T {

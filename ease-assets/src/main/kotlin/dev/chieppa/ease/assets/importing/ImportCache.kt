@@ -9,7 +9,13 @@ import java.nio.file.Path
 
 private const val IMPORTS_FOLDER = "imports"
 private const val CURRENT_FILE = "current"
-private const val SOURCE_FILE = "source"
+/** The file in an asset's folder naming the source path its results came from. */
+internal const val SOURCE_FILE: String = "source"
+private const val INPUTS_FILE = "inputs"
+
+/** The folder of everything stored for [guid] under the content folder [root]. */
+internal fun importFolder(root: Path, guid: Guid): Path =
+  root.resolve(CACHE_FOLDER).resolve(IMPORTS_FOLDER).resolve(guid.toString())
 
 /**
  * Cooked assets on this machine, under `.ease/cache/imports/<guid>/<key>/`. Each asset's `current`
@@ -18,18 +24,15 @@ private const val SOURCE_FILE = "source"
  * the result came from.
  */
 internal class ImportCache(private val root: Path) {
-  private fun assetFolder(guid: Guid): Path =
-    root.resolve(CACHE_FOLDER).resolve(IMPORTS_FOLDER).resolve(guid.toString())
-
   /** The key of the last good result of [guid], or null when it has none. */
   fun currentKey(guid: Guid): String? {
-    val file = assetFolder(guid).resolve(CURRENT_FILE)
+    val file = importFolder(root, guid).resolve(CURRENT_FILE)
     return if (Files.isRegularFile(file)) Files.readString(file) else null
   }
 
   /** The source path [guid]'s result was made from, or null when it has none. */
   fun sourceOf(guid: Guid): Path? {
-    val file = assetFolder(guid).resolve(SOURCE_FILE)
+    val file = importFolder(root, guid).resolve(SOURCE_FILE)
     return if (Files.isRegularFile(file)) Path.of(Files.readString(file)) else null
   }
 
@@ -38,16 +41,23 @@ internal class ImportCache(private val root: Path) {
    * older results. Throws [IllegalArgumentException] for two assets whose names are equal or differ
    * only in case, which a case-insensitive disk would merge.
    */
-  fun store(guid: Guid, source: Path, key: String, cooked: List<CookedAsset>) {
+  fun store(
+    guid: Guid,
+    source: Path,
+    key: String,
+    cooked: List<CookedAsset>,
+    inputs: Collection<String> = emptyList(),
+  ) {
     require(cooked.map { it.name.lowercase() }.toSet().size == cooked.size) {
       "The importer produced two cooked assets with the same name: ${cooked.map { it.name }}"
     }
     CacheFolder.ensure(root)
-    val asset = assetFolder(guid)
+    val asset = importFolder(root, guid)
     val target = asset.resolve(key)
     Files.createDirectories(target)
     cooked.forEach { Files.write(target.resolve(it.name), it.bytes) }
     Files.writeString(asset.resolve(SOURCE_FILE), source.joinToString("/"))
+    Files.write(asset.resolve(INPUTS_FILE), inputs)
     Files.writeString(asset.resolve(CURRENT_FILE), key)
     Files.list(asset).use { entries ->
       entries
@@ -59,7 +69,7 @@ internal class ImportCache(private val root: Path) {
   /** The last good cooked assets of [guid], sorted by name; empty when it has none. */
   fun read(guid: Guid): List<CookedAsset> {
     val key = currentKey(guid) ?: return emptyList()
-    val target = assetFolder(guid).resolve(key)
+    val target = importFolder(root, guid).resolve(key)
     return Files.list(target).use { entries ->
       entries
         .sorted(compareBy { it.fileName.toString() })
@@ -67,6 +77,28 @@ internal class ImportCache(private val root: Path) {
         .toList()
     }
   }
+
+  /** The paths of the other files [guid]'s last good result read, from the content folder. */
+  fun inputs(guid: Guid): List<String> {
+    val file = importFolder(root, guid).resolve(INPUTS_FILE)
+    return if (Files.isRegularFile(file)) Files.readAllLines(file).filter { it.isNotEmpty() }
+    else emptyList()
+  }
+
+  /** The names of [guid]'s last good cooked assets, sorted; empty when it has none. */
+  fun names(guid: Guid): List<String> {
+    val folder = currentFolder(guid) ?: return emptyList()
+    return Files.list(folder).use { entries ->
+      entries.map { it.fileName.toString() }.sorted().toList()
+    }
+  }
+
+  /** The file holding [guid]'s cooked asset [name], or null when its last good result has none. */
+  fun file(guid: Guid, name: String): Path? =
+    currentFolder(guid)?.resolve(name)?.takeIf { Files.isRegularFile(it) }
+
+  private fun currentFolder(guid: Guid): Path? =
+    currentKey(guid)?.let { importFolder(root, guid).resolve(it) }?.takeIf { Files.isDirectory(it) }
 
   /** Every asset that has a stored result; files and folders that are not GUIDs are ignored. */
   fun guids(): List<Guid> {
@@ -83,6 +115,6 @@ internal class ImportCache(private val root: Path) {
 
   /** Removes everything stored for [guid]. */
   fun remove(guid: Guid) {
-    FileTrees.deleteRecursively(assetFolder(guid))
+    FileTrees.deleteRecursively(importFolder(root, guid))
   }
 }

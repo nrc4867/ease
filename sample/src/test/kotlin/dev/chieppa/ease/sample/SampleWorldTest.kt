@@ -20,7 +20,7 @@ class SampleWorldTest {
   @Test
   fun `the player's loader finds the sample game, which spawns its scene's nodes`() {
     assertIs<SampleGame>(sample.module)
-    val nodes = sample.content.nodes().size
+    val nodes = sample.content.placed().size
     assertEquals(nodes, sample.nodes.size)
     assertEquals(sample.content.cubes().size, sample.entities.size)
     val log = sample.hosted.history.log
@@ -61,7 +61,7 @@ class SampleWorldTest {
     val snapshot = sample.hosted.snapshot
     val transform = FloatArray(TRANSFORM_FLOATS)
     assertEquals(
-      sample.content.nodes().count { "ease.Mesh" in it.components },
+      sample.content.placed().count { "ease.Mesh" in it.components || MESH_REF in it.components },
       snapshot.count,
     )
     assertTrue(snapshot.camera.present && snapshot.light.present)
@@ -78,5 +78,6 @@ class SampleWorldTest {
     const val LONG_RUN = 2_000
     const val TOLERANCE = 1e-3f
     const val MAX_SPEED = 4f
+    const val MESH_REF = "ease.MeshRef"
   }
 }

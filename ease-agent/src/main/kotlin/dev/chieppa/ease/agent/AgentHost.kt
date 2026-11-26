@@ -25,7 +25,7 @@ public class AgentHost(
   /** The live world the tools read. */
   public val world: AgentWorld = AgentWorld(module, fixedStep, dispatcher, log, assets)
 
-  private val capturer = Capturer()
+  private val capturer = Capturer(assets = assets)
   private val server = AgentServer(AgentTools.all(world, capturer, log), token, log)
 
   /** Loads the game, then listens on [port] (0 for any free one) and gives the port. */

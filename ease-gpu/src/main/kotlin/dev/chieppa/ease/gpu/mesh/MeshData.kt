@@ -1,28 +1,40 @@
 package dev.chieppa.ease.gpu.mesh
 
+import dev.chieppa.ease.memory.MappedRegion
 import dev.chieppa.ease.memory.NativeWriter
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout
 
-/** Bytes one vertex takes: position, normal and texture coordinates, all floats. */
-public const val VERTEX_BYTES: Long = 32L
+/**
+ * Bytes one vertex takes, all floats: position (location 0), normal (1), texture coordinates (2),
+ * then the tangent (3) as x, y, z and w, w the handedness (1 or -1) of the bitangent, which is
+ * cross(normal, tangent) times w.
+ */
+public const val VERTEX_BYTES: Long = 48L
 
-/** Offsets within a vertex. */
-internal const val POSITION_OFFSET = 0L
-internal const val NORMAL_OFFSET = 12L
-internal const val UV_OFFSET = 24L
+/** Byte offset of a vertex's position, three floats. */
+public const val POSITION_OFFSET: Long = 0L
+
+/** Byte offset of a vertex's unit normal, three floats. */
+public const val NORMAL_OFFSET: Long = 12L
+
+/** Byte offset of a vertex's texture coordinates, two floats. */
+public const val UV_OFFSET: Long = 24L
+
+/** Byte offset of a vertex's tangent and handedness, four floats. */
+public const val TANGENT_OFFSET: Long = 32L
 
 /** Bytes one index takes: indices are 32-bit. */
-private const val INDEX_BYTES = 4L
+public const val INDEX_BYTES: Long = 4L
 
 /**
- * A triangle mesh in native memory, laid out the way the GPU draws it: vertices of position, normal
- * and texture coordinates, and 32-bit indices, three per counter-clockwise front face. It is the
- * dynamic mesh API: build it with [vertex] and [triangle], or [clear] and build it again, then
- * [commit], and the next frame that draws it uploads it. Room grows as it fills, starting at
- * [vertexCapacity] vertices and [indexCapacity] indices; a mesh rebuilt within its room allocates
- * nothing. Closing it frees the native memory.
+ * A triangle mesh in native memory, laid out the way the GPU draws it: vertices of position,
+ * normal, texture coordinates and tangent ([VERTEX_BYTES] says where each is), and 32-bit indices,
+ * three per counter-clockwise front face. It is the dynamic mesh API: build it with [vertex] and
+ * [triangle], or [clear] and build it again, then [commit], and the next frame that draws it
+ * uploads it. Room grows as it fills, starting at [vertexCapacity] vertices and [indexCapacity]
+ * indices; a mesh rebuilt within its room allocates nothing. Closing it frees the native memory.
  */
 public class MeshData(vertexCapacity: Int = 64, indexCapacity: Int = 96) : AutoCloseable {
   init {
@@ -72,7 +84,8 @@ public class MeshData(vertexCapacity: Int = 64, indexCapacity: Int = 96) : AutoC
 
   /**
    * Adds a vertex at ([x], [y], [z]) with the unit normal ([nx], [ny], [nz]) and texture
-   * coordinates ([u], [v]), and returns its index.
+   * coordinates ([u], [v]), and returns its index. Its tangent is +x with handedness 1; [tangent]
+   * sets another.
    */
   @Suppress("LongParameterList") // One vertex's eight floats, written without an object.
   public fun vertex(
@@ -91,7 +104,38 @@ public class MeshData(vertexCapacity: Int = 64, indexCapacity: Int = 96) : AutoC
     writer.vec3(POSITION_OFFSET, x, y, z)
     writer.vec3(NORMAL_OFFSET, nx, ny, nz)
     writer.vec2(UV_OFFSET, u, v)
+    writer.vec4(TANGENT_OFFSET, 1f, 0f, 0f, 1f)
     return vertexCount++
+  }
+
+  /** Sets vertex [index]'s unit tangent ([x], [y], [z]) and handedness [w], 1 or -1. */
+  public fun tangent(index: Int, x: Float, y: Float, z: Float, w: Float) {
+    require(index in 0 until vertexCount) { "No vertex $index among $vertexCount" }
+    writer.begin(vertices)
+    writer.base = index * VERTEX_BYTES
+    writer.vec4(TANGENT_OFFSET, x, y, z, w)
+  }
+
+  /**
+   * Replaces the mesh with [vertexCount] vertices copied from [vertexBytes] (laid out as
+   * [VERTEX_BYTES] says) and [indexCount] indices from [indexBytes], each read from its offset 0,
+   * then commits it. Indices must name the new vertices; the copy goes straight between native
+   * memory.
+   */
+  public fun replace(
+    vertexBytes: MappedRegion,
+    vertexCount: Int,
+    indexBytes: MappedRegion,
+    indexCount: Int,
+  ) {
+    require(indexCount % TRIANGLE == 0) { "$indexCount indices are not whole triangles" }
+    vertices = room(vertices, vertexCount * VERTEX_BYTES)
+    indices = room(indices, indexCount * INDEX_BYTES)
+    vertexBytes.copyTo(0, vertices, 0, vertexCount * VERTEX_BYTES)
+    indexBytes.copyTo(0, indices, 0, indexCount * INDEX_BYTES)
+    this.vertexCount = vertexCount
+    this.indexCount = indexCount
+    commit()
   }
 
   /** Adds the triangle of vertices [a], [b] and [c], counter-clockwise seen from its front. */

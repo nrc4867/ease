@@ -16,6 +16,7 @@ import dev.chieppa.ease.gpu.mesh.GpuMesh
 import dev.chieppa.ease.gpu.mesh.MeshBuffers
 import dev.chieppa.ease.gpu.mesh.NORMAL_OFFSET
 import dev.chieppa.ease.gpu.mesh.POSITION_OFFSET
+import dev.chieppa.ease.gpu.mesh.TANGENT_OFFSET
 import dev.chieppa.ease.gpu.mesh.UV_OFFSET
 import dev.chieppa.ease.gpu.mesh.VERTEX_BYTES
 import dev.chieppa.ease.memory.NativeWriter
@@ -35,6 +36,7 @@ private val MESH_VERTICES =
       VertexAttribute(3, POSITION_OFFSET),
       VertexAttribute(3, NORMAL_OFFSET),
       VertexAttribute(2, UV_OFFSET),
+      VertexAttribute(4, TANGENT_OFFSET),
     ),
   )
 

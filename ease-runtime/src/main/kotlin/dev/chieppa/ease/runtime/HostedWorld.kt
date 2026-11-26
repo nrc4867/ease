@@ -22,23 +22,27 @@ import dev.chieppa.ease.render.RenderSnapshot
 import dev.chieppa.ease.runtime.loop.FixedStep
 import dev.chieppa.ease.scene.runtime.SceneNodes
 import dev.chieppa.ease.scene.runtime.SceneSync
+import dev.chieppa.ease.scene.transform.WorldTransforms
 
 private const val NANOS_PER_SECOND = 1_000_000_000f
 
 /**
  * One world a host runs, as [peer]: a Fleks world with [module]'s systems and predicted systems
- * (its host systems too in the host's own world) and the engine's [ExtractSystem], the codec and
- * command history every outside change goes through, each peer's [inputs], the [snapshot] rendering
- * reads, drawn [corrections] away while a prediction settles, and the current [tick]. Every world
- * holds a `SceneNodes` system with the module's scene types. Building it registers [module]'s types
- * and, in the host's own world, places the module's start scene from [assets] and lets the module
- * populate it; a client's world starts empty and receives the host's entities. What a scene could
- * not honor is kept in [sceneProblems].
+ * (its host systems too in the host's own world) and the engine's `WorldTransforms` and
+ * [ExtractSystem], the codec and command history every outside change goes through, each peer's
+ * [inputs], the [snapshot] rendering reads, drawn [corrections] away while a prediction settles,
+ * and the current [tick]. Every world holds a `SceneNodes` system with the module's scene types.
+ * Building it registers [module]'s types and, in the host's own world, places the module's start
+ * scene from [assets] and lets the module populate it; a client's world starts empty and receives
+ * the host's entities. What a scene could not honor is kept in [sceneProblems].
  *
  * With [assets], each [step] of the host's world begins by applying the asset file changes waiting
  * since the last one, as `ReloadAsset` commands in the history, then the changes they make to the
  * placed [scenes], as node commands, so a changed file reloads in the running world and reaches
  * clients as spawns, snapshots and despawns.
+ *
+ * The extract draws mesh and material assets from [drawAssets], [assets] unless given: a client's
+ * world, which holds no [assets] since it syncs nothing, draws from the content all the same.
  *
  * A [replaying] world is one the host's command log is replayed into: it places no scene, does not
  * populate and runs neither sync, since the log holds every command those made; its [assets] only
@@ -53,6 +57,7 @@ public class HostedWorld(
   assets: AssetStore? = null,
   public val corrections: CorrectionOffsets = CorrectionOffsets(),
   replaying: Boolean = false,
+  drawAssets: AssetStore? = assets,
 ) {
   private val types = WorldTypes(module)
 
@@ -83,8 +88,15 @@ public class HostedWorld(
       predicted { module.predictedSystems(this) }
       if (peer == PeerId.HOST) module.hostSystems(this)
       assets?.let { add(Phase.INPUT, AssetReloadSystem(it)) }
-      add(Phase.EXTRACT, ExtractSystem(snapshot, corrections))
+      add(Phase.EXTRACT, WorldTransforms())
+      add(Phase.EXTRACT, ExtractSystem(snapshot, corrections, drawAssets))
     }
+
+  private val extract = world.system<ExtractSystem>()
+
+  /** The mesh and material assets the renderer's extract could not load, one line each. */
+  public val assetProblems: Collection<String>
+    get() = extract.assetProblems
 
   /** Every change made through [execute], with undo, redo and the command log. */
   public val history: CommandHistory = CommandHistory(world, codec)

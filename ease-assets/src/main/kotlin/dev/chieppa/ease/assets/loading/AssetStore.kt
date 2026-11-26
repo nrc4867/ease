@@ -2,31 +2,66 @@ package dev.chieppa.ease.assets.loading
 
 import dev.chieppa.ease.assets.ContentHash
 import dev.chieppa.ease.assets.Guid
-import dev.chieppa.ease.assets.associations.AmbiguousContributors
 import dev.chieppa.ease.assets.associations.FileAssociations
-import dev.chieppa.ease.assets.associations.ProjectFile
 import dev.chieppa.ease.assets.database.AssetDatabase
 import dev.chieppa.ease.assets.database.AssetRecord
-import java.io.IOException
+import dev.chieppa.ease.assets.importing.ImportService
 import kotlin.reflect.KClass
 
 /** The contents hash a reload carries when the asset's file is gone. */
 public const val GONE_HASH: String = ""
 
 /**
- * The assets a running game holds. [handle] loads an asset once through the loader the file
- * associations pick for its file, and every later call returns the same handle. [reload] re-reads
- * the file for every handle on that asset.
+ * The assets a running game holds. [handle] loads an asset once and every later call returns the
+ * same handle. A source asset loads through the loader the file associations pick for its file; one
+ * with no such loader for the type asked, such as a model, loads from the one cooked asset of its
+ * last import that a loader turns into that type. A sub-asset GUID (a source's GUID named by a
+ * cooked asset's name) loads that cooked asset, through the loader picked for its name. [reload]
+ * re-reads an asset for every handle on it, and with [imports] imports it, and the sources whose
+ * import read its file, again, reloading their cooked handles.
+ *
+ * A reload's replaced values that are [AutoCloseable], such as meshes holding native and GPU
+ * memory, are closed at the second [frameBoundary] after it, when no frame draws them any more.
  */
 public class AssetStore(
   /** The database the assets are looked up in. */
   public val database: AssetDatabase,
-  private val associations: FileAssociations,
+  associations: FileAssociations,
+  /** Where cooked assets come from; without it only sources load. */
+  public val imports: ImportService? = null,
 ) {
-  private val loaded = HashMap<Guid, MutableList<Entry<*>>>()
+  private val loaded = HashMap<Guid, MutableList<StoreEntry<*>>>()
+  private val factory = EntryFactory(database, imports, LoaderChoice(database.root, associations))
+
+  private val retired = RetiredValues()
+
+  /** Counts [reload] calls, so code that remembers a failed load knows when to try again. */
+  public var changes: Int = 0
+    private set
 
   /** Whether any handle on [guid] exists. */
   public fun isLoaded(guid: Guid): Boolean = guid in loaded
+
+  /**
+   * Whether a change to [guid]'s file matters to this store: a handle on it exists, or with
+   * [imports] any change does, since it may be a source to import or a file an import reads.
+   */
+  public fun follows(guid: Guid): Boolean = guid in loaded || imports != null
+
+  /**
+   * Marks the end of a frame: the values reloads replaced before the previous boundary are closed.
+   * Call it once per frame, after every world sharing the store has extracted and before drawing.
+   */
+  public fun frameBoundary() {
+    retired.boundary()
+  }
+
+  /** How many replaced values wait for a [frameBoundary] to be closed. */
+  public val retiredCount: Int
+    get() = retired.size
+
+  /** Whether [guid] names a source asset or a cooked sub-asset this store can load. */
+  public fun has(guid: Guid): Boolean = database[guid] != null || imports?.subAsset(guid) != null
 
   /**
    * The handle for asset [guid] as a [type], loading it on first use. Throws [AssetLoadException]
@@ -36,38 +71,54 @@ public class AssetStore(
     existing(guid, type) ?: load(guid, type)
 
   /**
-   * Re-reads the file of asset [guid] for every handle on it. [expectedHash] is the hash the change
-   * was made for, or [GONE_HASH] when the file is gone; a file that differs from it throws
-   * [AssetOutOfDate], and so does a file that cannot be read; either way the handles' errors say
-   * why. A loader that fails keeps the handle's last good value and sets its error.
+   * Re-reads asset [guid] for every handle on it. [expectedHash] is the hash the change was made
+   * for, or [GONE_HASH] when the file is gone; a file that differs from it throws [AssetOutOfDate],
+   * and so does a file that cannot be read; either way the handles' errors say why. Handles on the
+   * cooked assets of [guid], or of sources whose import read its file, are imported again and
+   * reloaded. A loader that fails keeps the handle's last good value and sets its error.
    */
   public fun reload(guid: Guid, expectedHash: String) {
-    val entries = loaded[guid] ?: return
+    changes++
     val record = database[guid]
-    if (record == null || expectedHash == GONE_HASH) {
-      entries.forEach { it.handle.fail("The asset's source file is gone") }
-      return
+    val direct = loaded[guid].orEmpty().filter { it.origin is Origin.Source }
+    val cooked = cookedOf(guid)
+    if (direct.isNotEmpty() || cooked.isNotEmpty()) {
+      val all = direct + cooked
+      if (record == null || expectedHash == GONE_HASH) {
+        all.forEach { it.handle.fail("The asset's source file is gone") }
+        imports?.refresh()
+        return
+      }
+      val bytes = database.readOrRefuse(record, all)
+      if (ContentHash.of(bytes) != expectedHash) {
+        refuse(all, "${record.path} on this machine is not the version the change names")
+      }
+      direct.forEach { it.reloadSource(bytes, retired) }
     }
-    val bytes = readOrRefuse(record, entries)
-    if (ContentHash.of(bytes) != expectedHash) {
-      refuse(entries, "${record.path} on this machine is not the version the change names")
+    if (record != null) {
+      reimport(guid, cooked)
+      reloadDependents(record)
+    } else {
+      imports?.refresh()
     }
-    entries.forEach { it.reload(guid, bytes) }
   }
 
-  /** Marks every handle in [entries] as failed with [reason], then throws [AssetOutOfDate]. */
-  private fun refuse(entries: List<Entry<*>>, reason: String): Nothing {
-    entries.forEach { it.handle.fail(reason) }
-    throw AssetOutOfDate(reason)
+  private fun reloadDependents(record: AssetRecord) {
+    val imports = imports ?: return
+    for (parent in imports.dependents(record.path)) {
+      if (parent != record.guid) reimport(parent, cookedOf(parent))
+    }
   }
 
-  @Suppress("SwallowedException") // The reason is passed on in the refusal's message.
-  private fun readOrRefuse(record: AssetRecord, entries: List<Entry<*>>): ByteArray =
-    try {
-      read(record)
-    } catch (failure: IOException) {
-      refuse(entries, "${record.path} cannot be read: ${failure.message}")
-    }
+  private fun reimport(parent: Guid, cooked: List<StoreEntry<*>>) {
+    val imports = imports ?: return
+    imports.refresh(parent)
+    cooked.forEach { it.reloadCooked(imports, retired) }
+  }
+
+  /** Every handle loaded from a cooked asset of [parent]. */
+  private fun cookedOf(parent: Guid): List<StoreEntry<*>> =
+    loaded.values.flatten().filter { (it.origin as? Origin.Cooked)?.parent == parent }
 
   /** The handle already loaded for [guid] as a [type]; walks by index so it allocates nothing. */
   @Suppress("UNCHECKED_CAST") // Entries are looked up by the type they were made for.
@@ -83,45 +134,8 @@ public class AssetStore(
   }
 
   private fun <T : Any> load(guid: Guid, type: KClass<T>): AssetHandle<T> {
-    val record = database[guid] ?: throw AssetLoadException("No asset has GUID $guid")
-    val loader = loaderFor(record, type)
-    val entry = Entry(AssetHandle(guid, firstLoad(record, loader)), loader)
+    val entry = factory.create(guid, type)
     loaded.getOrPut(guid) { mutableListOf() }.add(entry)
     return entry.handle
-  }
-
-  @Suppress("TooGenericExceptionCaught") // A loader is contributor code; any failure is data.
-  private fun <T : Any> firstLoad(record: AssetRecord, loader: AssetLoader<T>): T =
-    try {
-      loader.load(record.guid, read(record))
-    } catch (failure: IOException) {
-      throw AssetLoadException("${record.path} cannot be read: ${failure.message}", failure)
-    } catch (failure: RuntimeException) {
-      throw AssetLoadException("${record.path} does not load: ${failure.message}", failure)
-    }
-
-  private fun read(record: AssetRecord): ByteArray = database.read(record)
-
-  private fun <T : Any> loaderFor(record: AssetRecord, type: KClass<T>): AssetLoader<T> {
-    val file = ProjectFile.under(database.root, record.path)
-    val loader =
-      try {
-        associations.resolve(AssetLoader.kind, file) { it.type == type }.firstOrNull()
-      } catch (ambiguous: AmbiguousContributors) {
-        throw AssetLoadException(ambiguous.message.orEmpty(), ambiguous)
-      } ?: throw AssetLoadException("No loader for ${record.path} produces ${type.simpleName}")
-    @Suppress("UNCHECKED_CAST") // Its type was just compared with the requested one.
-    return loader as AssetLoader<T>
-  }
-
-  private class Entry<T : Any>(val handle: AssetHandle<T>, val loader: AssetLoader<T>) {
-    @Suppress("TooGenericExceptionCaught") // A loader is contributor code; any failure is data.
-    fun reload(guid: Guid, bytes: ByteArray) {
-      try {
-        handle.replace(loader.load(guid, bytes))
-      } catch (failure: RuntimeException) {
-        handle.fail("Does not load: ${failure.message}")
-      }
-    }
   }
 }

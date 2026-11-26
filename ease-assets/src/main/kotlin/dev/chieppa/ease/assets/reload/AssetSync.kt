@@ -12,8 +12,8 @@ import dev.chieppa.ease.commands.CommandRejected
 /**
  * Carries file changes into a running world. At each tick boundary, [beforeTick] syncs the asset
  * database with the file watcher and sends a [ReloadAsset] command through the world's history for
- * every changed, added, moved or removed asset that something holds a handle on. The command is
- * logged and replicates like any other, so every peer reloads at the same tick.
+ * every changed, added, moved or removed asset the store follows (see `AssetStore.follows`). The
+ * command is logged and replicates like any other, so every peer reloads at the same tick.
  *
  * A file can change again between the sync and the reload, as an editor saves in steps. The
  * rejected reload leaves the world as it was and marks the asset's handles with the reason; the
@@ -42,7 +42,7 @@ public class AssetSync(
 
   @Suppress("SwallowedException") // The store marked the handles with the reason.
   private fun reload(guid: Guid, command: ReloadAsset, tick: Long) {
-    if (!store.isLoaded(guid)) {
+    if (!store.follows(guid)) {
       failed.remove(guid)
       return
     }

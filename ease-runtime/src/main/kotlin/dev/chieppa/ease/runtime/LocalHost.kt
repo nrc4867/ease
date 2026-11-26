@@ -35,7 +35,8 @@ import dev.chieppa.ease.scene.resolve.SceneProblem
  * client builds those nodes from the same files, and the host's snapshots carry the rest. The join
  * handshake compares the content both build from: every asset in the database, the content a game
  * ships; enabled mods join it once mods exist. Both worlds read the same files, so they always
- * match here. A tick allocates nothing but the commands it carries.
+ * match here; each client draws meshes and materials from them too. A tick allocates nothing but
+ * the commands it carries.
  */
 public class LocalHost(
   private val module: GameModule,
@@ -95,12 +96,14 @@ public class LocalHost(
     get() = host.tick
 
   /**
-   * One tick: the transport moves on and the host takes new connections; each client takes what the
-   * host sent and runs its ticks, sending its commands and input; the host takes them, welcomes
-   * peers whose join it accepted, takes each peer's input for the tick, ticks and sends what
-   * changed.
+   * One tick: values the content's reloads replaced before the last tick are closed (every world
+   * has extracted since, so no frame draws them), the transport moves on and the host takes new
+   * connections; each client takes what the host sent and runs its ticks, sending its commands and
+   * input; the host takes them, welcomes peers whose join it accepted, takes each peer's input for
+   * the tick, ticks and sends what changed.
    */
   public fun step() {
+    assets?.frameBoundary()
     transport.update()
     while (true) session.connect(transport.accept() ?: break)
     for (index in joinedClients.indices) joinedClients[index].step()
@@ -148,7 +151,15 @@ public class LocalHost(
 
   private fun clientOver(peer: PeerId, link: LoopbackLink, input: InputScript?): ClientWorld {
     val corrections = CorrectionOffsets(prediction.smoothingKeep, prediction.snapDistance)
-    val world = HostedWorld(module, fixedStep, entityCapacity, peer, corrections = corrections)
+    val world =
+      HostedWorld(
+        module,
+        fixedStep,
+        entityCapacity,
+        peer,
+        corrections = corrections,
+        drawAssets = assets,
+      )
     val content = assets?.let { SceneReplicas(world.world, it) } ?: ReplicaContent.NONE
     val client = ClientWorld(world, link.clientEnd, settings, content, input, prediction)
     joinedClients += client

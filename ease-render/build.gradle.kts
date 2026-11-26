@@ -11,6 +11,7 @@ dependencies {
   api(project(":ease-ecs"))
   // Cooked textures and the block decoders for devices without block compression.
   api(project(":ease-textures"))
+  api(project(":ease-scene"))
   testImplementation(project(":ease-testing"))
   ksp(project(":ease-codegen"))
   testRuntimeOnly(

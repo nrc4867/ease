@@ -1,5 +1,6 @@
 package dev.chieppa.ease.player
 
+import dev.chieppa.ease.assets.loading.AssetStore
 import dev.chieppa.ease.gpu.GpuContext
 import dev.chieppa.ease.platform.WindowSpec
 import dev.chieppa.ease.platform.sdl.SdlWindowing
@@ -29,7 +30,7 @@ public fun main(args: Array<String>) {
   if (ticks != null) {
     runHeadless(local, ticks)
   } else {
-    runWindowed(game, local, options)
+    runWindowed(game, local, options, assets)
   }
 }
 
@@ -58,13 +59,19 @@ private fun runHeadless(local: LocalHost, ticks: Int) {
   )
 }
 
-private fun runWindowed(game: GameModule, local: LocalHost, options: PlayerOptions) {
+private fun runWindowed(
+  game: GameModule,
+  local: LocalHost,
+  options: PlayerOptions,
+  assets: AssetStore?,
+) {
   val runner = WorldRunner(local, SystemClock)
   SdlWindowing().use { windowing ->
     val window = windowing.open(WindowSpec("Ease", options.width, options.height))
     GpuContext.open(window.surface).use { gpu ->
       println("Ease player running ${game.javaClass.simpleName} on ${gpu.description}")
-      WorldRenderer(gpu, problems = { System.err.println("Camera problem: $it") }).use { renderer ->
+      val problems: (String) -> Unit = { System.err.println("Camera problem: $it") }
+      WorldRenderer(gpu, problems = problems, assets = assets).use { renderer ->
         val stats = FrameStats(SystemClock)
         val loop = FrameLoop(windowing, window, gpu, runner, renderer, stats)
         val drawn = loop.run(options.frames)

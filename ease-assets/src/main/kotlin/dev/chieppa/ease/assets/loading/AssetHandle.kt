@@ -20,10 +20,13 @@ public class AssetHandle<T : Any> internal constructor(public val guid: Guid, fi
   public var error: String? = null
     private set
 
-  internal fun replace(next: T) {
+  /** Makes [next] the value and returns the one it replaces. */
+  internal fun replace(next: T): T {
+    val old = value
     value = next
     version++
     error = null
+    return old
   }
 
   internal fun fail(reason: String) {

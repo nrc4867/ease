@@ -15,7 +15,9 @@ dependencies {
     }
   )
   runtimeOnly(JoltNatives.natives(providers, libs.versions.jolt.jni.get()))
-  for (library in listOf(libs.lwjgl.asProvider(), libs.lwjgl.sdl)) {
+  // SDL for windows and input; stb_image and tinyexr for the textures a game's content imports.
+  for (library in
+    listOf(libs.lwjgl.asProvider(), libs.lwjgl.sdl, libs.lwjgl.stb, libs.lwjgl.tinyexr)) {
     runtimeOnly(
       project.dependencies.variantOf(library) { classifier(LwjglNatives.classifier(providers)) }
     )

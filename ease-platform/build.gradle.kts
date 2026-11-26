@@ -21,8 +21,8 @@ dependencies {
   // SDL3 for windows, their native handles and gamepads. Only this module imports LWJGL.
   implementation(libs.lwjgl.asProvider())
   implementation(libs.lwjgl.sdl)
-  // stb_image and tinyexr, for the image decoders importers use; their natives come only with the
-  // hosts that import (the command line and the editor), never the player.
+  // stb_image and tinyexr, for the image decoders importers use; their natives come with the hosts,
+  // which all import a game's content (the player, the agent host and the command line).
   implementation(libs.lwjgl.stb)
   implementation(libs.lwjgl.tinyexr)
   for (library in listOf(libs.lwjgl.asProvider(), libs.lwjgl.stb, libs.lwjgl.tinyexr)) {
