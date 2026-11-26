@@ -1,3 +1,4 @@
+import dev.chieppa.ease.build.JoltNatives
 import dev.chieppa.ease.build.desktopApp
 import dev.chieppa.ease.build.headlessApp
 import dev.chieppa.ease.build.types.AssembleEaseTypes
@@ -14,6 +15,7 @@ plugins {
 dependencies {
   implementation(project(":ease-runtime"))
   implementation(project(":ease-annotations"))
+  implementation(project(":ease-physics"))
   ksp(project(":ease-codegen"))
   runtimeOnly(project(":ease-player"))
   runtimeOnly(project(":ease-agent"))
@@ -22,6 +24,7 @@ dependencies {
   testImplementation(project(":ease-agent"))
   testImplementation(testFixtures(project(":ease-agent")))
   testImplementation(libs.kotlinx.coroutines.core)
+  testRuntimeOnly(JoltNatives.natives(providers, libs.versions.jolt.jni.get()))
 }
 
 val main by sourceSets.getting

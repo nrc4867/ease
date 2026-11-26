@@ -1,18 +1,11 @@
 package dev.chieppa.ease.render.assets
 
 import dev.chieppa.ease.assets.Guid
-import dev.chieppa.ease.render.assets.animation.ChannelPath
-import dev.chieppa.ease.render.assets.animation.ClipAsset
-import dev.chieppa.ease.render.assets.animation.ClipChannel
-import dev.chieppa.ease.render.assets.animation.ClipFormat
-import dev.chieppa.ease.render.assets.animation.Interpolation
-import dev.chieppa.ease.render.assets.animation.SkinAsset
-import dev.chieppa.ease.render.assets.animation.SkinFormat
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
-/** Cooked meshes, materials, skins and clips read back what was written. */
+/** Cooked meshes and material assets read back what was written. */
 class RenderAssetFormatsTest {
   private val guid = Guid(0, 1)
 
@@ -55,34 +48,5 @@ class RenderAssetFormatsTest {
     assertContentEquals(bytes, MaterialFormat.write(read))
     assertEquals(guid.named("bark.ktx2"), read.baseColorTexture?.texture)
     assertEquals(AlphaMode.MASK, read.alphaMode)
-  }
-
-  @Test
-  fun `skins and clips read back what was written`() {
-    val skin =
-      SkinAsset(listOf("00000000000000aa"), listOf("hip"), FloatArray(16) { it * 1f }, null)
-    val clip =
-      ClipAsset(
-        "wave",
-        1.5f,
-        listOf(
-          ClipChannel(
-            "00000000000000aa",
-            ChannelPath.ROTATION,
-            Interpolation.LINEAR,
-            floatArrayOf(0f, 1.5f),
-            FloatArray(8),
-          )
-        ),
-      )
-
-    val skinRead = SkinFormat.load(guid, SkinFormat.write(skin))
-    val clipRead = ClipFormat.load(guid, ClipFormat.write(clip))
-
-    assertEquals(skin.joints, skinRead.joints)
-    assertContentEquals(skin.inverseBindMatrices, skinRead.inverseBindMatrices)
-    assertEquals("wave", clipRead.name)
-    assertEquals(ChannelPath.ROTATION, clipRead.channels.single().path)
-    assertContentEquals(floatArrayOf(0f, 1.5f), clipRead.channels.single().times)
   }
 }

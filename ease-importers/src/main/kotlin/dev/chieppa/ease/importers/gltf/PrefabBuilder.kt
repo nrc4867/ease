@@ -1,6 +1,7 @@
 package dev.chieppa.ease.importers.gltf
 
 import com.github.quillraven.fleks.Component
+import dev.chieppa.ease.animation.scene.SkinRef
 import dev.chieppa.ease.assets.Guid
 import dev.chieppa.ease.ecs.LocalTransform
 import dev.chieppa.ease.gltf.GltfFile
@@ -36,15 +37,16 @@ internal class MeshNames(val meshes: List<String>, val materials: List<String>)
 /**
  * Builds the prefab of a glTF file's scene (the file's default scene, else its first): one node per
  * glTF node, with its name, its transform, a mesh and material asset slot for a mesh of one
- * primitive (a mesh of several gets a child node per primitive), a camera for a perspective camera
- * and a sun for a directional light. Node ids come from [NodeIds], so they are the same on every
- * import. Orthographic cameras and point and spot lights have no engine component yet and are left
- * out.
+ * primitive (a mesh of several gets a child node per primitive) with a skin slot when the node
+ * names a skin, a camera for a perspective camera and a sun for a directional light. Node ids come
+ * from [NodeIds], so they are the same on every import. Orthographic cameras and point and spot
+ * lights have no engine component yet and are left out.
  */
 internal class PrefabBuilder(
   private val file: GltfFile,
   private val guid: Guid,
   private val meshNames: List<MeshNames>,
+  private val skinNames: List<String> = emptyList(),
 ) {
   private val nodes = mutableListOf<SceneNode>()
   private val visited = HashSet<Int>()
@@ -99,8 +101,9 @@ internal class PrefabBuilder(
       val names =
         meshNames.getOrNull(mesh)
           ?: fail("nodes[$index].mesh", "names mesh $mesh of ${meshNames.size}")
+      val skin = json.skin?.let { skin(it, "nodes[$index].skin") }.orEmpty()
       if (names.meshes.size == 1) {
-        components += drawing(names, 0)
+        components += drawing(names, 0) + skin
       } else {
         names.meshes.indices.forEach { primitive ->
           childOrder = OrderKey.after(childOrder)
@@ -110,7 +113,7 @@ internal class PrefabBuilder(
               names.meshes[primitive].substringBeforeLast('.'),
               id,
               checkNotNull(childOrder),
-              sortedMapOf(encode(LocalTransform())) + drawing(names, primitive),
+              sortedMapOf(encode(LocalTransform())) + drawing(names, primitive) + skin,
             )
         }
       }
@@ -127,6 +130,12 @@ internal class PrefabBuilder(
       encode(MeshRef(AssetRef(guid.named(names.meshes[primitive])))),
       encode(MaterialRef(AssetRef(guid.named(names.materials[primitive])))),
     )
+
+  /** The skin component of a node drawn skinned by skin [skin]. */
+  private fun skin(skin: Int, path: String): Map<String, JsonObject> {
+    val name = skinNames.getOrNull(skin) ?: fail(path, "names skin $skin of ${skinNames.size}")
+    return mapOf(encode(SkinRef(AssetRef(guid.named(name)))))
+  }
 
   private fun transformOf(index: Int): LocalTransform {
     val transform = NodeTransform.of(file.root.nodes[index], index)
@@ -166,6 +175,7 @@ internal class PrefabBuilder(
       component(MaterialRef, MaterialRef.serializer())
       component(Camera, Camera.serializer())
       component(DirectionalLight, DirectionalLight.serializer())
+      component(SkinRef, SkinRef.serializer())
     }
   }
 }

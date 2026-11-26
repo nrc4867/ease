@@ -34,7 +34,7 @@ class FrameArenaUseGpuTest {
       val error = assertFailsWith<IllegalArgumentException> { LitMeshPass(gpu, capacity = 100) }
 
       assertTrue("bytesPerFrame of at least" in error.message.orEmpty(), error.message)
-      LitMeshPass(gpu, capacity = 1).close()
+      LitMeshPass(gpu, capacity = 1, jointCapacity = 1).close()
     }
   }
 

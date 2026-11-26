@@ -1,10 +1,10 @@
 package dev.chieppa.ease.importers.gltf
 
+import dev.chieppa.ease.animation.assets.ChannelPath
+import dev.chieppa.ease.animation.assets.ClipAsset
+import dev.chieppa.ease.animation.assets.SkinAsset
 import dev.chieppa.ease.render.assets.MaterialAsset
 import dev.chieppa.ease.render.assets.MeshAsset
-import dev.chieppa.ease.render.assets.animation.ChannelPath
-import dev.chieppa.ease.render.assets.animation.ClipAsset
-import dev.chieppa.ease.render.assets.animation.SkinAsset
 import dev.chieppa.ease.render.scene.MeshRef
 import dev.chieppa.ease.scene.document.SceneDocument
 import java.nio.file.Path
@@ -13,6 +13,11 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import org.junit.jupiter.api.io.TempDir
 
 /** glTF files imported through the import service and loaded back through the asset store. */
@@ -65,6 +70,48 @@ class GltfImporterTest {
     assertEquals(NodeIds.node(2).text, clip.channels.single().node)
     assertEquals(5.5f, clip.duration)
     assertTrue(prefab.nodes.containsKey(NodeIds.node(2)))
+  }
+
+  @Test
+  fun `a skinned mesh's node gets its skin, and clip events come from the import settings`() {
+    val events = buildJsonObject {
+      putJsonObject("clips") {
+        putJsonObject("clip0") {
+          putJsonArray("events") {
+            addJsonObject {
+              put("name", "wave")
+              put("time", 2.5f)
+            }
+            addJsonObject {
+              put("name", "rest")
+              put("time", 0.5f)
+            }
+          }
+        }
+      }
+    }
+    val skinned = project.add("khronos/SimpleSkin.gltf", settings = events)
+    val (store, imports) = project.open()
+
+    assertEquals(emptyList(), imports.problems.map { it.toString() })
+    val clip = store.handle(skinned.named("clip0.clip"), ClipAsset::class).value
+    assertEquals(listOf("rest" to 0.5f, "wave" to 2.5f), clip.events.map { it.name to it.time })
+    val prefab = store.handle(skinned, SceneDocument::class).value
+    val skin = prefab[NodeIds.node(0)]?.components?.get("ease.SkinRef")
+    assertEquals(
+      skinned.named("skin0.skin").toString(),
+      (skin?.get("skin") as JsonPrimitive).content,
+    )
+  }
+
+  @Test
+  fun `clip settings naming a clip the file lacks fail the import`() {
+    val settings = buildJsonObject { putJsonObject("clips") { putJsonObject("Jump") {} } }
+    project.add("khronos/SimpleSkin.gltf", settings = settings)
+    val (_, imports) = project.open()
+
+    val problem = imports.problems.single().message
+    assertTrue("Jump" in problem, problem)
   }
 
   @Test

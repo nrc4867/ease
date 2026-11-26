@@ -1,12 +1,13 @@
 package dev.chieppa.ease.importers.gltf
 
+import dev.chieppa.ease.animation.assets.ChannelPath
+import dev.chieppa.ease.animation.assets.ClipAsset
+import dev.chieppa.ease.animation.assets.ClipChannel
+import dev.chieppa.ease.animation.assets.ClipEvent
+import dev.chieppa.ease.animation.assets.Interpolation
+import dev.chieppa.ease.animation.assets.SkinAsset
 import dev.chieppa.ease.gltf.GltfFile
 import dev.chieppa.ease.gltf.fail
-import dev.chieppa.ease.render.assets.animation.ChannelPath
-import dev.chieppa.ease.render.assets.animation.ClipAsset
-import dev.chieppa.ease.render.assets.animation.ClipChannel
-import dev.chieppa.ease.render.assets.animation.Interpolation
-import dev.chieppa.ease.render.assets.animation.SkinAsset
 
 private const val MAT4 = 16
 private const val CUBIC_PARTS = 3
@@ -40,8 +41,8 @@ internal class AnimationCooker(private val file: GltfFile) {
     )
   }
 
-  /** The clip of animation [index], called [name]. */
-  fun clip(index: Int, name: String): ClipAsset {
+  /** The clip of animation [index], called [name], firing [events]. */
+  fun clip(index: Int, name: String, events: List<ClipEvent> = emptyList()): ClipAsset {
     val path = "animations[$index]"
     val animation = file.root.animations[index]
     var duration = 0f
@@ -62,7 +63,7 @@ internal class AnimationCooker(private val file: GltfFile) {
         times.lastOrNull()?.let { duration = maxOf(duration, it) }
         ClipChannel(NodeIds.node(target).text, channelPath, interpolation, times, values)
       }
-    return ClipAsset(animation.name ?: name, duration, channels)
+    return ClipAsset(animation.name ?: name, duration, channels, events)
   }
 
   private fun checkCounts(

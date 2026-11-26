@@ -1,6 +1,8 @@
 package dev.chieppa.ease.runtime
 
 import com.github.quillraven.fleks.World
+import dev.chieppa.ease.animation.Animation
+import dev.chieppa.ease.animation.runtime.AnimationAssets
 import dev.chieppa.ease.assets.loading.AssetStore
 import dev.chieppa.ease.assets.reload.AssetReloadSystem
 import dev.chieppa.ease.assets.reload.AssetSync
@@ -28,13 +30,14 @@ private const val NANOS_PER_SECOND = 1_000_000_000f
 
 /**
  * One world a host runs, as [peer]: a Fleks world with [module]'s systems and predicted systems
- * (its host systems too in the host's own world) and the engine's `WorldTransforms` and
- * [ExtractSystem], the codec and command history every outside change goes through, each peer's
- * [inputs], the [snapshot] rendering reads, drawn [corrections] away while a prediction settles,
- * and the current [tick]. Every world holds a `SceneNodes` system with the module's scene types.
- * Building it registers [module]'s types and, in the host's own world, places the module's start
- * scene from [assets] and lets the module populate it; a client's world starts empty and receives
- * the host's entities. What a scene could not honor is kept in [sceneProblems].
+ * (its host systems too in the host's own world) and the engine's `AnimatorSystem` (playing every
+ * `Animator` from [drawAssets]), `WorldTransforms` and [ExtractSystem], the codec and command
+ * history every outside change goes through, each peer's [inputs], the [snapshot] rendering reads,
+ * drawn [corrections] away while a prediction settles, and the current [tick]. Every world holds a
+ * `SceneNodes` system with the module's scene types. Building it registers [module]'s types and, in
+ * the host's own world, places the module's start scene from [assets] and lets the module populate
+ * it; a client's world starts empty and receives the host's entities. What a scene could not honor
+ * is kept in [sceneProblems].
  *
  * With [assets], each [step] of the host's world begins by applying the asset file changes waiting
  * since the last one, as `ReloadAsset` commands in the history, then the changes they make to the
@@ -88,6 +91,7 @@ public class HostedWorld(
       predicted { module.predictedSystems(this) }
       if (peer == PeerId.HOST) module.hostSystems(this)
       assets?.let { add(Phase.INPUT, AssetReloadSystem(it)) }
+      Animation.addTo(this, drawAssets?.let(AnimationAssets::of))
       add(Phase.EXTRACT, WorldTransforms())
       add(Phase.EXTRACT, ExtractSystem(snapshot, corrections, drawAssets))
     }

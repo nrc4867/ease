@@ -31,9 +31,9 @@ public const val QUAT_W: Int = 3
  * [ExtractSystem]. For every entity with a transform and a mesh, camera or light it holds the world
  * transform at the previous and the current tick, so a frame between ticks can blend them; for each
  * mesh drawn this tick its shape, runtime mesh or mesh asset, its material (and its material asset,
- * when it has one) and its textures; and the [camera] and [light] the world is seen through and lit
- * by. Arrays are indexed by entity id and grow only when an id passes their capacity; a steady
- * world writes it without allocating.
+ * when it has one), its textures and, for a skinned mesh, its skin and joint matrices in [skins];
+ * and the [camera] and [light] the world is seen through and lit by. Arrays are indexed by entity
+ * id and grow only when an id passes their capacity; a steady world writes it without allocating.
  */
 public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
   init {
@@ -49,6 +49,9 @@ public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
   internal var materialAssets = arrayOfNulls<MaterialAsset>(initialCapacity)
   private var writtenAt = LongArray(initialCapacity) { NEVER }
   private var drawn = IntArray(initialCapacity)
+
+  /** This tick's skinned meshes and their joint matrices. */
+  public val skins: SnapshotSkins = SnapshotSkins(initialCapacity)
 
   /** The camera found this tick. */
   public val camera: SnapshotCamera = SnapshotCamera()
@@ -106,6 +109,7 @@ public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
   internal fun begin() {
     extracts++
     count = 0
+    skins.begin()
     camera.entity = NONE
     light.entity = NONE
   }
@@ -128,6 +132,7 @@ public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
 
   /** Lists entity [id] among this tick's meshes, drawing [shape] or [custom] with [surface]. */
   internal fun addMesh(id: Int, shape: MeshShape?, custom: MeshData?, surface: MaterialTextures?) {
+    skins.clear(id)
     shapes[id] = shape
     customMeshes[id] = custom
     textures[id] = surface
@@ -147,6 +152,7 @@ public class RenderSnapshot(initialCapacity: Int = DEFAULT_ENTITY_CAPACITY) {
     val old = writtenAt.size
     writtenAt = writtenAt.copyOf(grown).also { it.fill(NEVER, old) }
     drawn = drawn.copyOf(grown)
+    skins.grow(grown)
   }
 
   private fun lerp(at: Int, alpha: Float): Float =

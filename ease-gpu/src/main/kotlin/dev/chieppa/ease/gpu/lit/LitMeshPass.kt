@@ -13,12 +13,16 @@ import dev.chieppa.ease.gpu.ffi.createBuffer
 import dev.chieppa.ease.gpu.ffi.createDepthPipeline
 import dev.chieppa.ease.gpu.ffi.createShaderModule
 import dev.chieppa.ease.gpu.mesh.GpuMesh
+import dev.chieppa.ease.gpu.mesh.JOINTS_OFFSET
 import dev.chieppa.ease.gpu.mesh.MeshBuffers
 import dev.chieppa.ease.gpu.mesh.NORMAL_OFFSET
 import dev.chieppa.ease.gpu.mesh.POSITION_OFFSET
+import dev.chieppa.ease.gpu.mesh.SKIN_VERTEX_BYTES
+import dev.chieppa.ease.gpu.mesh.SkinVertices
 import dev.chieppa.ease.gpu.mesh.TANGENT_OFFSET
 import dev.chieppa.ease.gpu.mesh.UV_OFFSET
 import dev.chieppa.ease.gpu.mesh.VERTEX_BYTES
+import dev.chieppa.ease.gpu.mesh.WEIGHTS_OFFSET
 import dev.chieppa.ease.memory.NativeWriter
 import dev.chieppa.webgpu.ffi.wgpu_h
 import java.lang.foreign.Arena
@@ -40,33 +44,54 @@ private val MESH_VERTICES =
     ),
   )
 
+/** The layout of a [SkinVertices] stream, bound after the mesh's at locations 4 and 5. */
+private val SKIN_STREAM =
+  VertexLayout(
+    SKIN_VERTEX_BYTES,
+    listOf(
+      VertexAttribute(4, JOINTS_OFFSET, unsigned16 = true),
+      VertexAttribute(4, WEIGHTS_OFFSET),
+    ),
+    firstLocation = 4,
+  )
+
+private const val MAIN_ENTRY = "vertex_main"
+private const val SKINNED_ENTRY = "vertex_skinned"
+private const val MAT4_BYTES = 64L
+
 /**
- * Draws a [MeshFrame] of up to [capacity] meshes with one material [template], lit by the sun and
- * an ambient term in a forward pass with a depth buffer: the target cleared, then each draw's mesh
- * drawn with its transforms, material and textures. Uniforms and per-draw data are written through
- * generated struct writers into the context's frame arena and handed to the queue from there;
- * meshes upload from their own native memory when they change, and computed meshes draw from their
- * own buffers. Its buffers, bind groups, pass descriptor and depth texture are made once (the depth
- * texture again when the target's size changes), so recording a steady frame allocates nothing on
- * the heap. Its host calls [GpuContext.beginFrame] before each frame it records, and opens the
- * context with room in its frame arena for [capacity] draws.
+ * Draws a [MeshFrame] of up to [capacity] meshes (and up to [jointCapacity] joint matrices for the
+ * skinned ones) with one material [template], lit by the sun and an ambient term in a forward pass
+ * with a depth buffer: the target cleared, then each draw's mesh drawn with its transforms,
+ * material and textures. Uniforms and per-draw data are written through generated struct writers
+ * into the context's frame arena and handed to the queue from there; meshes upload from their own
+ * native memory when they change, and computed meshes draw from their own buffers. Its buffers,
+ * bind groups, pass descriptor and depth texture are made once (the depth texture again when the
+ * target's size changes), so recording a steady frame allocates nothing on the heap. Its host calls
+ * [GpuContext.beginFrame] before each frame it records, and opens the context with room in its
+ * frame arena for [capacity] draws.
  *
  * Its pipelines use one explicit layout ([LitGroups]): group 0 the frame and the view, group 1 the
  * textures of a [MaterialTextures] set, group 2 the materials, group 3 the objects. A draw samples
  * the set [MeshFrame.textures] gives it, or [defaultTextures]; the pass rebinds group 1 only
- * between draws whose sets differ, so draws sorted by set bind least.
+ * between draws whose sets differ, so draws sorted by set bind least. A skinned draw (see
+ * [MeshFrame.skin]) uses a second pipeline whose vertex stage reads its [SkinVertices] as a second
+ * vertex buffer and blends its four joints' matrices from group 3's joint array.
  */
 public class LitMeshPass(
   private val context: GpuContext,
   public val capacity: Int,
   template: MaterialTemplate = MaterialTemplate.LIT,
+  public val jointCapacity: Int = MeshFrame.DEFAULT_JOINT_CAPACITY,
 ) : AutoCloseable {
   init {
     require(capacity > 0) { "Needs room for at least 1 draw, got $capacity" }
-    val needed = FrameUploads.bytesPerFrame(capacity)
+    require(jointCapacity > 0) { "Needs room for at least 1 joint, got $jointCapacity" }
+    val needed = FrameUploads.bytesPerFrame(capacity, jointCapacity)
     val held = context.frames.bytesPerFrame
     require(needed <= held) {
-      "A lit pass for $capacity draws writes $needed bytes a frame, more than the $held the " +
+      "A lit pass for $capacity draws and $jointCapacity joints writes $needed bytes a frame, " +
+        "more than the $held the " +
         "context's frame arena holds: open the context with bytesPerFrame of at least $needed"
     }
   }
@@ -82,6 +107,8 @@ public class LitMeshPass(
   private val objectBytes = capacity * ObjectDataWriter.STRUCT_SIZE
   private val materialBuffer = createBuffer(context.device, materialBytes, STORAGE)
   private val objectBuffer = createBuffer(context.device, objectBytes, STORAGE)
+  private val jointBytes = jointCapacity * MAT4_BYTES
+  private val jointBuffer = createBuffer(context.device, jointBytes, STORAGE)
   private val groups =
     LitGroups(
       context,
@@ -91,9 +118,12 @@ public class LitMeshPass(
       materialBytes,
       objectBuffer,
       objectBytes,
+      jointBuffer,
+      jointBytes,
     )
   private val passDescriptor = DepthPassDescriptor(arena, LABEL)
   private val pipelines = arrayOfNulls<MemorySegment>(TextureFormat.entries.size)
+  private val skinnedPipelines = arrayOfNulls<MemorySegment>(TextureFormat.entries.size)
   private val gpuMeshes = arrayOfNulls<MeshBuffers>(capacity)
   private val depth = DepthBuffer(context)
   private val writer = NativeWriter()
@@ -106,11 +136,18 @@ public class LitMeshPass(
   public fun record(encoder: CommandEncoder, target: RenderTarget, frame: MeshFrame) {
     val count = frame.count
     require(count <= capacity) { "$count draws do not fit a pass for $capacity" }
-    val pipeline = pipelines[target.format.ordinal] ?: createPipeline(target.format)
+    require(frame.jointCount <= jointCapacity) {
+      "${frame.jointCount} joints do not fit a pass for $jointCapacity"
+    }
+    val pipeline = pipelines[target.format.ordinal] ?: createPipeline(target.format, false)
+    val skinned =
+      if (frame.jointCount == 0) pipeline
+      else skinnedPipelines[target.format.ordinal] ?: createPipeline(target.format, true)
     for (index in 0 until count) gpuMeshes[index] = buffersOf(frame, index)
     uploads.frame(frameBuffer, frame)
     uploads.view(viewBuffer, frame)
     uploads.draws(materialBuffer, objectBuffer, frame)
+    uploads.joints(jointBuffer, frame)
     val depthView = depth.viewFor(target.size)
     val pass = passDescriptor.begin(encoder.address, target.view, depthView, frame.clear)
     FrameCalls.setPipeline(pass, pipeline)
@@ -118,12 +155,20 @@ public class LitMeshPass(
     FrameCalls.setBindGroup(pass, LitGroups.MATERIALS, groups.materials)
     FrameCalls.setBindGroup(pass, LitGroups.OBJECTS, groups.objects)
     var bound: MaterialTextures? = null
+    var current = pipeline
     for (index in 0 until count) {
       val textures = frame.textures(index) ?: defaultTextures
       if (textures !== bound) {
         FrameCalls.setBindGroup(pass, LitGroups.TEXTURES, textures.group)
         bound = textures
       }
+      val skin = frame.skin(index)
+      val wanted = if (skin == null) pipeline else skinned
+      if (wanted !== current) {
+        FrameCalls.setPipeline(pass, wanted)
+        current = wanted
+      }
+      skin?.let { FrameCalls.setVertexBuffer(pass, it.buffer(context), it.byteSize, 1) }
       draw(pass, index)
     }
     FrameCalls.endPass(pass)
@@ -152,24 +197,29 @@ public class LitMeshPass(
   override fun close() {
     defaultTextures.close()
     pipelines.forEach { it?.let(wgpu_h::wgpuRenderPipelineRelease) }
+    skinnedPipelines.forEach { it?.let(wgpu_h::wgpuRenderPipelineRelease) }
     groups.close()
-    listOf(frameBuffer, viewBuffer, materialBuffer, objectBuffer).forEach(wgpu_h::wgpuBufferRelease)
+    listOf(frameBuffer, viewBuffer, materialBuffer, objectBuffer, jointBuffer)
+      .forEach(wgpu_h::wgpuBufferRelease)
     wgpu_h.wgpuShaderModuleRelease(shader)
     depth.close()
     arena.close()
   }
 
-  private fun createPipeline(format: TextureFormat): MemorySegment {
+  private fun createPipeline(format: TextureFormat, skinned: Boolean): MemorySegment {
+    val vertices = if (skinned) listOf(MESH_VERTICES, SKIN_STREAM) else listOf(MESH_VERTICES)
+    val entry = if (skinned) SKINNED_ENTRY else MAIN_ENTRY
     val pipeline =
       createDepthPipeline(
         context.device,
         shader,
         format.native,
-        MESH_VERTICES,
+        vertices,
         groups.pipelineLayout,
         LABEL,
+        entry,
       )
-    pipelines[format.ordinal] = pipeline
+    (if (skinned) skinnedPipelines else pipelines)[format.ordinal] = pipeline
     context.checkErrors()
     return pipeline
   }

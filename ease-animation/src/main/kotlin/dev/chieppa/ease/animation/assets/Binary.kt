@@ -1,4 +1,4 @@
-package dev.chieppa.ease.render.assets.animation
+package dev.chieppa.ease.animation.assets
 
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer

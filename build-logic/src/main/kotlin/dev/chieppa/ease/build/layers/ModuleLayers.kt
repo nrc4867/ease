@@ -21,6 +21,7 @@ val moduleLayers: Map<String, Layer> =
     "ease-textures" to Layer.MEDIA,
     "ease-scene" to Layer.SCENE,
     "ease-physics" to Layer.PHYSICS,
+    "ease-animation" to Layer.ANIMATION,
     "ease-project" to Layer.PROJECT,
     "ease-net" to Layer.NET,
     "ease-gpu" to Layer.GPU,

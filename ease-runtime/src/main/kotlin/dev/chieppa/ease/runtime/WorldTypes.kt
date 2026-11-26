@@ -1,5 +1,6 @@
 package dev.chieppa.ease.runtime
 
+import dev.chieppa.ease.animation.Animation
 import dev.chieppa.ease.assets.reload.registerAssetCommands
 import dev.chieppa.ease.commands.WorldCodec
 import dev.chieppa.ease.commands.worldCodec
@@ -43,6 +44,7 @@ internal class WorldTypes(module: GameModule) {
         component(MaterialRef, MaterialRef.serializer())
         component(Camera, Camera.serializer())
         component(DirectionalLight, DirectionalLight.serializer())
+        Animation.registerSceneTypes(this)
         module.registerSceneTypes(this)
       }
     module.registerTypes(this)

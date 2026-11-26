@@ -10,7 +10,7 @@ private const val AXES = 3
  * Composes transforms laid out as position, rotation (x, y, z, w) and scale floats, with scratch
  * made once, so composing allocates nothing. Not shared between threads.
  */
-internal class TransformMath {
+public class TransformMath {
   private val point = FloatArray(AXES)
 
   /**
@@ -19,7 +19,14 @@ internal class TransformMath {
    * first in the product), scales multiplied axis by axis. [dst] may be [child] at the same offset.
    */
   @Suppress("LongParameterList") // Arrays and offsets, so composing allocates nothing.
-  fun compose(parent: FloatArray, p: Int, child: FloatArray, c: Int, dst: FloatArray, d: Int) {
+  public fun compose(
+    parent: FloatArray,
+    p: Int,
+    child: FloatArray,
+    c: Int,
+    dst: FloatArray,
+    d: Int,
+  ) {
     for (axis in 0 until AXES) point[axis] = parent[p + SCALE_AT + axis] * child[c + axis]
     Quats.rotate(parent, p + ROTATION_AT, point, 0, point, 0)
     for (axis in 0 until AXES) {

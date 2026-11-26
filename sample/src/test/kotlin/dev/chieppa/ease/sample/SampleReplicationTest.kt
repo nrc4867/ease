@@ -3,6 +3,8 @@ package dev.chieppa.ease.sample
 import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
+import dev.chieppa.ease.animation.scene.Animator
+import dev.chieppa.ease.animation.scene.SkinRef
 import dev.chieppa.ease.ecs.replication.Authority
 import dev.chieppa.ease.ecs.replication.BitReader
 import dev.chieppa.ease.ecs.replication.BitWriter
@@ -10,6 +12,7 @@ import dev.chieppa.ease.ecs.replication.DecodeStatus
 import dev.chieppa.ease.ecs.replication.NetworkIdentity
 import dev.chieppa.ease.ecs.replication.ReplicatedFields
 import dev.chieppa.ease.ecs.replication.ReplicatedSerializer
+import dev.chieppa.ease.physics.body.Collider
 import dev.chieppa.ease.render.scene.MaterialRef
 import dev.chieppa.ease.render.scene.MeshRef
 import dev.chieppa.ease.runtime.LocalHost
@@ -64,15 +67,15 @@ class SampleReplicationTest {
   }
 
   /**
-   * Whether [component] is a node's key, name or parent, which a scene node's spawn names, or an
-   * asset slot, which each peer builds from its own files.
+   * Whether [component] is a node's key, name or parent, which a scene node's spawn names, or one
+   * each peer builds from its own files and never sends: an asset slot, an animator, a skin, a
+   * collider, or the stroller's state, which only the host's walk reads.
    */
   private fun isNode(component: Component<*>): Boolean =
     component is NodeKey ||
       component is NodeName ||
       component is Parent ||
-      component is MeshRef ||
-      component is MaterialRef
+      component::class.java in FROM_FILES
 
   @Test
   fun `the sample registers a serializer for every component its entities carry`() {
@@ -110,8 +113,8 @@ class SampleReplicationTest {
       }
     }
 
-    // Every component a scene node holds replicates, but for asset slots; a placed node's parent
-    // and name are named by its spawn.
+    // Every component a scene node holds replicates, but for those each peer builds from its own
+    // files; a placed node's parent and name are named by its spawn.
     val nodeTypes =
       content.placed().sumOf { node ->
         node.components.keys.count { it !in ASSET_SLOTS && it !in SceneTypes.STRUCTURAL }
@@ -124,6 +127,24 @@ class SampleReplicationTest {
     const val TICKS = 45
     const val COURIER = "sample.Courier"
     const val COURIER_TYPES = 5
-    val ASSET_SLOTS = setOf("ease.MeshRef", "ease.MaterialRef")
+    val ASSET_SLOTS =
+      setOf(
+        "ease.MeshRef",
+        "ease.MaterialRef",
+        "ease.Animator",
+        "ease.SkinRef",
+        "ease.Collider",
+        "sample.Stroller",
+      )
+
+    val FROM_FILES: Set<Class<*>> =
+      setOf(
+        MeshRef::class.java,
+        MaterialRef::class.java,
+        Animator::class.java,
+        SkinRef::class.java,
+        Collider::class.java,
+        Stroller::class.java,
+      )
   }
 }

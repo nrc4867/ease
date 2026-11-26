@@ -15,9 +15,9 @@ private const val BOTH_STAGES = Flags.STAGE_VERTEX or Flags.STAGE_FRAGMENT
 /**
  * A lit pass's explicit pipeline layout and the bind groups of its own buffers. Group 0 holds the
  * frame (binding 0) and the view (binding 1) uniforms, group 1 the device's texture layout, group 2
- * the materials as one read-only storage array, group 3 the objects likewise. Because the layout is
- * explicit, texture sets made on the device fit every lit pass on it, and templates may leave
- * bindings unused.
+ * the materials as one read-only storage array, group 3 the objects likewise (binding 0) and the
+ * frame's joint matrices (binding 1). Because the layout is explicit, texture sets made on the
+ * device fit every lit pass on it, and templates may leave bindings unused.
  */
 @Suppress("LongParameterList") // The pass's buffers, each with its size where it is an array.
 internal class LitGroups(
@@ -28,6 +28,8 @@ internal class LitGroups(
   materialBytes: Long,
   objectBuffer: MemorySegment,
   objectBytes: Long,
+  jointBuffer: MemorySegment,
+  jointBytes: Long,
 ) : AutoCloseable {
   private val device = context.device
   private val frameLayout =
@@ -38,7 +40,13 @@ internal class LitGroups(
   private val materialLayout =
     createBindGroupLayout(device, listOf(LayoutEntry.ReadOnlyStorage(BOTH_STAGES)))
   private val objectLayout =
-    createBindGroupLayout(device, listOf(LayoutEntry.ReadOnlyStorage(Flags.STAGE_VERTEX)))
+    createBindGroupLayout(
+      device,
+      listOf(
+        LayoutEntry.ReadOnlyStorage(Flags.STAGE_VERTEX),
+        LayoutEntry.ReadOnlyStorage(Flags.STAGE_VERTEX),
+      ),
+    )
 
   /** The layout every pipeline of the pass uses. */
   val pipelineLayout: MemorySegment =
@@ -61,7 +69,11 @@ internal class LitGroups(
     createBindGroup(device, materialLayout, listOf(Binding.Buffer(materialBuffer, materialBytes)))
 
   val objects: MemorySegment =
-    createBindGroup(device, objectLayout, listOf(Binding.Buffer(objectBuffer, objectBytes)))
+    createBindGroup(
+      device,
+      objectLayout,
+      listOf(Binding.Buffer(objectBuffer, objectBytes), Binding.Buffer(jointBuffer, jointBytes)),
+    )
 
   override fun close() {
     listOf(frame, materials, objects).forEach(wgpu_h::wgpuBindGroupRelease)

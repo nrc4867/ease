@@ -30,7 +30,8 @@ class GpuStructLayoutsTest {
     assertEquals(64L, ViewDataWriter.CAMERA_POSITION)
     assertEquals(80L, ViewDataWriter.STRUCT_SIZE)
     assertEquals(64L, ObjectDataWriter.NORMAL_MATRIX)
-    assertEquals(128L, ObjectDataWriter.STRUCT_SIZE)
+    assertEquals(128L, ObjectDataWriter.JOINT_OFFSET)
+    assertEquals(144L, ObjectDataWriter.STRUCT_SIZE)
   }
 
   private fun materialLayout() =

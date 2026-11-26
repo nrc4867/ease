@@ -1,5 +1,6 @@
 package dev.chieppa.ease.runtime
 
+import dev.chieppa.ease.animation.assets.registerAnimationAssets
 import dev.chieppa.ease.assets.associations.ContributorProvider
 import dev.chieppa.ease.assets.associations.FileAssociationRegistry
 import dev.chieppa.ease.assets.database.AssetDatabase
@@ -35,6 +36,7 @@ public object GameContent {
     associations.registerTextureImporter()
     associations.registerTextureLoader()
     associations.registerRenderAssets()
+    associations.registerAnimationAssets()
     val database = AssetDatabase.load(root, watcher, associations = associations)
     ContributorProvider.loadAll(classLoader).forEach { it.registerContributors(associations) }
     val imports = ImportService(database, associations)

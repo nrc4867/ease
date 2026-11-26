@@ -29,6 +29,12 @@ public class LitMaterial(
 
 /**
  * One draw's transforms: group 3, binding 0, read by instance index. [normalMatrix] turns normals
- * to world space: the rotation with the scale inverted.
+ * to world space: the rotation with the scale inverted. A skinned draw's joint matrices start at
+ * [jointOffset] in the frame's joint array (group 3, binding 1); unskinned draws leave it 0.
  */
-@GpuStruct public class ObjectData(public val model: Mat4, public val normalMatrix: Mat4)
+@GpuStruct
+public class ObjectData(
+  public val model: Mat4,
+  public val normalMatrix: Mat4,
+  public val jointOffset: Int,
+)

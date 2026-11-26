@@ -1,0 +1,12 @@
+formatVersion: 2
+guid: "f9cd5f95-5c21-4573-95f6-f8d27b2065a3"
+settings:
+  clips:
+    Walking_A:
+      events:
+        -
+          name: footstepLeft
+          time: 0.02
+        -
+          name: footstepRight
+          time: 0.55

@@ -8,6 +8,10 @@ import dev.chieppa.ease.ecs.Phase
 import dev.chieppa.ease.ecs.PhasedSystems
 import dev.chieppa.ease.ecs.replication.Authority
 import dev.chieppa.ease.ecs.replication.PeerId
+import dev.chieppa.ease.physics.Physics
+import dev.chieppa.ease.physics.setup.PhysicsSettings
+import dev.chieppa.ease.physics.setup.SurfaceType
+import dev.chieppa.ease.physics.setup.SurfaceTypes
 import dev.chieppa.ease.runtime.GameModule
 import dev.chieppa.ease.runtime.HostedWorld
 import dev.chieppa.ease.runtime.InputScript
@@ -15,7 +19,9 @@ import dev.chieppa.ease.scene.types.SceneTypes
 
 /**
  * The sample game: the colored cubes of its saved playfield scene bouncing around the [Playfield]
- * over a floor, seen by the scene's camera and lit by its sun, and for each peer that joins a
+ * over a floor, seen by the scene's camera and lit by its sun; an imported character strolling to
+ * and fro across stone and grass ground (a [Stroller]), idling, walking and blending between the
+ * two by its speed, its feet probing the ground they land on; and for each peer that joins a
  * courier cube it owns, which its input moves, predicted on its own client. The scene is the game's
  * content, `content/playfield.scene`; editing it while the game runs changes the running cubes.
  * Couriers are not in the scene: one exists per joined peer, owned by that peer, which a scene
@@ -24,6 +30,8 @@ import dev.chieppa.ease.scene.types.SceneTypes
 public class SampleGame : GameModule {
   override fun registerSceneTypes(types: SceneTypes.Builder) {
     types.component(Velocity, Velocity.serializer())
+    types.component(Stroller, Stroller.serializer())
+    Physics.registerSceneTypes(types)
   }
 
   override fun registerContributors(associations: FileAssociations) {
@@ -37,12 +45,17 @@ public class SampleGame : GameModule {
     registry.command(SetPace::class, SetPace.serializer())
   }
 
+  override fun systems(systems: PhasedSystems) {
+    Physics.addTo(systems, PHYSICS)
+  }
+
   override fun predictedSystems(systems: PhasedSystems) {
     systems.add(Phase.SIMULATION, CourierSystem())
   }
 
   override fun hostSystems(systems: PhasedSystems) {
     systems.add(Phase.SIMULATION, BounceSystem())
+    systems.add(Phase.SIMULATION, StrollSystem())
   }
 
   override fun startScene(): Guid = PLAYFIELD
@@ -58,5 +71,11 @@ public class SampleGame : GameModule {
   public companion object {
     /** The playfield scene the game starts from: its cubes, as `playfield.scene.meta` names it. */
     public val PLAYFIELD: Guid = Guid.parse("f98b920b-b589-4932-b442-424c23eedb69")
+
+    /** The ground's surface types, by the names the scene's colliders give. */
+    public val SURFACES: SurfaceTypes = SurfaceTypes.of(SurfaceType("stone"), SurfaceType("grass"))
+
+    /** The physics every world of the game runs. */
+    public val PHYSICS: PhysicsSettings = PhysicsSettings(surfaces = SURFACES)
   }
 }

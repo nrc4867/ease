@@ -30,6 +30,9 @@ private const val IN_PROGRESS = -2L
  * physics included, an entity's world transform in the current pass, working it out on demand when
  * the pass has not reached it yet ([invalidate] starts a pass early). Arrays are indexed by entity
  * id and grow only when an id passes them, so a steady world allocates nothing.
+ *
+ * A node [posed] answers for, such as an animated bone, is placed by the transform it gives in
+ * place of its `LocalTransform`, so its children follow the pose.
  */
 public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
   IteratingSystem(family { all(LocalTransform, Parent) }) {
@@ -39,6 +42,12 @@ public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
   private val local = FloatArray(WORLD_TRANSFORM_FLOATS)
   private val math = TransformMath()
   private var nodes: SceneNodes? = null
+
+  /**
+   * What places posed nodes, such as an animation system's bones; null places every node by its
+   * `LocalTransform`.
+   */
+  public var posed: PosedTransforms? = null
 
   override fun onInit() {
     nodes = world.systemOrNull<SceneNodes>()
@@ -68,7 +77,7 @@ public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
   public fun write(entity: Entity, dst: FloatArray, at: Int) {
     with(world) {
       if (entity hasNo Parent) {
-        writeLocal(world, entity, dst, at)
+        writeOwn(entity, dst, at)
         return
       }
     }
@@ -83,8 +92,8 @@ public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
     if (stamps[id] == pass) return
     val base = id * WORLD_TRANSFORM_FLOATS
     stamps[id] = IN_PROGRESS
-    writeLocal(world, entity, values, base)
-    val parent = parentOf(entity)
+    val own = writeOwn(entity, values, base)
+    val parent = if (own == PosedTransforms.WORLD) Entity.NONE else parentOf(entity)
     if (parent != Entity.NONE && stamps.getOrElse(parent.id) { NEVER } != IN_PROGRESS) {
       val parentBase = parentWorld(parent)
       compose(parentBase, base)
@@ -99,8 +108,19 @@ public class WorldTransforms(initialCapacity: Int = DEFAULT_CAPACITY) :
       resolve(parent)
       return parent.id * WORLD_TRANSFORM_FLOATS
     }
-    writeLocal(world, parent, local, 0)
+    writeOwn(parent, local, 0)
     return -1
+  }
+
+  /**
+   * Writes [entity]'s own transform into [dst] at [at]: its pose when [posed] gives one, else its
+   * local transform. Returns what [PosedTransforms.write] said, [PosedTransforms.UNPOSED] for a
+   * local transform.
+   */
+  private fun writeOwn(entity: Entity, dst: FloatArray, at: Int): Int {
+    val result = posed?.write(entity, dst, at) ?: PosedTransforms.UNPOSED
+    if (result == PosedTransforms.UNPOSED) writeLocal(world, entity, dst, at)
+    return result
   }
 
   private fun parentOf(entity: Entity): Entity {

@@ -111,8 +111,8 @@ internal object FrameCalls {
     setBindGroup.invoke(pass, group, bindGroup, 0L, MemorySegment.NULL)
   }
 
-  fun setVertexBuffer(pass: Long, buffer: MemorySegment, bytes: Long) {
-    setVertexBuffer.invoke(pass, 0, buffer, 0L, bytes)
+  fun setVertexBuffer(pass: Long, buffer: MemorySegment, bytes: Long, slot: Int = 0) {
+    setVertexBuffer.invoke(pass, slot, buffer, 0L, bytes)
   }
 
   fun setIndexBuffer(pass: Long, buffer: MemorySegment, bytes: Long) {

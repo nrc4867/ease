@@ -11,6 +11,8 @@ private const val FRAME_SITE = "LitMeshPass.frame"
 private const val VIEW_SITE = "LitMeshPass.view"
 private const val MATERIALS_SITE = "LitMeshPass.materials"
 private const val OBJECTS_SITE = "LitMeshPass.objects"
+private const val JOINTS_SITE = "LitMeshPass.joints"
+private const val MAT4_BYTES = MAT4_FLOATS * Float.SIZE_BYTES
 
 /**
  * Writes a [MeshFrame]'s uniforms and per-draw data through the generated struct writers into
@@ -72,9 +74,24 @@ internal class FrameUploads(private val context: GpuContext, private val writer:
     for (index in 0 until count) {
       ObjectDataWriter.model(writer, frame.models, index * MAT4_FLOATS)
       ObjectDataWriter.normalMatrix(writer, frame.normals, index * MAT4_FLOATS)
+      ObjectDataWriter.jointOffset(writer, frame.jointOffsets[index])
       writer.next(ObjectDataWriter.STRUCT_SIZE)
     }
     upload(objects, objectSlice.segment, objectBytes)
+  }
+
+  /** The skinned draws' joint matrices into [joints]. */
+  fun joints(joints: MemorySegment, frame: MeshFrame) {
+    val count = frame.jointCount
+    if (count == 0) return
+    val bytes = count.toLong() * MAT4_BYTES
+    val slice = context.frames.take(bytes, JOINTS_SITE)
+    writer.begin(slice)
+    for (joint in 0 until count) {
+      writer.mat4(0, frame.joints, joint * MAT4_FLOATS)
+      writer.next(MAT4_BYTES.toLong())
+    }
+    upload(joints, slice.segment, bytes)
   }
 
   private fun upload(buffer: MemorySegment, data: MemorySegment, bytes: Long) {
@@ -82,12 +99,16 @@ internal class FrameUploads(private val context: GpuContext, private val writer:
   }
 
   companion object {
-    /** The most arena bytes one frame of up to [capacity] draws takes, alignment included. */
-    fun bytesPerFrame(capacity: Int): Long =
+    /**
+     * The most arena bytes one frame of up to [capacity] draws and [joints] joint matrices takes,
+     * alignment included.
+     */
+    fun bytesPerFrame(capacity: Int, joints: Int): Long =
       aligned(FrameDataWriter.STRUCT_SIZE) +
         aligned(ViewDataWriter.STRUCT_SIZE) +
         aligned(capacity * LitMaterialWriter.STRUCT_SIZE) +
-        aligned(capacity * ObjectDataWriter.STRUCT_SIZE)
+        aligned(capacity * ObjectDataWriter.STRUCT_SIZE) +
+        aligned(joints.toLong() * MAT4_BYTES)
 
     private fun aligned(bytes: Long): Long =
       (bytes + DEFAULT_SLICE_ALIGNMENT - 1) / DEFAULT_SLICE_ALIGNMENT * DEFAULT_SLICE_ALIGNMENT
