@@ -66,6 +66,7 @@ public class WorldRenderer(
   private fun addDraw(snapshot: RenderSnapshot, id: Int, alpha: Float) {
     val mesh: MeshData = snapshot.customMesh(id) ?: shapes[checkNotNull(snapshot.shape(id)).ordinal]
     val index = frame.add(mesh)
+    frame.textures(index, snapshot.textures(id))
     snapshot.transformInto(id, alpha, transform, 0)
     draws.write(transform, frame.models, frame.normals, index)
     System.arraycopy(

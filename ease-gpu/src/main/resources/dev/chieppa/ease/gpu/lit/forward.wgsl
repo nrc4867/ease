@@ -1,10 +1,23 @@
 // The engine's forward lighting around a material template's surface function. The structs it
 // names come before it, written by ease-codegen from their @GpuStruct classes; the template's
-// `surface` comes after it. Bind groups: 0 frame, 1 view, 2 material, 3 object.
+// `surface` comes after it. Bind groups: 0 frame and view, 1 the material's textures, 2 the
+// template's per-draw parameters (one read-only storage array at binding 0), 3 objects.
 
 @group(0) @binding(0) var<uniform> frame: FrameData;
-@group(1) @binding(0) var<uniform> view: ViewData;
+@group(0) @binding(1) var<uniform> view: ViewData;
 @group(3) @binding(0) var<storage, read> objects: array<ObjectData>;
+
+// The draw's textures, one per slot; an empty slot holds white, or a flat normal.
+@group(1) @binding(0) var base_color_texture: texture_2d<f32>;
+@group(1) @binding(1) var normal_texture: texture_2d<f32>;
+@group(1) @binding(2) var metallic_roughness_texture: texture_2d<f32>;
+@group(1) @binding(3) var emissive_texture: texture_2d<f32>;
+@group(1) @binding(4) var occlusion_texture: texture_2d<f32>;
+@group(1) @binding(5) var base_color_sampler: sampler;
+@group(1) @binding(6) var normal_sampler: sampler;
+@group(1) @binding(7) var metallic_roughness_sampler: sampler;
+@group(1) @binding(8) var emissive_sampler: sampler;
+@group(1) @binding(9) var occlusion_sampler: sampler;
 
 const PI: f32 = 3.14159265;
 
@@ -18,13 +31,20 @@ struct SurfaceInput {
 }
 
 // What a surface function returns: linear albedo, a unit world-space normal, roughness and
-// metallic from 0 to 1, and emitted linear light.
+// metallic from 0 to 1, emitted linear light, and how much ambient light reaches it (0 to 1).
 struct Surface {
   albedo: vec3f,
   normal: vec3f,
   roughness: f32,
   metallic: f32,
   emissive: vec3f,
+  occlusion: f32,
+}
+
+// The surface a template starts from: white, the interpolated normal, fully rough, not metal,
+// emitting nothing, and open to all ambient light.
+fn default_surface(input: SurfaceInput) -> Surface {
+  return Surface(vec3f(1.0), input.normal, 1.0, 0.0, vec3f(0.0), 1.0);
 }
 
 struct VertexIn {
@@ -106,6 +126,7 @@ fn fragment_main(in: Varyings) -> @location(0) vec4f {
   let v = normalize(view.cameraPosition - in.world_position);
   let l = normalize(-frame.light.direction);
   let radiance = frame.light.color * frame.light.intensity;
-  let lit = reflectance(shaded, n, v, l) * radiance + shaded.albedo * frame.ambient;
+  let ambient = shaded.albedo * frame.ambient * shaded.occlusion;
+  let lit = reflectance(shaded, n, v, l) * radiance + ambient;
   return vec4f(encode_srgb(lit + shaded.emissive), 1.0);
 }

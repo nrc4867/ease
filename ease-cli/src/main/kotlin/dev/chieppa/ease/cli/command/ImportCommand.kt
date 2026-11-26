@@ -15,17 +15,19 @@ import dev.chieppa.ease.cli.Options
 import dev.chieppa.ease.platform.files.ManualFileWatcher
 import dev.chieppa.ease.project.layout.ProjectLayout
 import dev.chieppa.ease.scene.assets.registerScenes
+import dev.chieppa.ease.textures.registerTextures
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 
 /**
  * `ease import [--dir <project>] [--adopt]`: runs every importer over the project's content,
- * headless. The importers are Ease's own and those of every `ContributorProvider` on the classpath;
- * results go to this machine's cache and only sources whose inputs changed run again. It prints one
- * line per import and per problem, then a count, and ends with status 1 when anything is wrong: a
- * source that fails to import, an ambiguous or unknown importer, or a file the asset database
- * rejects. `--adopt` first gives every source without a meta file one.
+ * headless. The importers are Ease's own (textures among them) and those of every
+ * `ContributorProvider` on the classpath; results go to this machine's cache and only sources whose
+ * inputs changed run again. It prints one line per import and per problem, then a count, and ends
+ * with status 1 when anything is wrong: a source that fails to import, an ambiguous or unknown
+ * importer, or a file the asset database rejects. `--adopt` first gives every source without a meta
+ * file one.
  */
 public class ImportCommand(private val workingDirectory: Path = Path.of("").toAbsolutePath()) :
   CliCommand {
@@ -49,6 +51,7 @@ public class ImportCommand(private val workingDirectory: Path = Path.of("").toAb
   private fun importAll(content: Path, adopt: Boolean, output: CliOutput): Int {
     val associations = FileAssociationRegistry()
     associations.registerScenes()
+    associations.registerTextures()
     val modules = ModuleRegistrations(associations) // one scope for every game module
     ContributorProvider.loadAll().forEach { it.registerContributors(modules) }
     val database = AssetDatabase.open(content, ManualFileWatcher(), associations = associations)

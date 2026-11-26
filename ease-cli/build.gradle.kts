@@ -1,3 +1,5 @@
+import dev.chieppa.ease.build.LwjglNatives
+
 // The ease command line: new projects from templates and generators for what a project holds.
 // Later commands join it here. `./gradlew :ease-cli:installDist` writes the distribution under
 // build/install/ease; `./gradlew :ease-cli:runEase --args="new empty --name Moon --dir ../moon"`
@@ -12,6 +14,13 @@ dependencies {
   implementation(project(":ease-annotations"))
   implementation(project(":ease-serialization"))
   implementation(project(":ease-project"))
+  // Ease's texture importer, and the image decoders' natives for this machine.
+  implementation(project(":ease-textures"))
+  for (library in listOf(libs.lwjgl.asProvider(), libs.lwjgl.stb, libs.lwjgl.tinyexr)) {
+    runtimeOnly(
+      project.dependencies.variantOf(library) { classifier(LwjglNatives.classifier(providers)) }
+    )
+  }
   testImplementation(testFixtures(project(":ease-project")))
 }
 

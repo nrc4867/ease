@@ -26,6 +26,8 @@ ksp = "2.3.14"
 webgpu-native-ffm = { module = "dev.chieppa:webgpu-native-ffm", version.ref = "webgpu-native-ffm" }
 lwjgl = { module = "org.lwjgl:lwjgl", version.ref = "lwjgl" }
 lwjgl-sdl = { module = "org.lwjgl:lwjgl-sdl", version.ref = "lwjgl" }
+lwjgl-stb = { module = "org.lwjgl:lwjgl-stb", version.ref = "lwjgl" }
+lwjgl-tinyexr = { module = "org.lwjgl:lwjgl-tinyexr", version.ref = "lwjgl" }
 fleks = { module = "io.github.quillraven.fleks:Fleks", version.ref = "fleks" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }

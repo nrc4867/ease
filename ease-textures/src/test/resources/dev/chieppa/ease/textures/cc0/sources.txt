@@ -1,0 +1,6 @@
+Test images: 1024x1024 JPEGs from Poly Haven, box-filtered to 128x128 PNG. License: CC0.
+aerial_rocks_02_diff.png  Aerial Rocks 02, diffuse  https://polyhaven.com/a/aerial_rocks_02  CC0
+bark_brown_02_diff.png    Bark Brown 02, diffuse    https://polyhaven.com/a/bark_brown_02    CC0
+red_brick_03_diff.png     Red Brick 03, diffuse     https://polyhaven.com/a/red_brick_03     CC0
+red_brick_03_nor_gl.png   Red Brick 03, normal (GL) https://polyhaven.com/a/red_brick_03     CC0
+aerial_rocks_02_diff.jpg  the PNG above, saved as JPEG at the JDK default quality  CC0
